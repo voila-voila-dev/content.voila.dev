@@ -1,0 +1,60 @@
+/*
+ * @voila/ui — Tailwind v4 preset.
+ *
+ * Tailwind v4 is CSS-first: there is no JS preset, just an `@import` plus an
+ * `@theme` block. Consume from an app's entry stylesheet:
+ *
+ *     @import "@voila/ui/tailwind";
+ *
+ * That pulls in:
+ *   1. `tailwindcss` itself
+ *   2. our raw token layer (`@voila/ui/styles.css`)
+ *   3. a `@theme` mapping that exposes the tokens as Tailwind utilities
+ *      (`bg-background`, `text-foreground`, `rounded-md`, etc.)
+ *
+ * Apps can override any token by re-declaring the CSS variable on `:root` or
+ * a scoped element — no preset extension API needed.
+ */
+
+@import "tailwindcss";
+@import "./styles.css";
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+}

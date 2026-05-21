@@ -1,0 +1,67 @@
+{
+  "name": "@voila/ui",
+  "version": "0.1.0",
+  "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css",
+    "./tailwind": "./src/tailwind.css",
+    "./icons": "./src/icons.ts"
+  },
+  "imports": {
+    "#components/*": "./src/components/*.tsx",
+    "#hooks/*": "./src/hooks/*.ts",
+    "#lib/*": "./src/lib/*.ts"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@base-ui-components/react": "^1.0.0-beta.0",
+    "@phosphor-icons/react": "^2.1.7",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.0.4",
+    "embla-carousel-react": "^8.5.1",
+    "input-otp": "^1.4.2",
+    "react-day-picker": "^9.5.0",
+    "react-resizable-panels": "^2.1.7",
+    "sonner": "^1.7.1",
+    "tailwind-merge": "^2.6.0",
+    "vaul": "^1.1.2"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-hook-form": "^7.54.0",
+    "recharts": "^2.15.0",
+    "tailwindcss": "^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react-hook-form": {
+      "optional": true
+    },
+    "recharts": {
+      "optional": true
+    },
+    "tailwindcss": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@voila/typescript-config": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-hook-form": "^7.54.0",
+    "recharts": "^2.15.0",
+    "tailwindcss": "^4.0.0"
+  }
+}

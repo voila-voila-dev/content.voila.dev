@@ -42,10 +42,10 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 
 ### `packages/ui`
 
-- [ ] CSS token layer (`@voila/ui/styles.css`) — colors, spacing, radii, typography
-- [ ] Tailwind v4 preset (`@voila/ui/tailwind`)
-- [ ] Phosphor icon re-exports (`@voila/ui/icons`)
-- [ ] All primitives from shadcnui
+- [X] CSS token layer (`@voila/ui/styles.css`) — colors, spacing, radii, typography
+- [X] Tailwind v4 preset (`@voila/ui/tailwind`)
+- [X] Phosphor icon re-exports (`@voila/ui/icons`)
+- [X] All primitives from shadcnui
 
 ### `apps/storybook`
 
