@@ -1,5 +1,4 @@
 {
   "extends": "@content.voila.dev/typescript-config/tsconfig.base.json",
-  "include": [],
   "references": []
 }

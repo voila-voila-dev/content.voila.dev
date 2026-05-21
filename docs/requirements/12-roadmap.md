@@ -20,7 +20,7 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 - [X] `packages/`, `apps/` (houses `apps/playground/` and `apps/docs/`), `examples/` directory layout
 - [X] Root `tsconfig.json` with project references; per-package `tsconfig.build.json`
 - [X] Biome (lint + format) wired with a single root config
-- [ ] `bun run check` aggregate script: `biome check && tsc -b && bun test`
+- [X] `bun run check` aggregate script: `biome check && tsc -b && bun test`
 - [ ] `.editorconfig`, `.gitignore`, `.nvmrc`/`.bun-version`
 - [ ] Conventional Commits + `lefthook` pre-commit (lint-staged + typecheck on changed packages)
 - [ ] **Changesets** (`@changesets/cli` + `@changesets/changelog-github`) for per-package versioning & changelogs in the Bun workspace — `bun changeset` to author entries, `bun changeset version` to bump + write `CHANGELOG.md` per package, `bun changeset publish` to release. Configured for `fixed: []` / `linked: []` so packages version independently; `access: public`, `baseBranch: main`.
