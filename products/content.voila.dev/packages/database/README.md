@@ -14,7 +14,9 @@ at subpaths.
 | `@voila/content-database/d1`       | `drizzle-orm/d1` | Cloudflare D1 (Workers / Wrangler)    |
 | `@voila/content-database/postgres` | `postgres-js`  | Self-hosted Postgres                    |
 
-`postgres` lands in a subsequent milestone — see
+The `postgres` adapter ships in M0 as a **scaffold only** — the interface is
+public so consumers can type against it, but calling `postgres()` throws
+until the M2 implementation lands. See
 [docs/requirements/12-roadmap.md](../../docs/requirements/12-roadmap.md).
 
 ## The interface

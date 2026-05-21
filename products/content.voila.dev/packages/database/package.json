@@ -5,7 +5,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./sqlite": "./src/adapters/sqlite.ts",
-    "./d1": "./src/adapters/d1.ts"
+    "./d1": "./src/adapters/d1.ts",
+    "./postgres": "./src/adapters/postgres.ts"
   },
   "publishConfig": {
     "access": "public"
