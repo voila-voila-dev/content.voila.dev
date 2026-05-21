@@ -39,3 +39,6 @@ export type FieldDef<T = unknown> = {
   description?: string;
   group?: string;
 };
+
+// biome-ignore lint/suspicious/noExplicitAny: variance escape hatch — code that operates on any field shape uses this constraint.
+export type AnyFieldDef = FieldDef<any>;

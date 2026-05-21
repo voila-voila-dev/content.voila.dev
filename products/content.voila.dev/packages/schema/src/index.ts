@@ -1,3 +1,4 @@
+export { defineField } from "./define-field.ts";
 export type {
   BooleanField,
   BooleanFieldOptions,
@@ -13,7 +14,6 @@ export type {
   StringFieldOptions,
   StringFormat,
 } from "./fields/index.ts";
-
 export {
   boolean,
   date,
@@ -23,6 +23,7 @@ export {
   number,
   string,
 } from "./fields/index.ts";
+export type { InferDoc, InferField } from "./infer.ts";
 export type {
   FieldAccess,
   FieldContext,
@@ -32,3 +33,5 @@ export type {
   FieldTransform,
   FieldValidate,
 } from "./types.ts";
+export type { ValidatorAdapter } from "./validator.ts";
+export { toValidator } from "./validator.ts";

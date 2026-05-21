@@ -29,9 +29,9 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 ### `packages/schema`
 
 - [X] Field constructors: `string`, `number`, `boolean`, `date`, `datetime`, `json` (stubs only — full widgets land M2)
-- [ ] Standard Schema derivation from field defs (`toValidator(field)`); ships a Zod adapter by default with hooks for Valibot, ArkType, etc. (see [Standard Schema](https://standardschema.dev/))
-- [ ] `InferDoc<>` type helper
-- [ ] `defineField` extension API (for third-party field packages)
+- [X] Standard Schema derivation from field defs (`toValidator(field)`); ships a Zod adapter by default with hooks for Valibot, ArkType, etc. (see [Standard Schema](https://standardschema.dev/))
+- [X] `InferDoc<>` type helper
+- [X] `defineField` extension API (for third-party field packages)
 
 ### `packages/db`
 
@@ -45,8 +45,14 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 - [ ] CSS token layer (`@voila/ui/styles.css`) — colors, spacing, radii, typography
 - [ ] Tailwind v4 preset (`@voila/ui/tailwind`)
 - [ ] Phosphor icon re-exports (`@voila/ui/icons`)
-- [ ] First 8 primitives: `Button`, `Input`, `Table`, `Dialog`, `DropdownMenu`, `Toast`, `Badge`, `Card`
-- [ ] Storybook-free demo route at `/__ui` in the playground (component gallery)
+- [ ] All primitives from shadcnui
+
+### `apps/storybook`
+
+- [ ] Storybook demo app showcasing all `@voila/ui` components
+- [ ] Stories for each primitive
+- [ ] Token layer + Tailwind preset wired so stories render with real theme
+- [ ] Icon gallery story for `@voila/ui/icons`
 
 ### `packages/content`
 
