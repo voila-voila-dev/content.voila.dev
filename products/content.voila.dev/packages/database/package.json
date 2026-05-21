@@ -15,15 +15,20 @@
     "test": "bun test"
   },
   "peerDependencies": {
-    "drizzle-orm": ">=0.40.0 <1.0.0"
+    "drizzle-orm": ">=0.40.0 <1.0.0",
+    "postgres": ">=3 <4"
   },
   "peerDependenciesMeta": {
     "drizzle-orm": {
+      "optional": true
+    },
+    "postgres": {
       "optional": true
     }
   },
   "devDependencies": {
     "@voila/typescript-config": "workspace:*",
-    "drizzle-orm": "0.45.2"
+    "drizzle-orm": "0.45.2",
+    "postgres": "^3"
   }
 }
