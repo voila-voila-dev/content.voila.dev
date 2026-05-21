@@ -1,0 +1,13 @@
+{
+  "name": "content.voila.dev",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
