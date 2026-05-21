@@ -16,13 +16,15 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 
 ### Repo & tooling
 
-- [ ] Bun workspace scaffold (`bun init -y`, `workspaces` field in root `package.json`)
-- [ ] `packages/`, `apps/`, `playground/`, `examples/` directory layout
-- [ ] Root `tsconfig.json` with project references; per-package `tsconfig.build.json`
-- [ ] Biome (lint + format) wired with a single root config
+- [X] Bun workspace scaffold (`bun init -y`, `workspaces` field in root `package.json`)
+- [X] `packages/`, `apps/` (houses `apps/playground/` and `apps/docs/`), `examples/` directory layout
+- [X] Root `tsconfig.json` with project references; per-package `tsconfig.build.json`
+- [X] Biome (lint + format) wired with a single root config
 - [ ] `bun run check` aggregate script: `biome check && tsc -b && bun test`
 - [ ] `.editorconfig`, `.gitignore`, `.nvmrc`/`.bun-version`
 - [ ] Conventional Commits + `lefthook` pre-commit (lint-staged + typecheck on changed packages)
+- [ ] **Changesets** (`@changesets/cli` + `@changesets/changelog-github`) for per-package versioning & changelogs in the Bun workspace — `bun changeset` to author entries, `bun changeset version` to bump + write `CHANGELOG.md` per package, `bun changeset publish` to release. Configured for `fixed: []` / `linked: []` so packages version independently; `access: public`, `baseBranch: main`.
+- [ ] `.changeset/config.json` committed; GitHub Action (`changesets/action@v1`) opens the "Version Packages" PR on every push to `main` and publishes on merge
 
 ### `packages/schema`
 
@@ -54,9 +56,9 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 - [ ] Healthcheck route (`/admin/api/health`)
 - [ ] First-run gate (`/admin/setup` placeholder)
 
-### `playground/` (the canary app)
+### `apps/playground/` (the canary app)
 
-- [ ] `bunx create-tsr@latest playground --template start-cloudflare`
+- [ ] `bunx create-tsr@latest apps/playground --template start-cloudflare`
 - [ ] Wire `@voila/content` via `app/routes/admin/$.ts` catch-all
 - [ ] `content.config.ts` with empty collections array
 - [ ] `wrangler.jsonc` committed with D1 + R2 + Queues bindings (D1 active, R2/Queues commented for M3/M5)
@@ -74,7 +76,7 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 - [ ] **CI**: GitHub Actions matrix on `ubuntu-latest`, Bun stable; runs `bun run check`
 - [ ] Coverage report via `bun test --coverage`; baseline committed (no gate yet)
 
-**Exit criterion**: `bun dev` in `playground/` boots `wrangler dev`; `http://localhost:8787/admin` renders the empty admin shell with branding from `content.config.ts`. `bun run check` is green on CI.
+**Exit criterion**: `bun dev` in `apps/playground/` boots `wrangler dev`; `http://localhost:8787/admin` renders the empty admin shell with branding from `content.config.ts`. `bun run check` is green on CI.
 
 ---
 
@@ -481,10 +483,11 @@ These are not assigned to a single milestone; chip away each week.
 - 0.x: free to break.
 - 1.0 ships when M7 closes and we've run two real sites on it for a month without incident.
 - After 1.0: semver, deprecation cycles ≥ one minor release.
+- **Release tooling**: [Changesets](https://github.com/changesets/changesets) drives every version bump and `CHANGELOG.md` across the monorepo. Every PR that touches a published package must include a `.changeset/*.md` entry (enforced by `changeset-bot` on PRs). `patch` / `minor` / `major` is declared per-changeset; `changeset version` aggregates them into per-package changelogs and bumps `package.json`. Pre-1.0 we operate in default mode (no `pre enter`); RC cycles before 1.0 use `changeset pre enter rc`.
 
 ## How to help (when public)
 
-- `playground/` is where most contributions land first.
+- `apps/playground/` is where most contributions land first.
 - Field types are the easiest entry point.
 - Don't open "support Strapi-like X" issues. Open "I need to do X for my site" issues.
 

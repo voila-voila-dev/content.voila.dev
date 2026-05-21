@@ -2,9 +2,16 @@
   "name": "content.voila.dev",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "examples/*"
   ],
+  "scripts": {
+    "lint": "biome lint --write",
+    "format": "biome format --write",
+    "check": "biome check --write"
+  },
   "devDependencies": {
+    "@biomejs/biome": "2.4.15",
     "@types/bun": "latest"
   },
   "peerDependencies": {
