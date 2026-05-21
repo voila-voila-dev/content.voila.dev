@@ -42,21 +42,21 @@ No magic. Plain TypeScript.
 
 Start here:
 
-1. [Philosophy](./docs/00-philosophy.md)
-2. [Architecture](./docs/01-architecture.md)
-3. [Quick Start](./docs/02-quick-start.md)
-4. **[Developer Experience](./docs/03-dx.md)** ← read this
-5. [Schema & Fields](./docs/04-schema-and-fields.md)
-6. [Collections & Singletons](./docs/05-collections-singletons.md)
-7. [Configuration](./docs/06-configuration.md)
-8. [Theming & Admin UI](./docs/07-theming-ui.md)
-9. [Extensions](./docs/08-extensions.md)
-10. [Media & Storage](./docs/09-media-storage.md)
-11. [API & MCP](./docs/10-api-and-mcp.md)
-12. [Deployment](./docs/11-deployment-cloudflare.md)
-13. [i18n — Paraglide & Inlang](./docs/13-i18n-paraglide.md)
-14. [Roadmap](./docs/12-roadmap.md)
+1. [Philosophy](./docs/requirements/00-philosophy.md)
+2. [Architecture](./docs/requirements/01-architecture.md)
+3. [Quick Start](./docs/requirements/02-quick-start.md)
+4. **[Developer Experience](./docs/requirements/03-dx.md)** ← read this
+5. [Schema & Fields](./docs/requirements/04-schema-and-fields.md)
+6. [Collections & Singletons](./docs/requirements/05-collections-singletons.md)
+7. [Configuration](./docs/requirements/06-configuration.md)
+8. [Theming & Admin UI](./docs/requirements/07-theming-ui.md)
+9. [Extensions](./docs/requirements/08-extensions.md)
+10. [Media & Storage](./docs/requirements/09-media-storage.md)
+11. [API & MCP](./docs/requirements/10-api-and-mcp.md)
+12. [Deployment](./docs/requirements/11-deployment-cloudflare.md)
+13. [i18n — Paraglide & Inlang](./docs/requirements/13-i18n-paraglide.md)
+14. [Roadmap](./docs/requirements/12-roadmap.md)
 
 ## Status
 
-Planning. This repo currently contains only the design docs. See [`docs/12-roadmap.md`](./docs/12-roadmap.md) for milestones.
+Planning. This repo currently contains only the design docs. See [`docs/12-roadmap.md`](./docs/requirements/12-roadmap.md) for milestones.
