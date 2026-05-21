@@ -2,9 +2,10 @@
   "name": "content.voila.dev",
   "private": true,
   "workspaces": [
-    "apps/*",
     "packages/*",
-    "examples/*"
+    "products/*/apps/*",
+    "products/*/packages/*",
+    "products/*/examples/*"
   ],
   "scripts": {
     "prepare": "lefthook install",

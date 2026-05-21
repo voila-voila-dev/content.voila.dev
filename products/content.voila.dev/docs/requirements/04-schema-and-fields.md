@@ -159,12 +159,12 @@ Errors bubble up to the form as field-level messages. Doc-level errors render as
 
 ### Validator library
 
-The static layer compiles each field's constraints into a Standard Schema-compatible validator. Zod is the default — it's what `@content.voila.dev/schema` ships with and what every example in these docs uses. But Standard Schema is a spec, not a vendor: you can plug in Valibot, ArkType, Effect Schema, or any other [Standard Schema](https://standardschema.dev/) implementation.
+The static layer compiles each field's constraints into a Standard Schema-compatible validator. Zod is the default — it's what `@voila/content-schema` ships with and what every example in these docs uses. But Standard Schema is a spec, not a vendor: you can plug in Valibot, ArkType, Effect Schema, or any other [Standard Schema](https://standardschema.dev/) implementation.
 
 ```ts
 // content.config.ts
-import { defineContent } from '@content.voila.dev/content'
-import { valibotAdapter } from '@content.voila.dev/schema/adapters/valibot'
+import { defineContent } from '@voila/content'
+import { valibotAdapter } from '@voila/content-schema/adapters/valibot'
 
 export default defineContent({
   validator: valibotAdapter(),   // optional; defaults to Zod

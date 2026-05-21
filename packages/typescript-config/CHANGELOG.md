@@ -1,3 +1,3 @@
-# @content.voila.dev/typescript-config
+# @voila/typescript-config
 
 ## 0.1.0

@@ -1,9 +1,9 @@
-# @content.voila.dev/schema
+# @voila/content-schema
 
 Field constructors and the `FieldDef` type that the rest of the CMS hangs off.
 
 ```ts
-import { fields } from "@content.voila.dev/schema";
+import { fields } from "@voila/content-schema";
 
 const post = {
   title: fields.string({ required: true, min: 1, max: 200 }),
@@ -19,7 +19,7 @@ Stubs only — widgets, validator derivation, and `InferDoc` land in later miles
 
 ## Validators
 
-Field constraints (`min`, `max`, `pattern`, `format`, …) compile down to a [Standard Schema](https://standardschema.dev/)-compatible validator. **Zod is the default and recommended adapter**, but any Standard Schema implementation — Valibot, ArkType, Effect Schema, etc. — plugs in identically. The schema package itself depends only on the Standard Schema spec; individual adapters live in `@content.voila.dev/schema/adapters/*` so you only pay for the validator you actually use.
+Field constraints (`min`, `max`, `pattern`, `format`, …) compile down to a [Standard Schema](https://standardschema.dev/)-compatible validator. **Zod is the default and recommended adapter**, but any Standard Schema implementation — Valibot, ArkType, Effect Schema, etc. — plugs in identically. The schema package itself depends only on the Standard Schema spec; individual adapters live in `@voila/content-schema/adapters/*` so you only pay for the validator you actually use.
 
 ## Built-in fields (M0)
 

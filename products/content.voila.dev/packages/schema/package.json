@@ -1,5 +1,5 @@
 {
-  "name": "@content.voila.dev/schema",
+  "name": "@voila/content-schema",
   "version": "0.1.0",
   "type": "module",
   "exports": {
@@ -9,6 +9,6 @@
     "test": "bun test"
   },
   "devDependencies": {
-    "@content.voila.dev/typescript-config": "workspace:*"
+    "@voila/typescript-config": "workspace:*"
   }
 }

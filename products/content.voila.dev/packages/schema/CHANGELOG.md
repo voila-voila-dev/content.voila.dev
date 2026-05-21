@@ -1,10 +1,10 @@
-# @content.voila.dev/schema
+# @voila/content-schema
 
 ## 0.1.0
 
 ### Minor Changes
 
-- Initial release of `@content.voila.dev/schema`.
+- Initial release of `@voila/content-schema`.
 
   - `FieldDef<T>` base type plus supporting types (`FieldContext`, `FieldAccess`, `FieldTransform`, `FieldValidate`, `FieldFilter`, `FieldHidden`).
   - Stub field constructors: `string`, `number`, `boolean`, `date`, `datetime`, `json<T>()`.

@@ -1,5 +1,5 @@
 {
-  "extends": "@content.voila.dev/typescript-config/tsconfig.build.base.json",
+  "extends": "@voila/typescript-config/tsconfig.build.base.json",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src"

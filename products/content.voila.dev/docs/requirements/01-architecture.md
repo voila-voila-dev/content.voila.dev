@@ -2,57 +2,68 @@
 
 ## Repo layout
 
-Bun workspaces monorepo.
+Bun workspaces monorepo, organized by product. Each product owns its own `apps/`, `packages/`, and `examples/` subtree under `products/<domain>/`. Anything that isn't tied to a single product (shared configs, ADRs) lives at the repo root. See [ADR 0001](../../../../docs/decision-records/0001-monorepo-and-package-naming.md) for the full rationale.
 
 ```
-content.voila.dev/
-├── apps/
-│   ├── playground/             # TanStack Start app exercising every feature
-│   └── docs/                   # Documentation site (TanStack Start + MDX)
+voila/
+├── products/
+│   └── content.voila.dev/
+│       ├── apps/
+│       │   ├── playground/             # TanStack Start app exercising every feature
+│       │   └── docs/                   # Documentation site (TanStack Start + MDX)
+│       │
+│       ├── packages/
+│       │   ├── content/                # @voila/content — the framework entry
+│       │   │   ├── src/
+│       │   │   │   ├── define.ts       # defineContent, defineCollection, defineSingleton
+│       │   │   │   ├── handler.ts      # the request handler mounted on the catch-all route
+│       │   │   │   ├── admin/          # the admin React app (mounted by handler)
+│       │   │   │   ├── api/            # REST/RPC route table
+│       │   │   │   ├── auth/           # Better Auth wiring (session + RBAC)
+│       │   │   │   └── runtime/        # query, mutation, hooks
+│       │   │   └── package.json
+│       │   │
+│       │   ├── schema/                 # @voila/content-schema — field constructors, Standard Schema derivation
+│       │   │   └── src/fields/         # string, number, array, json, relation, media...
+│       │   │
+│       │   ├── ui/                     # @voila/content-ui — design system
+│       │   │   ├── src/primitives/     # Base UI primitives wrapped
+│       │   │   ├── src/components/     # shadcn-style composed components
+│       │   │   ├── src/icons/          # Phosphor re-exports
+│       │   │   ├── src/tokens.css      # CSS variables (colors, radii, spacing)
+│       │   │   └── tailwind.config.ts
+│       │   │
+│       │   ├── db/                     # @voila/content-db — Drizzle adapter
+│       │   │   ├── src/adapters/d1.ts
+│       │   │   ├── src/adapters/postgres.ts
+│       │   │   ├── src/adapters/sqlite.ts
+│       │   │   └── src/migrate.ts      # schema → migration generator
+│       │   │
+│       │   ├── storage/                # @voila/content-storage — media abstraction
+│       │   │   ├── src/adapters/r2.ts
+│       │   │   ├── src/adapters/s3.ts
+│       │   │   └── src/transforms.ts   # image/video pipeline
+│       │   │
+│       │   ├── client/                 # @voila/content-client — typed API client (browser + server)
+│       │   ├── cli/                    # @voila/content-cli — `voila` CLI (init, migrate, seed)
+│       │   ├── mcp/                    # @voila/content-mcp — MCP server bridging the API
+│       │   ├── i18n/                   # @voila/content-i18n — Paraglide/Inlang sync (site layer)
+│       │   └── extensions/             # @voila/content-extensions — widget/page/task/cron API
+│       │
+│       ├── examples/                   # example consumers used in docs
+│       └── docs/                       # product-specific design docs (this directory)
 │
-├── packages/
-│   ├── content/                # @voila/content — the framework entry
-│   │   ├── src/
-│   │   │   ├── define.ts       # defineContent, defineCollection, defineSingleton
-│   │   │   ├── handler.ts      # the request handler mounted on the catch-all route
-│   │   │   ├── admin/          # the admin React app (mounted by handler)
-│   │   │   ├── api/            # REST/RPC route table
-│   │   │   ├── auth/           # Better Auth wiring (session + RBAC)
-│   │   │   └── runtime/        # query, mutation, hooks
-│   │   └── package.json
-│   │
-│   ├── schema/                 # @voila/schema — field constructors, Standard Schema derivation
-│   │   └── src/fields/         # string, number, array, json, relation, media...
-│   │
-│   ├── ui/                     # @voila/ui — design system
-│   │   ├── src/primitives/     # Base UI primitives wrapped
-│   │   ├── src/components/     # shadcn-style composed components
-│   │   ├── src/icons/          # Phosphor re-exports
-│   │   ├── src/tokens.css      # CSS variables (colors, radii, spacing)
-│   │   └── tailwind.config.ts
-│   │
-│   ├── db/                     # @voila/db — Drizzle adapter
-│   │   ├── src/adapters/d1.ts
-│   │   ├── src/adapters/postgres.ts
-│   │   ├── src/adapters/sqlite.ts
-│   │   └── src/migrate.ts      # schema → migration generator
-│   │
-│   ├── storage/                # @voila/storage — media abstraction
-│   │   ├── src/adapters/r2.ts
-│   │   ├── src/adapters/s3.ts
-│   │   └── src/transforms.ts   # image/video pipeline
-│   │
-│   ├── client/                 # @voila/client — typed API client (browser + server)
-│   ├── cli/                    # @voila/cli — `voila` CLI (init, migrate, seed)
-│   ├── mcp/                    # @voila/mcp — MCP server bridging the API
-│   ├── i18n/                    # @voila/i18n — Paraglide/Inlang sync (site layer)
-│   └── extensions/             # @voila/extensions — widget/page/task/cron API
+├── packages/                           # cross-product shared packages (no product prefix)
+│   └── typescript-config/              # @voila/typescript-config — shared tsconfig bases
 │
-├── docs/                       # Design docs (this directory)
-├── package.json
-├── bunfig.toml
-├── tsconfig.base.json
-└── biome.json
+├── docs/
+│   └── decision-records/               # org-wide ADRs
+│
+├── .changeset/
+├── .github/
+├── package.json                        # Bun workspaces root
+├── biome.json
+└── lefthook.yml
 ```
 
 ## Runtime architecture

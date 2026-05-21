@@ -17,13 +17,13 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 ### Repo & tooling
 
 - [X] Bun workspace scaffold (`bun init -y`, `workspaces` field in root `package.json`)
-- [X] `packages/`, `apps/` (houses `apps/playground/` and `apps/docs/`), `examples/` directory layout
+- [X] Product-partitioned layout: `products/content.voila.dev/{apps,packages,examples,docs}/` plus root-level `packages/` for cross-product code (see [ADR 0001](../../../../docs/decision-records/0001-monorepo-and-package-naming.md))
 - [X] Root `tsconfig.json` with project references; per-package `tsconfig.build.json`
 - [X] Biome (lint + format) wired with a single root config
 - [X] `bun run check` aggregate script: `biome check && tsc -b && bun test`
 - [X] `.gitignore`, `.bun-version` (formatting handled by Biome — no `.editorconfig` needed)
 - [X] Conventional Commits + `lefthook` pre-commit (lint-staged + typecheck on changed packages)
-- [X] **Changesets** (`@changesets/cli` + `@changesets/changelog-github`) for per-package versioning & changelogs in the Bun workspace — `bun changeset` to author entries, `bun changeset version` to bump + write `CHANGELOG.md` per package, `bun changeset publish` to release. Configured with `fixed: [["@content.voila.dev/*"]]` so every package in the scope always ships on the same version (lock-step releases); `access: public`, `baseBranch: main`.
+- [X] **Changesets** (`@changesets/cli` + `@changesets/changelog-github`) for per-package versioning & changelogs in the Bun workspace — `bun changeset` to author entries, `bun changeset version` to bump + write `CHANGELOG.md` per package, `bun changeset publish` to release. Configured with `fixed: [["@voila/*"]]` so every package in the scope always ships on the same version (lock-step releases); `access: public`, `baseBranch: main`. See [ADR 0001](../../../../docs/decision-records/0001-monorepo-and-package-naming.md) for the monorepo and naming conventions.
 - [X] `.changeset/config.json` committed; GitHub Action (`changesets/action@v1`) opens the "Version Packages" PR on every push to `main` and publishes on merge
 
 ### `packages/schema`
@@ -56,9 +56,9 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 - [ ] Healthcheck route (`/admin/api/health`)
 - [ ] First-run gate (`/admin/setup` placeholder)
 
-### `apps/playground/` (the canary app)
+### `products/content.voila.dev/apps/playground/` (the canary app)
 
-- [ ] `bunx create-tsr@latest apps/playground --template start-cloudflare`
+- [ ] `bunx create-tsr@latest products/content.voila.dev/apps/playground --template start-cloudflare`
 - [ ] Wire `@voila/content` via `app/routes/admin/$.ts` catch-all
 - [ ] `content.config.ts` with empty collections array
 - [ ] `wrangler.jsonc` committed with D1 + R2 + Queues bindings (D1 active, R2/Queues commented for M3/M5)
@@ -76,7 +76,7 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 - [ ] **CI**: GitHub Actions matrix on `ubuntu-latest`, Bun stable; runs `bun run check`
 - [ ] Coverage report via `bun test --coverage`; baseline committed (no gate yet)
 
-**Exit criterion**: `bun dev` in `apps/playground/` boots `wrangler dev`; `http://localhost:8787/admin` renders the empty admin shell with branding from `content.config.ts`. `bun run check` is green on CI.
+**Exit criterion**: `bun dev` in `products/content.voila.dev/apps/playground/` boots `wrangler dev`; `http://localhost:8787/admin` renders the empty admin shell with branding from `content.config.ts`. `bun run check` is green on CI.
 
 ---
 
@@ -431,7 +431,7 @@ Depends on everything.
 
 ### Docs
 
-- [ ] `apps/docs` site live at `content.voila.dev`
+- [ ] `products/content.voila.dev/apps/docs` site live at `content.voila.dev`
 - [ ] All 13 docs ported from `docs/` to the docs app
 - [ ] API reference auto-generated from TypeScript (`api-extractor`)
 - [ ] At least 1 real-world reference site shipped on the same infra
@@ -487,7 +487,7 @@ These are not assigned to a single milestone; chip away each week.
 
 ## How to help (when public)
 
-- `apps/playground/` is where most contributions land first.
+- `products/content.voila.dev/apps/playground/` is where most contributions land first.
 - Field types are the easiest entry point.
 - Don't open "support Strapi-like X" issues. Open "I need to do X for my site" issues.
 
