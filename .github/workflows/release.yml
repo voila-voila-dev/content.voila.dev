@@ -1,9 +1,11 @@
 name: Release
 
+# Paused — automatic push trigger disabled until the @voila/* publish
+# path is sorted out. Re-enable by uncommenting the `push` trigger.
+# In the meantime the workflow can still be run from the Actions tab
+# via "Run workflow".
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
