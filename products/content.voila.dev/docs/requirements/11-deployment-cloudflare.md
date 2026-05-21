@@ -102,7 +102,7 @@ node ./.output/server/index.mjs
 For the database, use:
 
 ```ts
-import { sqlite } from '@voila/content-database'
+import { sqlite } from '@voila/content-database/sqlite'
 database: sqlite({ url: 'file:./data/voila.db' }),
 ```
 

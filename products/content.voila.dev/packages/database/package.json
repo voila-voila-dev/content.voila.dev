@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./sqlite": "./src/adapters/sqlite.ts"
   },
   "publishConfig": {
     "access": "public"
@@ -11,7 +12,16 @@
   "scripts": {
     "test": "bun test"
   },
+  "peerDependencies": {
+    "drizzle-orm": ">=0.40.0 <1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "drizzle-orm": {
+      "optional": true
+    }
+  },
   "devDependencies": {
-    "@voila/typescript-config": "workspace:*"
+    "@voila/typescript-config": "workspace:*",
+    "drizzle-orm": "0.45.2"
   }
 }
