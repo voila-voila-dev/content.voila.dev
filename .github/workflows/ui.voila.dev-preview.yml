@@ -1,0 +1,52 @@
+name: ui.voila.dev — Preview
+
+on:
+  pull_request:
+    paths:
+      - "packages/ui/**"
+      - "apps/ui.voila.dev/**"
+      - "bun.lock"
+      - ".github/workflows/ui.voila.dev-preview.yml"
+      - ".github/actions/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Build & upload preview version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      deployments: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/install
+
+      - name: Build Storybook
+        run: bun run build-storybook
+        working-directory: apps/ui.voila.dev
+
+      - name: Upload preview version to Cloudflare Workers
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/ui.voila.dev
+          command: versions upload --message "PR #${{ github.event.pull_request.number }} @ ${{ github.event.pull_request.head.sha }}"
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request'
+        uses: ./.github/actions/sticky-pr-comment
+        with:
+          id: ui-voila-dev-preview
+          body: |
+            🎨 **Storybook preview** — `ui.voila.dev`
+
+            - Preview: ${{ steps.deploy.outputs.deployment-url }}
+            - Commit: `${{ github.event.pull_request.head.sha }}`

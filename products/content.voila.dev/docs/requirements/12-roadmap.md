@@ -47,12 +47,12 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 - [X] Phosphor icon re-exports (`@voila/ui/icons`)
 - [X] All primitives from shadcnui
 
-### `apps/storybook`
+### `apps/ui.voila.dev`
 
-- [ ] Storybook demo app showcasing all `@voila/ui` components
-- [ ] Stories for each primitive
-- [ ] Token layer + Tailwind preset wired so stories render with real theme
-- [ ] Icon gallery story for `@voila/ui/icons`
+- [X] Storybook demo app showcasing all `@voila/ui` components
+- [X] Stories for each primitive
+- [X] Token layer + Tailwind preset wired so stories render with real theme
+- [X] Icon gallery story for `@voila/ui/icons`
 
 ### `packages/content`
 

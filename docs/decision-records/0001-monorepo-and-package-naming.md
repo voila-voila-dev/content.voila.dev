@@ -17,13 +17,14 @@ Single repo `voila-voila-dev/voila.dev`. Each product owns its subtree under `pr
 
 ```
 .
+├── apps/                          # cross-product apps (e.g. ui.voila.dev)
 ├── products/
 │   └── content.voila.dev/
 │       ├── apps/                  # playground, docs, …
 │       ├── packages/              # @voila/content-* packages
 │       ├── examples/
 │       └── docs/                  # product-specific design docs
-├── packages/                      # cross-product, no product prefix
+├── packages/                      # cross-product packages (no product prefix)
 ├── docs/decision-records/         # org-wide ADRs
 └── package.json                   # Bun workspaces root
 ```
@@ -32,12 +33,16 @@ Root `package.json`:
 
 ```jsonc
 "workspaces": [
+  "apps/*",
   "packages/*",
   "products/*/apps/*",
   "products/*/packages/*",
   "products/*/examples/*"
 ]
 ```
+
+Apps at the repo root (`apps/<domain>`) are cross-product. Apps under
+`products/<domain>/apps/` are product-specific.
 
 Versioning: Changesets `fixed: [["@voila/*"]]` — every package in scope ships on the same version.
 
