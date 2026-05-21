@@ -9,8 +9,6 @@ Voila will ship more than one product (`content.voila.dev` is the first). Two qu
 1. One repo for everything, or one per product?
 2. What npm scope + naming convention scales to N products?
 
-The previous scope `@content.voila.dev/*` was also a blocker — npm rejects dots in scope names, so those packages couldn't publish.
-
 ## Decisions
 
 ### Monorepo, partitioned by product
