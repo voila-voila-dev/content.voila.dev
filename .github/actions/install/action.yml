@@ -1,0 +1,8 @@
+name: Install dependencies
+description: Install workspace dependencies via Bun with a frozen lockfile.
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: bun install --frozen-lockfile

@@ -23,8 +23,8 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 - [X] `bun run check` aggregate script: `biome check && tsc -b && bun test`
 - [X] `.gitignore`, `.bun-version` (formatting handled by Biome — no `.editorconfig` needed)
 - [X] Conventional Commits + `lefthook` pre-commit (lint-staged + typecheck on changed packages)
-- [ ] **Changesets** (`@changesets/cli` + `@changesets/changelog-github`) for per-package versioning & changelogs in the Bun workspace — `bun changeset` to author entries, `bun changeset version` to bump + write `CHANGELOG.md` per package, `bun changeset publish` to release. Configured for `fixed: []` / `linked: []` so packages version independently; `access: public`, `baseBranch: main`.
-- [ ] `.changeset/config.json` committed; GitHub Action (`changesets/action@v1`) opens the "Version Packages" PR on every push to `main` and publishes on merge
+- [X] **Changesets** (`@changesets/cli` + `@changesets/changelog-github`) for per-package versioning & changelogs in the Bun workspace — `bun changeset` to author entries, `bun changeset version` to bump + write `CHANGELOG.md` per package, `bun changeset publish` to release. Configured for `fixed: []` / `linked: []` so packages version independently; `access: public`, `baseBranch: main`.
+- [X] `.changeset/config.json` committed; GitHub Action (`changesets/action@v1`) opens the "Version Packages" PR on every push to `main` and publishes on merge
 
 ### `packages/schema`
 
