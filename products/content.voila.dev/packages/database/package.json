@@ -4,7 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./sqlite": "./src/adapters/sqlite.ts"
+    "./sqlite": "./src/adapters/sqlite.ts",
+    "./d1": "./src/adapters/d1.ts"
   },
   "publishConfig": {
     "access": "public"

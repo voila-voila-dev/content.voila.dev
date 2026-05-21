@@ -37,7 +37,7 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 
 - [X] Drizzle adapter interface (`DatabaseAdapter` type)
 - [X] SQLite adapter for local dev (`@voila/content-database/sqlite`)
-- [ ] **D1 adapter (Cloudflare)** — wraps `drizzle-orm/d1`; used by the playground
+- [X] **D1 adapter (Cloudflare)** — wraps `drizzle-orm/d1`; used by the playground
 - [ ] Postgres adapter scaffold (interface only; impl in M2)
 
 ### `packages/ui`

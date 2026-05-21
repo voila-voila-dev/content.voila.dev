@@ -14,7 +14,7 @@ at subpaths.
 | `@voila/content-database/d1`       | `drizzle-orm/d1` | Cloudflare D1 (Workers / Wrangler)    |
 | `@voila/content-database/postgres` | `postgres-js`  | Self-hosted Postgres                    |
 
-`d1` and `postgres` land in subsequent milestones — see
+`postgres` lands in a subsequent milestone — see
 [docs/requirements/12-roadmap.md](../../docs/requirements/12-roadmap.md).
 
 ## The interface
@@ -57,3 +57,31 @@ dependency: install whichever version your app pins.
 - `":memory:"` or `"file::memory:"` → in-memory database
 - `"file:<path>"` → libsql-style file URL; the `file:` prefix is stripped
 - bare path → passed straight through to `bun:sqlite`
+
+## D1 (Cloudflare Workers)
+
+```ts
+import { d1 } from "@voila/content-database/d1";
+
+export default {
+  fetch(request: Request, env: { DATABASE: D1Database }) {
+    const adapter = d1({ binding: env.DATABASE });
+    // hand `adapter` to `@voila/content`
+  },
+};
+```
+
+The adapter wraps `drizzle-orm/d1`, so the underlying binding type comes from
+`@cloudflare/workers-types` (or the equivalent shim that ships with `wrangler`).
+`dialect` is `"sqlite"` — D1 speaks SQLite SQL — and `close()` is omitted
+because D1 is connectionless.
+
+Declare the binding in `wrangler.jsonc`:
+
+```jsonc
+{
+  "d1_databases": [
+    { "binding": "DATABASE", "database_name": "voila", "database_id": "…" }
+  ]
+}
+```
