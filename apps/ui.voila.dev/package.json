@@ -34,6 +34,7 @@
     "vitest": "^4.1.7",
     "playwright": "^1.60.0",
     "@vitest/browser-playwright": "^4.1.7",
-    "@vitest/coverage-v8": "^4.1.7"
+    "@vitest/coverage-v8": "^4.1.7",
+    "wrangler": "^4.0.0"
   }
 }
