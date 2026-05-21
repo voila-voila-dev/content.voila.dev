@@ -5,6 +5,9 @@ name: Release
 # In the meantime the workflow can still be run from the Actions tab
 # via "Run workflow".
 on:
+  # push:
+  #   branches:
+  #     - main
   workflow_dispatch:
 
 concurrency:
