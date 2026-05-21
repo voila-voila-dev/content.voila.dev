@@ -1,0 +1,39 @@
+name: 'Publish to Cloudflare Workers'
+description: >-
+  Run a wrangler subcommand (deploy / versions upload / …) via bunx and expose the
+  workers.dev URL it printed as `deployment-url`.
+
+inputs:
+  working-directory:
+    description: 'Directory containing wrangler.jsonc (the app to publish).'
+    required: true
+  command:
+    description: 'Wrangler subcommand to run, e.g. `deploy` or `versions upload --message "..."`.'
+    required: true
+  api-token:
+    description: 'Cloudflare API token (passed as CLOUDFLARE_API_TOKEN).'
+    required: true
+  account-id:
+    description: 'Cloudflare account id (passed as CLOUDFLARE_ACCOUNT_ID).'
+    required: true
+
+outputs:
+  deployment-url:
+    description: 'The last *.workers.dev URL printed by wrangler.'
+    value: ${{ steps.run.outputs.deployment-url }}
+
+runs:
+  using: composite
+  steps:
+    - id: run
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ inputs.api-token }}
+        CLOUDFLARE_ACCOUNT_ID: ${{ inputs.account-id }}
+        WRANGLER_COMMAND: ${{ inputs.command }}
+      run: |
+        set -o pipefail
+        bunx wrangler $WRANGLER_COMMAND | tee wrangler-output.log
+        url=$(grep -oE 'https://[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev' wrangler-output.log | tail -1)
+        echo "deployment-url=$url" >> "$GITHUB_OUTPUT"
