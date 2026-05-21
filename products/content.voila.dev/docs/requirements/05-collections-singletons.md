@@ -82,7 +82,7 @@ export const posts = defineCollection({
       label: 'Duplicate',
       icon: 'CopySimple',
       scope: 'row',
-      run: async ({ doc, ctx }) => ctx.db.posts.create({ ...doc, id: undefined, slug: `${doc.slug}-copy` }),
+      run: async ({ doc, ctx }) => ctx.database.posts.create({ ...doc, id: undefined, slug: `${doc.slug}-copy` }),
     },
   ],
 

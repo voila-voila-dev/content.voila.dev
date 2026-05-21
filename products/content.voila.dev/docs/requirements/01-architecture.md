@@ -33,7 +33,7 @@ voila/
 │       │   │   ├── src/tokens.css      # CSS variables (colors, radii, spacing)
 │       │   │   └── tailwind.config.ts
 │       │   │
-│       │   ├── db/                     # @voila/content-db — Drizzle adapter
+│       │   ├── database/               # @voila/content-database — Drizzle adapter
 │       │   │   ├── src/adapters/d1.ts
 │       │   │   ├── src/adapters/postgres.ts
 │       │   │   ├── src/adapters/sqlite.ts
@@ -93,10 +93,10 @@ voila/
                              │            │
                 ┌────────────┘            └────────────┐
                 ▼                                       ▼
-        ┌──────────────┐                       ┌──────────────────┐
-        │  @voila/db   │                       │ @voila/storage   │
-        │  (Drizzle)   │                       │  (R2 / S3)       │
-        └──────┬───────┘                       └────────┬─────────┘
+        ┌─────────────────────────┐          ┌──────────────────┐
+        │ @voila/content-database │          │ @voila/storage   │
+        │        (Drizzle)        │          │  (R2 / S3)       │
+        └────────────┬────────────┘          └────────┬─────────┘
                │                                        │
                ▼                                        ▼
         Cloudflare D1                              Cloudflare R2

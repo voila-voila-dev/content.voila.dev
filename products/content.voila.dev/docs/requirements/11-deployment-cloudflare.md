@@ -16,7 +16,7 @@ Required bindings (auto-suggested by `voila init`):
 
   "d1_databases": [
     {
-      "binding": "DB",
+      "binding": "DATABASE",
       "database_name": "my-site",
       "database_id": "…"
     }
@@ -99,18 +99,18 @@ bun run start
 node ./.output/server/index.mjs
 ```
 
-For DB, use:
+For the database, use:
 
 ```ts
-import { sqlite } from '@voila/db'
-db: sqlite({ url: 'file:./data/voila.db' }),
+import { sqlite } from '@voila/content-database'
+database: sqlite({ url: 'file:./data/voila.db' }),
 ```
 
 or
 
 ```ts
-import { postgres } from '@voila/db'
-db: postgres({ url: env.DATABASE_URL }),
+import { postgres } from '@voila/content-database'
+database: postgres({ url: env.DATABASE_URL }),
 ```
 
 For storage, the S3 adapter works with MinIO, Backblaze, Wasabi, Tigris, etc. (see [09](./09-media-storage.md)).
@@ -121,7 +121,7 @@ For queues without Cloudflare, set `queue: 'inline'` (runs in-process) or plug i
 
 Both work via TanStack Start's respective adapters. You give up Cloudflare-specific perks (R2, Queues, D1, Cron Triggers), so:
 
-- DB → Vercel Postgres / Neon / Supabase
+- Database → Vercel Postgres / Neon / Supabase
 - Storage → S3 / Backblaze
 - Queues → Upstash QStash adapter (`@voila/queue/qstash`)
 - Cron → Vercel Cron or external scheduler

@@ -41,7 +41,7 @@ DRY taken to its logical conclusion.
 The reference target is Cloudflare (Workers + R2 + D1 + Queues + Cron). But every edge-coupled concern is hidden behind an adapter:
 
 - `storage` adapter: R2, S3, any S3-compatible (MinIO, Backblaze B2)
-- `db` adapter: D1, Postgres, SQLite via Drizzle
+- `database` adapter: D1, Postgres, SQLite via Drizzle
 - `queue` adapter: Cloudflare Queues, BullMQ, in-memory
 - `cron` adapter: Cloudflare Cron Triggers, node-cron, GitHub Actions
 

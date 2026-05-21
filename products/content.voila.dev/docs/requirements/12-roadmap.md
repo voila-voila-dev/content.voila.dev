@@ -33,10 +33,10 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 - [X] `InferDoc<>` type helper
 - [X] `defineField` extension API (for third-party field packages)
 
-### `packages/db`
+### `packages/database`
 
-- [ ] Drizzle adapter interface (`DbAdapter` type)
-- [ ] SQLite adapter for local dev (`@voila/db/sqlite`)
+- [X] Drizzle adapter interface (`DatabaseAdapter` type)
+- [ ] SQLite adapter for local dev (`@voila/content-database/sqlite`)
 - [ ] **D1 adapter (Cloudflare)** — wraps `drizzle-orm/d1`; used by the playground
 - [ ] Postgres adapter scaffold (interface only; impl in M2)
 
@@ -69,7 +69,7 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 - [ ] `content.config.ts` with empty collections array
 - [ ] `wrangler.jsonc` committed with D1 + R2 + Queues bindings (D1 active, R2/Queues commented for M3/M5)
 - [ ] `.dev.vars.example` with `VOILA_AUTH_SECRET`
-- [ ] Local D1 via `wrangler d1 execute DB --local --file=migrations/0000_init.sql`
+- [ ] Local D1 via `wrangler d1 execute DATABASE --local --file=migrations/0000_init.sql`
 - [ ] `bun dev` script wraps `wrangler dev` (Miniflare under the hood)
 - [ ] README documenting first-run: `bun install && bun dev → http://localhost:8787/admin`
 
@@ -90,7 +90,7 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 
 Depends on M0. SQLite + D1 adapters must be green before this starts.
 
-### Schema → DB
+### Schema → Database
 
 - [ ] Drizzle table generator from field defs (`schemaToTables(collections)`)
 - [ ] System columns: `id` (ulid), `createdAt`, `updatedAt`, `deletedAt` (nullable, for M2 soft delete)
@@ -177,7 +177,7 @@ Depends on M1 (REST + auth + admin shell).
 
 ### Postgres adapter (lands here, not M7)
 
-- [ ] `@voila/db/postgres` using `drizzle-orm/postgres-js`
+- [ ] `@voila/content-database/postgres` using `drizzle-orm/postgres-js`
 - [ ] Migration parity with SQLite/D1 adapter
 - [ ] `voila migrate apply --postgres` path
 

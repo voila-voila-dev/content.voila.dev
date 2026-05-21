@@ -27,7 +27,7 @@ const recentSignups = defineWidget({
   title: 'Recent signups',
   size: 'md',                    // 'sm' | 'md' | 'lg' | 'xl'
   icon: 'UserPlus',
-  loader: async ({ ctx }) => ctx.db.users.find({
+  loader: async ({ ctx }) => ctx.database.users.find({
     orderBy: { createdAt: 'desc' },
     limit: 10,
   }),
@@ -52,7 +52,7 @@ const seoPage = definePage({
   label: 'SEO',
   icon: 'Globe',
   loader: async ({ ctx }) => ({
-    sitemap: await ctx.db.posts.count({ status: 'published' }),
+    sitemap: await ctx.database.posts.count({ status: 'published' }),
   }),
   component: SeoPage,
 })
@@ -62,7 +62,7 @@ defineContent({ pages: [seoPage] })
 
 Pages have full access to:
 
-- `ctx.db` — typed DB client (same schema as the admin)
+- `ctx.database` — typed database client (same schema as the admin)
 - `ctx.user` — current admin user
 - `ctx.tasks` — task runner
 - `ctx.storage` — media adapter
@@ -84,7 +84,7 @@ defineCollection({
       icon: 'CopySimple',
       scope: 'row',
       run: async ({ doc, ctx }) => {
-        return ctx.db.posts.create({ ...doc, id: undefined, slug: `${doc.slug}-copy` })
+        return ctx.database.posts.create({ ...doc, id: undefined, slug: `${doc.slug}-copy` })
       },
     },
 
@@ -96,7 +96,7 @@ defineCollection({
       scope: 'bulk',
       confirm: 'Archive %n posts?',
       run: async ({ docs, ctx }) => {
-        await ctx.db.posts.update({ id: { in: docs.map(d => d.id) } }, { archived: true })
+        await ctx.database.posts.update({ id: { in: docs.map(d => d.id) } }, { archived: true })
       },
     },
 
@@ -136,9 +136,9 @@ const translatePost = defineTask({
   input: z.object({ id: z.string(), to: z.enum(['fr', 'it']) }),
   retry: { max: 3, backoff: 'exponential' },
   run: async ({ input, ctx }) => {
-    const post = await ctx.db.posts.findOne({ id: input.id })
+    const post = await ctx.database.posts.findOne({ id: input.id })
     const translated = await translateWithLLM(post.body, input.to)
-    await ctx.db.posts.update({ id: post.id }, { body: { ...post.body, [input.to]: translated } })
+    await ctx.database.posts.update({ id: post.id }, { body: { ...post.body, [input.to]: translated } })
   },
 })
 ```

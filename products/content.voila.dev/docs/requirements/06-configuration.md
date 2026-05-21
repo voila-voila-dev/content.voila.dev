@@ -8,7 +8,7 @@
 // content.config.ts
 import { defineContent } from '@voila/content'
 import { r2 } from '@voila/storage'
-import { d1 } from '@voila/db'
+import { d1 } from '@voila/content-database'
 
 import { posts, authors } from './content/collections'
 import { siteSettings } from './content/singletons'
@@ -37,8 +37,8 @@ export default defineContent({
   singletons:  [siteSettings],
 
   // ── Storage ────────────────────────────────────────────────────────────
-  db:      d1({ binding: 'DB' }),
-  storage: r2({ bucket: 'media', publicUrl: 'https://media.acme.com' }),
+  database: d1({ binding: 'DATABASE' }),
+  storage:  r2({ bucket: 'media', publicUrl: 'https://media.acme.com' }),
 
   // ── Auth ───────────────────────────────────────────────────────────────
   auth: {
@@ -147,7 +147,7 @@ If you omit `navigation`, the admin generates a default from your collections/si
 
 ## Auth
 
-Auth is powered by [Better Auth](https://www.better-auth.com/). Email magic-link + GitHub OAuth are wired in by default; the `auth` block in `content.config.ts` is a thin facade that compiles down to a Better Auth instance sharing the same Drizzle DB.
+Auth is powered by [Better Auth](https://www.better-auth.com/). Email magic-link + GitHub OAuth are wired in by default; the `auth` block in `content.config.ts` is a thin facade that compiles down to a Better Auth instance sharing the same Drizzle database.
 
 To add a provider, drop in any Better Auth social provider:
 
