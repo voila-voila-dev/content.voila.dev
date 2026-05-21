@@ -14,16 +14,20 @@ commit-msg:
   jobs:
     - name: conventional-commits
       run: |
-        head -n1 "{1}" | grep -Eq '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([^)]+\))?!?: .{1,}' \
+        head -n1 "{1}" | grep -Eq '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)\(@[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9.-]*\)!?: .{1,}' \
           || (echo "" \
               && echo "  Commit message must follow Conventional Commits:" \
-              && echo "    <type>(<scope>)?!?: <subject>" \
+              && echo "    <type>(<scope>)!?: <subject>" \
               && echo "" \
-              && echo "  type: feat | fix | docs | style | refactor | perf | test | build | ci | chore | revert" \
+              && echo "  type:  feat | fix | docs | style | refactor | perf | test | build | ci | chore | revert" \
+              && echo "  scope: REQUIRED. Full npm package name including the @voila/ prefix." \
+              && echo "         For repo-root / cross-product changes use @voila/voila.dev (the monorepo)." \
               && echo "" \
               && echo "  Examples:" \
-              && echo "    feat(schema): add date field constructor" \
-              && echo "    fix(db): handle nullable D1 columns" \
-              && echo "    chore!: drop Node 18 support" \
+              && echo "    feat(@voila/content-schema): add date field constructor" \
+              && echo "    fix(@voila/content-db): handle nullable D1 columns" \
+              && echo "    chore(@voila/typescript-config): tighten strict flags" \
+              && echo "    chore(@voila/voila.dev)!: drop Node 18 support" \
+              && echo "    ci(@voila/voila.dev): inline actions/checkout" \
               && echo "" \
               && exit 1)
