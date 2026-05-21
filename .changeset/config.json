@@ -2,7 +2,7 @@
   "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
   "changelog": ["@changesets/changelog-github", { "repo": "voila-voila-dev/content.voila.dev" }],
   "commit": false,
-  "fixed": [],
+  "fixed": [["@content.voila.dev/*"]],
   "linked": [],
   "access": "public",
   "baseBranch": "main",

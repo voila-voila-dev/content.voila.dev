@@ -8,8 +8,7 @@
     "isolatedDeclarations": true,
     "composite": true,
     "incremental": true,
-    "allowImportingTsExtensions": false,
-    "outDir": "./dist",
-    "rootDir": "./src"
+    "rewriteRelativeImportExtensions": true,
+    "allowJs": false
   }
 }

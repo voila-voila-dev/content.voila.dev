@@ -125,6 +125,8 @@ This covers 99% of "I want a button that does X" without inventing a button DSL.
 
 Tasks are the unit of asynchronous work. They run on Cloudflare Queues in production, on a worker thread in dev.
 
+`input` accepts any [Standard Schema](https://standardschema.dev/) validator — Zod is shown here, but Valibot, ArkType, etc. work identically.
+
 ```ts
 import { defineTask } from '@voila/content'
 import { z } from 'zod'

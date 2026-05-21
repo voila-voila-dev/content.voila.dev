@@ -1,0 +1,14 @@
+{
+  "name": "@content.voila.dev/schema",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@content.voila.dev/typescript-config": "workspace:*"
+  }
+}

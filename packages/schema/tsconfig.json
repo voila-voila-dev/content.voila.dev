@@ -1,4 +1,4 @@
 {
   "extends": "@content.voila.dev/typescript-config/tsconfig.base.json",
-  "references": [{ "path": "./packages/schema/tsconfig.build.json" }]
+  "include": ["src/**/*"]
 }

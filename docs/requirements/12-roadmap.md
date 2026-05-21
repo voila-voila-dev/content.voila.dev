@@ -23,13 +23,13 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 - [X] `bun run check` aggregate script: `biome check && tsc -b && bun test`
 - [X] `.gitignore`, `.bun-version` (formatting handled by Biome — no `.editorconfig` needed)
 - [X] Conventional Commits + `lefthook` pre-commit (lint-staged + typecheck on changed packages)
-- [X] **Changesets** (`@changesets/cli` + `@changesets/changelog-github`) for per-package versioning & changelogs in the Bun workspace — `bun changeset` to author entries, `bun changeset version` to bump + write `CHANGELOG.md` per package, `bun changeset publish` to release. Configured for `fixed: []` / `linked: []` so packages version independently; `access: public`, `baseBranch: main`.
+- [X] **Changesets** (`@changesets/cli` + `@changesets/changelog-github`) for per-package versioning & changelogs in the Bun workspace — `bun changeset` to author entries, `bun changeset version` to bump + write `CHANGELOG.md` per package, `bun changeset publish` to release. Configured with `fixed: [["@content.voila.dev/*"]]` so every package in the scope always ships on the same version (lock-step releases); `access: public`, `baseBranch: main`.
 - [X] `.changeset/config.json` committed; GitHub Action (`changesets/action@v1`) opens the "Version Packages" PR on every push to `main` and publishes on merge
 
 ### `packages/schema`
 
-- [ ] Field constructors: `string`, `number`, `boolean`, `date`, `datetime`, `json` (stubs only — full widgets land M2)
-- [ ] Zod derivation from field defs (`toZod(field)`)
+- [X] Field constructors: `string`, `number`, `boolean`, `date`, `datetime`, `json` (stubs only — full widgets land M2)
+- [ ] Standard Schema derivation from field defs (`toValidator(field)`); ships a Zod adapter by default with hooks for Valibot, ArkType, etc. (see [Standard Schema](https://standardschema.dev/))
 - [ ] `InferDoc<>` type helper
 - [ ] `defineField` extension API (for third-party field packages)
 
@@ -70,7 +70,7 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 ### Testing bar (M0)
 
 - [ ] `bun test` runner configured at the root; per-package `*.test.ts` colocated with source
-- [ ] **Unit**: `packages/schema` field constructors + Zod derivation — ≥ 90% line coverage on that package
+- [ ] **Unit**: `packages/schema` field constructors + validator derivation (Zod adapter + Standard Schema contract) — ≥ 90% line coverage on that package
 - [ ] **Unit**: `packages/ui` primitives smoke-render via `@testing-library/react` + `happy-dom`
 - [ ] **Integration**: `content.handle()` against an in-memory `Request`, asserts admin shell HTML + healthcheck JSON
 - [ ] **CI**: GitHub Actions matrix on `ubuntu-latest`, Bun stable; runs `bun run check`
@@ -150,8 +150,8 @@ Depends on M1 (REST + auth + admin shell).
 
 ### Form layer
 
-- [ ] TanStack Form integration; per-field Zod validators from `toZod`
-- [ ] Server-side validation reuses the same Zod schema (single source of truth)
+- [ ] TanStack Form integration; per-field Standard Schema validators from `toValidator` (Zod adapter by default)
+- [ ] Server-side validation reuses the same validator (single source of truth, library-agnostic via Standard Schema)
 - [ ] Field-level error rendering
 - [ ] Form-level submit errors + retry
 
@@ -183,7 +183,7 @@ Depends on M1 (REST + auth + admin shell).
 
 ### Testing bar (M2)
 
-- [ ] **Unit**: each widget renders, accepts input, surfaces Zod errors
+- [ ] **Unit**: each widget renders, accepts input, surfaces validator errors (matrix: Zod + at least one other Standard Schema library)
 - [ ] **Unit**: hook ordering + short-circuit semantics
 - [ ] **Integration**: CRUD against SQLite **and** Postgres (matrix in CI)
 - [ ] **Integration**: optimistic update rollback on server error

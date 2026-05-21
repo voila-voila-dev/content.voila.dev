@@ -16,7 +16,7 @@ Everything that can be a TanStack primitive, is.
 
 - **Routing**: the admin is a TanStack Router subtree
 - **Data**: TanStack Query for every read; TanStack DB for optimistic mutations
-- **Forms**: TanStack Form for every field, validated with Zod
+- **Forms**: TanStack Form for every field, validated with any [Standard Schema](https://standardschema.dev/) validator (Zod by default; Valibot, ArkType, Effect Schema, etc. all supported)
 - **Tables**: TanStack Table for every list view
 - **Server**: TanStack Start server functions, no separate Express/Hono
 - **Deploy**: TanStack Start's Cloudflare adapter, no separate worker
@@ -30,7 +30,7 @@ You write **one** TypeScript schema. From it we derive:
 - the admin UI (forms, tables, filters, detail views)
 - the public REST/RPC API
 - the typed client (`<typeof config>`)
-- the runtime validators (Zod)
+- the runtime validators (any [Standard Schema](https://standardschema.dev/) library — Zod by default)
 - the database migrations (Drizzle)
 - the MCP tools and resources
 

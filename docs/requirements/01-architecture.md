@@ -21,7 +21,7 @@ content.voila.dev/
 │   │   │   └── runtime/        # query, mutation, hooks
 │   │   └── package.json
 │   │
-│   ├── schema/                 # @voila/schema — field constructors, Zod derivation
+│   ├── schema/                 # @voila/schema — field constructors, Standard Schema derivation
 │   │   └── src/fields/         # string, number, array, json, relation, media...
 │   │
 │   ├── ui/                     # @voila/ui — design system
@@ -123,7 +123,7 @@ The catch-all route is the **only** thing you add to your app. Everything else �
 
 ```
 1. User edits a Post in the admin                                  (browser)
-2. TanStack Form validates against schema-derived Zod              (browser)
+2. TanStack Form validates against the schema-derived validator    (browser)
 3. TanStack DB optimistic mutation updates the local store         (browser)
 4. POST /admin/api/posts/:id with the diff                         (browser → worker)
 5. Handler authenticates, authorizes (RBAC), re-validates          (worker)

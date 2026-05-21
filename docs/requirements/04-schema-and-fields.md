@@ -151,11 +151,28 @@ fields.secret()                      // encrypted at rest (KV-backed key)
 
 Three layers, in order:
 
-1. **Static**: constructor params (`min`, `max`, `pattern`) → derived Zod schema.
+1. **Static**: constructor params (`min`, `max`, `pattern`) → derived [Standard Schema](https://standardschema.dev/) validator (Zod by default).
 2. **Field-level**: `validate(value, ctx)` for cross-field logic.
 3. **Doc-level**: `collection.validate(doc, ctx)` for whole-document invariants.
 
 Errors bubble up to the form as field-level messages. Doc-level errors render as a banner.
+
+### Validator library
+
+The static layer compiles each field's constraints into a Standard Schema-compatible validator. Zod is the default — it's what `@content.voila.dev/schema` ships with and what every example in these docs uses. But Standard Schema is a spec, not a vendor: you can plug in Valibot, ArkType, Effect Schema, or any other [Standard Schema](https://standardschema.dev/) implementation.
+
+```ts
+// content.config.ts
+import { defineContent } from '@content.voila.dev/content'
+import { valibotAdapter } from '@content.voila.dev/schema/adapters/valibot'
+
+export default defineContent({
+  validator: valibotAdapter(),   // optional; defaults to Zod
+  collections: [posts, authors],
+})
+```
+
+Field-level `validate(value, ctx)` runs after the static layer, regardless of which library you pick — it's a plain function, not a schema.
 
 ```ts
 fields.string({
