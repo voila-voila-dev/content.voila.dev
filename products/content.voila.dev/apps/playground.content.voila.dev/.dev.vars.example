@@ -1,0 +1,6 @@
+# Copy this file to `.dev.vars` before running `bun dev`. Wrangler reads
+# `.dev.vars` and projects each key as an env var into the local worker.
+
+# Secret used to sign sessions and other auth-related tokens. Generate
+# with `openssl rand -base64 32`. Required.
+VOILA_AUTH_SECRET=replace-with-32-bytes-of-base64-randomness

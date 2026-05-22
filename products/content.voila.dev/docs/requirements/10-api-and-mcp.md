@@ -12,7 +12,11 @@ All three enforce the same RBAC, the same validation, the same hooks.
 
 ## REST API
 
-Mounted under `mount.api` (default: `/admin/api`).
+Mounted under `mount.api` (default: `/admin/api`) as virtual server file
+routes contributed by the `@voila/content/vite` plugin. The same
+operations are also available as TanStack Start `createServerFn` calls
+for typed in-process invocation from the admin and the consumer's site
+code — REST is the transport, server functions are the typed entry.
 
 ### Conventions
 

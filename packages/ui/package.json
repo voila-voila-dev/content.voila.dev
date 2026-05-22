@@ -54,9 +54,12 @@
     }
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^15.11.7",
+    "@testing-library/react": "^16.1.0",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@voila/typescript-config": "workspace:*",
+    "happy-dom": "^15.11.7",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-hook-form": "^7.54.0",
