@@ -1,0 +1,82 @@
+/*
+ * content.voila.dev — marketing site stylesheet.
+ *
+ * `@voila/ui/tailwind` brings in Tailwind v4 plus the shared design tokens.
+ * The marketing surface runs dark-only, so we override a handful of tokens
+ * with deeper, more saturated blacks and a brand violet→cyan accent. Apps
+ * embedding the CMS keep the neutral defaults from the design system.
+ */
+
+@import "@voila/ui/tailwind";
+
+@layer voila-tokens {
+  :root,
+  .dark {
+    --background: 240 14% 4%;
+    --foreground: 0 0% 98%;
+    --muted: 240 6% 10%;
+    --muted-foreground: 240 5% 65%;
+    --border: 240 5% 14%;
+    --input: 240 5% 14%;
+    --ring: 265 90% 68%;
+
+    --card: 240 10% 6%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 6%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 265 90% 68%;
+    --primary-foreground: 240 14% 4%;
+    --secondary: 240 6% 12%;
+    --secondary-foreground: 0 0% 98%;
+    --accent: 188 95% 55%;
+    --accent-foreground: 240 14% 4%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(60rem 40rem at 10% -10%, hsl(265 90% 68% / 0.16), transparent 60%),
+    radial-gradient(50rem 35rem at 110% 5%, hsl(188 95% 55% / 0.12), transparent 55%),
+    hsl(var(--background));
+  background-attachment: fixed;
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.35);
+  color: hsl(var(--foreground));
+}
+
+/* biome-ignore-start lint/complexity/noImportantStyles: standard reduced-motion override needs to win over component animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+/* biome-ignore-end lint/complexity/noImportantStyles: standard reduced-motion override needs to win over component animations */

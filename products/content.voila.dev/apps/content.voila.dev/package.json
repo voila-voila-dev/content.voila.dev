@@ -1,0 +1,39 @@
+{
+  "name": "@voila/content.voila.dev",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "dev": "vite dev --port 3000",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "bun test",
+    "deploy": "bun run build && wrangler deploy"
+  },
+  "dependencies": {
+    "@cloudflare/vite-plugin": "^1.26.0",
+    "@tailwindcss/vite": "^4.0.0",
+    "@tanstack/react-devtools": "latest",
+    "@tanstack/react-router": "latest",
+    "@tanstack/react-router-devtools": "latest",
+    "@tanstack/react-router-ssr-query": "latest",
+    "@tanstack/react-start": "latest",
+    "@tanstack/router-plugin": "^1.132.0",
+    "@voila/ui": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "tailwindcss": "^4.0.0"
+  },
+  "devDependencies": {
+    "@tanstack/devtools-vite": "latest",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@voila/typescript-config": "workspace:*",
+    "vite": "^6.0.0",
+    "wrangler": "^4.0.0"
+  }
+}
