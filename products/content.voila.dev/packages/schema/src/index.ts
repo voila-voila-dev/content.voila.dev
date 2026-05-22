@@ -25,6 +25,7 @@ export {
 } from "./fields/index.ts";
 export type { InferDoc, InferField } from "./infer.ts";
 export type {
+  AnyFieldDef,
   FieldAccess,
   FieldContext,
   FieldDef,

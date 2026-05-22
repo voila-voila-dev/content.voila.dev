@@ -56,11 +56,11 @@ Goal: a `bun dev` that boots a real TanStack Start app on the Cloudflare runtime
 
 ### `packages/content`
 
-- [ ] `defineContent`, `defineCollection`, `defineSingleton` signatures
-- [ ] `content.handle(request: Request): Promise<Response>` — Web-API handler skeleton
-- [ ] Admin shell route (`/admin` → blank layout with branding)
-- [ ] Healthcheck route (`/admin/api/health`)
-- [ ] First-run gate (`/admin/setup` placeholder)
+- [X] `defineContent`, `defineCollection`, `defineSingleton` signatures
+- [X] `content.handle(request: Request): Promise<Response>` — Web-API handler skeleton
+- [X] Admin shell route (`/admin` → blank layout with branding)
+- [X] Healthcheck route (`/admin/api/health`)
+- [X] First-run gate (`/admin/setup` placeholder)
 
 ### `products/content.voila.dev/apps/playground/` (the canary app)
 
