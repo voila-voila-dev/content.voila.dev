@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "voila-playground",
+  "compatibility_date": "2025-09-02",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "@tanstack/react-start/server-entry",
+
+  // D1: active for M0+ — wire the SQL adapter through `content.config.ts`.
+  // Provision the database before deploying:
+  //   wrangler d1 create voila-playground
+  // and paste the returned `database_id` below.
+  "d1_databases": [
+    {
+      "binding": "DATABASE",
+      "database_name": "voila-playground",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ]
+
+  // R2: media storage (lands in M3).
+  // "r2_buckets": [
+  //   { "binding": "MEDIA", "bucket_name": "voila-playground-media" }
+  // ],
+
+  // Queues: background task transport (lands in M5).
+  // "queues": {
+  //   "producers": [{ "binding": "TASKS", "queue": "voila-playground-tasks" }],
+  //   "consumers": [{ "queue": "voila-playground-tasks", "max_batch_size": 10 }]
+  // }
+}

@@ -63,29 +63,28 @@ Integration model lands per [ADR 0002](../../../../docs/decision-records/0002-ta
 - [X] Admin shell route component (`/admin` → blank layout with branding) — mounted via virtual route
 - [X] Healthcheck server file route (`/admin/api/health`) — virtual route
 - [X] First-run gate (`/admin/setup` placeholder) — virtual route
-- [X] Escape-hatch factory exports: `adminRouteOptions(content)`, `setupRouteOptions(content)`, `healthGET`
 
-### `products/content.voila.dev/apps/playground/` (the canary app)
+### `products/content.voila.dev/apps/playground.content.voila.dev/` (the canary app)
 
-- [ ] `bunx create-tsr@latest products/content.voila.dev/apps/playground --template start-cloudflare`
-- [ ] Wire `@voila/content` via `voila()` in `vite.config.ts` (auto-discovers `content.config.ts`)
-- [ ] `content.config.ts` with empty collections array
-- [ ] `wrangler.jsonc` committed with D1 + R2 + Queues bindings (D1 active, R2/Queues commented for M3/M5)
-- [ ] `.dev.vars.example` with `VOILA_AUTH_SECRET`
-- [ ] Local D1 via `wrangler d1 execute DATABASE --local --file=migrations/0000_init.sql`
-- [ ] `bun dev` script wraps `wrangler dev` (Miniflare under the hood)
-- [ ] README documenting first-run: `bun install && bun dev → http://localhost:8787/admin`
+- [X] `bunx --bun @tanstack/cli@latest create playground.content.voila.dev --framework React --deployment cloudflare --target-dir products/content.voila.dev/apps/playground.content.voila.dev` (the historical `create-tsr` CLI was renamed to `@tanstack/cli create`)
+- [X] Wire `@voila/content` via `voila()` in `vite.config.ts` (auto-discovers `content.config.ts`)
+- [X] `content.config.ts` with empty collections array
+- [X] `wrangler.jsonc` committed with D1 + R2 + Queues bindings (D1 active, R2/Queues commented for M3/M5)
+- [X] `.dev.vars.example` with `VOILA_AUTH_SECRET`
+- [X] Local D1 via `bun run db:init` (`wrangler d1 execute DATABASE --local --file=migrations/0000_init.sql`)
+- [X] `bun dev` script runs `vite dev --port 8787` — Miniflare runs in-process via `@cloudflare/vite-plugin` (no separate `wrangler dev` step needed)
+- [X] README documenting first-run: `bun install && bun dev → http://localhost:8787/admin`
 
 ### Testing bar (M0)
 
 - [ ] `bun test` runner configured at the root; per-package `*.test.ts` colocated with source
 - [ ] **Unit**: `packages/schema` field constructors + validator derivation (Zod adapter + Standard Schema contract) — ≥ 90% line coverage on that package
 - [ ] **Unit**: `packages/ui` primitives smoke-render via `@testing-library/react` + `happy-dom`
-- [ ] **Integration**: `adminRouteOptions(content)` + `healthGET` against an in-memory `Request`, asserts admin shell HTML + healthcheck JSON
+- [ ] **Integration**: plugin's generated admin route files (`src/routes/admin/$.tsx` + `api/health.ts`) hit via an in-memory `Request` against the playground build, asserting admin shell HTML + healthcheck JSON
 - [ ] **CI**: GitHub Actions matrix on `ubuntu-latest`, Bun stable; runs `bun run check`
 - [ ] Coverage report via `bun test --coverage`; baseline committed (no gate yet)
 
-**Exit criterion**: `bun dev` in `products/content.voila.dev/apps/playground/` boots `wrangler dev`; `http://localhost:8787/admin` renders the empty admin shell with branding from `content.config.ts`. `bun run check` is green on CI.
+**Exit criterion**: `bun dev` in `products/content.voila.dev/apps/playground.content.voila.dev/` boots vite with Miniflare in-process (via `@cloudflare/vite-plugin`); `http://localhost:8787/admin` renders the empty admin shell with branding from `content.config.ts`. `bun run check` is green on CI.
 
 ---
 

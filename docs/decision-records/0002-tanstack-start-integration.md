@@ -31,9 +31,10 @@ the `@voila/content/vite` subpath. Content lives in a conventional
 `content.config.ts` at the project root which the plugin auto-discovers;
 explicit overrides are accepted but unusual.
 
-Factory helpers (`adminRouteOptions(content)`, `healthGET`, …) stay
-exported for the escape hatch — for consumers who can't use the plugin
-(custom build, multi-tenant dispatch, etc.).
+The plugin is the **only** public integration surface. No
+factory-helper or request-handler API is exported for consumers to
+mount the admin from a custom `app/routes/` file. Non-TanStack-Start
+consumers are explicitly unsupported.
 
 The basic setup is **one plugin line + one config file**:
 
@@ -90,18 +91,9 @@ The plugin contributes:
   imports) invalidate the virtual route modules and trigger a
   route-tree regeneration.
 
-Escape-hatch DX (documented under "Advanced", not in quick-start):
-
-```tsx
-// app/routes/admin/$.tsx
-import { createFileRoute } from "@tanstack/react-router";
-import { adminRouteOptions } from "@voila/content/admin";
-import content from "~/content.config";
-
-export const Route = createFileRoute("/admin/$")(adminRouteOptions(content));
-```
-
-`content.handle(request)` is removed from the public surface.
+`content.handle(request)` is removed from the public surface, and no
+factory-helper escape hatch ships in its place — the plugin is the
+single way to mount the admin.
 
 ## Why a conventional file + a plugin?
 
@@ -179,8 +171,15 @@ so no consumer migration is required. The PR is updated to:
 2. Keep `defineContent`, `defineCollection`, `defineSingleton` as the
    declaration helpers; `defineContent` becomes the entry point of
    `content.config.ts`.
-3. Add `adminRouteOptions(content)`, `setupRouteOptions(content)`,
-   `healthGET` factories (escape hatch).
-4. Add the `@voila/content/vite` subpath with a vite-plugin stub that
+3. Add the `@voila/content/vite` subpath with a vite-plugin stub that
    auto-discovers `./content.config.ts`, registers the M0 virtual routes
    (admin splat, setup, health), and exposes `virtual:voila/content`.
+
+   **M0 implementation note**: rather than ship a full virtual-route
+   resolver, the M0 plugin generates the admin route files to disk under
+   `<root>/src/routes/admin/` on every `configResolved` (and on
+   `content.config.ts` change in dev). The files carry a `DO NOT EDIT`
+   header and consumers gitignore `src/routes/admin/`. This is a
+   pragmatic stepping stone; later milestones replace codegen with real
+   virtual routes via TanStack Router's `virtualRouteConfig` API once
+   the surface area justifies the complexity.

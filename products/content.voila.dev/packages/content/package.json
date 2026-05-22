@@ -4,9 +4,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./admin": "./src/admin.tsx",
-    "./server-routes": "./src/server-routes.ts",
-    "./vite": "./src/vite.ts"
+    "./vite": "./src/vite.ts",
+    "./internal": "./src/internal.ts"
   },
   "publishConfig": {
     "access": "public"
@@ -20,7 +19,7 @@
   "peerDependencies": {
     "react": "catalog:",
     "react-dom": "catalog:",
-    "vite": "^6.0.0"
+    "vite": "catalog:"
   },
   "peerDependenciesMeta": {
     "vite": {
@@ -33,6 +32,6 @@
     "@voila/typescript-config": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "vite": "^6.0.0"
+    "vite": "catalog:"
   }
 }

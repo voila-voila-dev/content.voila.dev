@@ -13,18 +13,20 @@ The M0 surface:
   default export of the conventional `content.config.ts` at the project
   root.
 - `@voila/content/vite` subpath — the `voila()` plugin. Add it to
-  `vite.config.ts` and it auto-discovers `./content.config.ts`. M0
-  ships the plugin contract stub; route registration and the
-  `virtual:voila/content` module land alongside the playground.
-- `@voila/content/admin` subpath — `adminRouteOptions(content)` and
-  `setupRouteOptions(content)` factories that return objects
-  structurally compatible with TanStack Router's `createFileRoute(…)`.
-- `@voila/content/server-routes` subpath — `healthGET` handler,
-  structurally compatible with TanStack Start's
-  `createServerFileRoute(…).methods({ GET })`.
-- React shell rendered via `renderToStaticMarkup` of `<AdminShell>` and
-  `<SetupPage>` components — ready for the M1 admin SPA to hydrate
-  into `#voila-admin`.
+  `vite.config.ts` and it auto-discovers `./content.config.ts`. On
+  every dev start the plugin generates the M0 admin route files
+  (`src/routes/admin/$.tsx`, `setup.tsx`, `api/health.ts`) inside the
+  consumer's tree; consumers gitignore `src/routes/admin/`. Subsequent
+  milestones absorb these into proper virtual routes.
+- React shell components (`<AdminShell>`, `<SetupPage>`) and head
+  builders (`buildAdminHead`, `buildSetupHead`) — internal to the
+  package, consumed by the plugin's generated route files via the
+  undocumented `@voila/content/internal` subpath. Ready for the M1
+  admin SPA to hydrate into `#voila-admin`.
+
+The plugin is the only integration surface; there is no public
+factory or handler API to mount the admin from a custom `app/routes/`
+file.
 
 Re-exports `fields` from `@voila/content-schema` so authors can write
 `import { defineContent, fields } from "@voila/content"` in one line.
