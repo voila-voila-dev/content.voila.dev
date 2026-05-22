@@ -21,6 +21,8 @@
     "prepare": "lefthook install",
     "lint": "biome lint --write",
     "format": "biome format --write",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage",
     "check": "biome check --write && tsc -b && bun test",
     "changeset": "changeset",
     "version": "changeset version",
