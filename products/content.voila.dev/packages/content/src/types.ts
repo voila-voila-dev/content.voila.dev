@@ -62,13 +62,12 @@ export type ContentConfig = {
   singletons?: AnySingleton[];
 };
 
-export type ResolvedContentConfig = {
+export type Content = {
   branding: Branding;
   mount: ResolvedMount;
   collections: readonly AnyCollection[];
   singletons: readonly AnySingleton[];
 };
 
-export type Content = ResolvedContentConfig & {
-  handle(request: Request): Promise<Response>;
-};
+/** Alias retained for internal symmetry with the pre-resolution input shape. */
+export type ResolvedContentConfig = Content;

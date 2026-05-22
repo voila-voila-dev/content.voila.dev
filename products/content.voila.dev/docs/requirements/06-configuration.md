@@ -1,6 +1,6 @@
 # 06 — Configuration
 
-`content.config.ts` lives at the root of your TanStack Start app. It is a plain TypeScript module.
+`content.config.ts` lives at the root of your TanStack Start app. It is a plain TypeScript module, auto-discovered by the `@voila/content/vite` plugin — see [01 — Architecture](./01-architecture.md#single-integration-point) and [ADR 0002](../../../../docs/decision-records/0002-tanstack-start-integration.md).
 
 ## Anatomy
 

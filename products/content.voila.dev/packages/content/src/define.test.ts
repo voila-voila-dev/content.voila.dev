@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { string } from "@voila/content-schema";
-import { defineCollection, defineContent, defineSingleton, resolveConfig } from "./define.ts";
+import { defineCollection, defineContent, defineSingleton } from "./define.ts";
 
 describe("defineCollection", () => {
   test("tags the result with kind=collection", () => {
@@ -39,19 +39,24 @@ describe("defineSingleton", () => {
   });
 });
 
-describe("resolveConfig", () => {
-  test("fills in default mount paths", () => {
-    const resolved = resolveConfig({});
-    expect(resolved.mount.admin).toBe("/admin");
-    expect(resolved.mount.api).toBe("/admin/api");
-    expect(resolved.mount.mcp).toBe("/admin/mcp");
+describe("defineContent", () => {
+  test("works with no arguments", () => {
+    const content = defineContent();
+    expect(content.mount.admin).toBe("/admin");
+    expect(content.mount.api).toBe("/admin/api");
+    expect(content.mount.mcp).toBe("/admin/mcp");
+  });
+
+  test("fills in default branding to an empty object", () => {
+    const content = defineContent();
+    expect(content.branding).toEqual({});
   });
 
   test("overrides mount paths from config", () => {
-    const resolved = resolveConfig({
+    const content = defineContent({
       mount: { admin: "/studio", api: "/studio/api", mcp: "/studio/mcp" },
     });
-    expect(resolved.mount).toEqual({
+    expect(content.mount).toEqual({
       admin: "/studio",
       api: "/studio/api",
       mcp: "/studio/mcp",
@@ -59,44 +64,21 @@ describe("resolveConfig", () => {
   });
 
   test("normalizes trailing slashes off mount paths", () => {
-    const resolved = resolveConfig({
+    const content = defineContent({
       mount: { admin: "/studio/", api: "/studio/api/" },
     });
-    expect(resolved.mount.admin).toBe("/studio");
-    expect(resolved.mount.api).toBe("/studio/api");
+    expect(content.mount.admin).toBe("/studio");
+    expect(content.mount.api).toBe("/studio/api");
   });
 
   test("rejects mount paths that do not start with /", () => {
-    expect(() => resolveConfig({ mount: { admin: "studio" } })).toThrow(/must start with/);
-  });
-
-  test("defaults branding to an empty object", () => {
-    const resolved = resolveConfig({});
-    expect(resolved.branding).toEqual({});
+    expect(() => defineContent({ mount: { admin: "studio" } })).toThrow(/must start with/);
   });
 
   test("freezes the collections and singletons arrays", () => {
-    const resolved = resolveConfig({});
-    expect(Object.isFrozen(resolved.collections)).toBe(true);
-    expect(Object.isFrozen(resolved.singletons)).toBe(true);
-  });
-});
-
-describe("defineContent", () => {
-  test("returns an object with a handle function", () => {
     const content = defineContent();
-    expect(typeof content.handle).toBe("function");
-  });
-
-  test("works with no arguments", () => {
-    const content = defineContent();
-    expect(content.mount.admin).toBe("/admin");
-  });
-
-  test("exposes the resolved mount paths on the returned object", () => {
-    const content = defineContent({ mount: { admin: "/studio" } });
-    expect(content.mount.admin).toBe("/studio");
-    expect(content.mount.api).toBe("/admin/api");
+    expect(Object.isFrozen(content.collections)).toBe(true);
+    expect(Object.isFrozen(content.singletons)).toBe(true);
   });
 
   test("exposes branding, collections, and singletons", () => {
@@ -112,5 +94,10 @@ describe("defineContent", () => {
     expect(content.singletons).toHaveLength(1);
     expect(content.collections[0]?.slug).toBe("posts");
     expect(content.singletons[0]?.slug).toBe("settings");
+  });
+
+  test("returns a plain config object (no handle method)", () => {
+    const content = defineContent();
+    expect("handle" in content).toBe(false);
   });
 });

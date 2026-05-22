@@ -1,11 +1,9 @@
-import { handle } from "./handler.ts";
 import type {
   Collection,
   CollectionDef,
   Content,
   ContentConfig,
   FieldsRecord,
-  ResolvedContentConfig,
   ResolvedMount,
   Singleton,
   SingletonDef,
@@ -30,14 +28,6 @@ export function defineSingleton<Fields extends FieldsRecord>(
 }
 
 export function defineContent(config: ContentConfig = {}): Content {
-  const resolved = resolveConfig(config);
-  return {
-    ...resolved,
-    handle: (request: Request) => handle(request, resolved),
-  };
-}
-
-export function resolveConfig(config: ContentConfig): ResolvedContentConfig {
   return {
     branding: config.branding ?? {},
     mount: resolveMount(config.mount),

@@ -2,29 +2,38 @@
 "@voila/content": minor
 ---
 
-Scaffold `@voila/content` as the framework entry package.
+Scaffold `@voila/content` as the framework entry package, integrating as
+a TanStack Start vite plugin per
+[ADR 0002](../docs/decision-records/0002-tanstack-start-integration.md).
 
-Ships the M0 surface from
-[`12 — Roadmap`](../products/content.voila.dev/docs/requirements/12-roadmap.md):
+The M0 surface:
 
 - `defineContent`, `defineCollection`, `defineSingleton` — declarative
-  signatures that the rest of the CMS hangs off.
-- `content.handle(request: Request): Promise<Response>` — a Web-API handler
-  that routes between three sub-handlers based on the configured mount paths.
-- Admin shell route (`/admin/*`) — returns a blank, branded HTML scaffold;
-  the React admin SPA mounts into `#voila-admin` in M1.
-- Healthcheck route (`/admin/api/health`) — returns
-  `{ ok: true, name, version, time }` JSON.
-- First-run gate (`/admin/setup`) — placeholder HTML page until the auth
-  wizard lands in M1.
+  signatures the rest of the CMS hangs off. `defineContent` is the
+  default export of the conventional `content.config.ts` at the project
+  root.
+- `@voila/content/vite` subpath — the `voila()` plugin. Add it to
+  `vite.config.ts` and it auto-discovers `./content.config.ts`. M0
+  ships the plugin contract stub; route registration and the
+  `virtual:voila/content` module land alongside the playground.
+- `@voila/content/admin` subpath — `adminRouteOptions(content)` and
+  `setupRouteOptions(content)` factories that return objects
+  structurally compatible with TanStack Router's `createFileRoute(…)`.
+- `@voila/content/server-routes` subpath — `healthGET` handler,
+  structurally compatible with TanStack Start's
+  `createServerFileRoute(…).methods({ GET })`.
+- React shell rendered via `renderToStaticMarkup` of `<AdminShell>` and
+  `<SetupPage>` components — ready for the M1 admin SPA to hydrate
+  into `#voila-admin`.
 
 Re-exports `fields` from `@voila/content-schema` so authors can write
 `import { defineContent, fields } from "@voila/content"` in one line.
 
 ```ts
+// content.config.ts
 import { defineCollection, defineContent, fields } from "@voila/content";
 
-export const content = defineContent({
+export default defineContent({
   branding: { name: "Acme CMS" },
   collections: [
     defineCollection({
@@ -32,5 +41,14 @@ export const content = defineContent({
       fields: { title: fields.string({ required: true }) },
     }),
   ],
+});
+```
+
+```ts
+// vite.config.ts
+import { voila } from "@voila/content/vite";
+
+export default defineConfig({
+  plugins: [voila(), tanstackStart()],
 });
 ```

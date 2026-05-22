@@ -55,9 +55,13 @@ bunx voila init
 `voila init` does four things:
 
 1. Writes `content.config.ts` at the project root with a starter schema.
-2. Creates `app/routes/admin/$.ts` with the catch-all mount.
+2. Adds `voila()` to `vite.config.ts` (auto-discovers the config).
 3. Adds `globals.voila.css` to `app/styles/` (admin theme tokens).
 4. Patches `wrangler.jsonc` with R2/D1 bindings (commented, opt-in).
+
+No `app/routes/admin/*` files are created — the plugin registers the
+admin route tree as virtual routes inside TanStack Start. See
+[ADR 0002](../../../../docs/decision-records/0002-tanstack-start-integration.md).
 
 Prefer to do it by hand? See [Manual install](#manual-install) below.
 
@@ -66,7 +70,7 @@ Prefer to do it by hand? See [Manual install](#manual-install) below.
 ## 3. Define your content
 
 ```ts
-// content.config.ts
+// content.config.ts (project root)
 import { defineContent, defineCollection, fields } from '@voila/content'
 import { r2 } from '@voila/storage'
 
@@ -89,6 +93,20 @@ export default defineContent({
   branding: { name: 'My Site', logo: '/logo.svg' },
   collections: [posts],
   storage: r2({ bucket: 'media' }),
+})
+```
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite'
+import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+import { voila } from '@voila/content/vite'
+
+export default defineConfig({
+  plugins: [
+    voila(),       // auto-discovers ./content.config.ts
+    tanstackStart(),
+  ],
 })
 ```
 
@@ -147,15 +165,18 @@ If you want to know exactly what `voila init` touches (or you're integrating int
 
 2. **Create `content.config.ts`** at the project root — see [§3 Define your content](#3-define-your-content) for the minimal shape, or [06 — Configuration](./06-configuration.md) for the full reference.
 
-3. **Mount the handler** in `app/routes/admin/$.ts`:
+3. **Add the vite plugin** to `vite.config.ts`:
 
    ```ts
-   import { createServerFileRoute } from '@tanstack/react-start/server'
-   import { content } from '~/content.config'
+   import { defineConfig } from 'vite'
+   import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+   import { voila } from '@voila/content/vite'
 
-   export const ServerRoute = createServerFileRoute('/admin/$').methods({
-     GET:  ({ request }) => content.handle(request),
-     POST: ({ request }) => content.handle(request),
+   export default defineConfig({
+     plugins: [
+       voila(),       // auto-discovers ./content.config.ts
+       tanstackStart(),
+     ],
    })
    ```
 
@@ -171,6 +192,10 @@ If you want to know exactly what `voila init` touches (or you're integrating int
 6. **Run migrations**: `bunx voila migrate`.
 
 That's the whole manual recipe. The template (option A) is exactly this layout, frozen at the latest known-good versions.
+
+> If you can't use the vite plugin (custom build, multi-tenant
+> dispatch), see [08 — Extensions](./08-extensions.md) for the
+> escape-hatch route factories.
 
 ---
 
