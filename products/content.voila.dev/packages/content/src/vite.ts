@@ -1,6 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import type { Plugin, ResolvedConfig } from "vite";
+import { healthRouteSource } from "./routes/admin-api-health.ts";
+import { adminSetupSource } from "./routes/admin-setup.ts";
+import { adminSplatSource } from "./routes/admin-splat.ts";
 import type { Content } from "./types.ts";
 
 export type VoilaPluginOptions = {
@@ -80,46 +83,4 @@ function writeAdminRoutes({ root, configAbsPath }: { root: string; configAbsPath
 function writeIfChanged(file: string, contents: string): void {
   if (existsSync(file) && readFileSync(file, "utf8") === contents) return;
   writeFileSync(file, contents);
-}
-
-function adminSplatSource(configImport: string): string {
-  return `import { createFileRoute } from "@tanstack/react-router";
-import { AdminShell, buildAdminHead } from "@voila/content/internal";
-import content from "${configImport}";
-
-export const Route = createFileRoute("/admin/$")({
-  head: () => buildAdminHead(content),
-  component: () => <AdminShell config={content} />,
-});
-`;
-}
-
-function adminSetupSource(configImport: string): string {
-  return `import { createFileRoute } from "@tanstack/react-router";
-import { buildSetupHead, SetupPage } from "@voila/content/internal";
-import content from "${configImport}";
-
-export const Route = createFileRoute("/admin/setup")({
-  head: () => buildSetupHead(content),
-  component: () => <SetupPage config={content} />,
-});
-`;
-}
-
-function healthRouteSource(): string {
-  return `import { createFileRoute } from "@tanstack/react-router";
-
-export const Route = createFileRoute("/admin/api/health")({
-  server: {
-    handlers: {
-      GET: () =>
-        Response.json({
-          ok: true,
-          name: "@voila/content",
-          time: new Date().toISOString(),
-        }),
-    },
-  },
-});
-`;
 }
