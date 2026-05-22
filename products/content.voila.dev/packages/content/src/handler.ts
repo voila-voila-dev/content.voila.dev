@@ -4,7 +4,7 @@ import {
   notFoundJsonResponse,
   notFoundResponse,
   setupResponse,
-} from "./responses.ts";
+} from "./responses.tsx";
 import type { ResolvedContentConfig } from "./types.ts";
 
 export async function handle(request: Request, config: ResolvedContentConfig): Promise<Response> {

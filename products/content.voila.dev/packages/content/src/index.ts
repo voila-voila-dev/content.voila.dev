@@ -1,7 +1,7 @@
 export { fields } from "@voila/content-schema";
 export { defineCollection, defineContent, defineSingleton, resolveConfig } from "./define.ts";
 export { handle } from "./handler.ts";
-export type { HealthBody } from "./responses.ts";
+export type { HealthBody } from "./responses.tsx";
 export {
   adminShellResponse,
   healthResponse,
@@ -10,7 +10,7 @@ export {
   renderAdminShell,
   renderSetup,
   setupResponse,
-} from "./responses.ts";
+} from "./responses.tsx";
 export type {
   AnyCollection,
   AnySingleton,
