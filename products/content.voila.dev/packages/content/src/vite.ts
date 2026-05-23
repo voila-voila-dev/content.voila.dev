@@ -1,6 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import type { Plugin, ResolvedConfig } from "vite";
+import {
+  adminApiByFieldSource,
+  adminApiByIdSource,
+  adminApiListSource,
+  cloudflareEnvDeclSource,
+} from "./routes/admin-api.ts";
 import { healthRouteSource } from "./routes/admin-api-health.ts";
 import { adminSetupSource } from "./routes/admin-setup.ts";
 import { adminSplatSource } from "./routes/admin-splat.ts";
@@ -74,10 +80,34 @@ function writeAdminRoutes({ root, configAbsPath }: { root: string; configAbsPath
   const splatFile = join(routesDir, "$.tsx");
   const setupFile = join(routesDir, "setup.tsx");
   const healthFile = join(apiDir, "health.ts");
+  const listFile = join(apiDir, "$collection.ts");
+  const byIdFile = join(apiDir, "$collection.$id.ts");
+  const byFieldFile = join(apiDir, "$collection.by.$field.$value.ts");
 
   writeIfChanged(splatFile, `${GENERATED_HEADER}${adminSplatSource(configImportFrom(splatFile))}`);
   writeIfChanged(setupFile, `${GENERATED_HEADER}${adminSetupSource(configImportFrom(setupFile))}`);
   writeIfChanged(healthFile, `${GENERATED_HEADER}${healthRouteSource()}`);
+  writeIfChanged(listFile, `${GENERATED_HEADER}${adminApiListSource(configImportFrom(listFile))}`);
+  writeIfChanged(byIdFile, `${GENERATED_HEADER}${adminApiByIdSource(configImportFrom(byIdFile))}`);
+  writeIfChanged(
+    byFieldFile,
+    `${GENERATED_HEADER}${adminApiByFieldSource(configImportFrom(byFieldFile))}`,
+  );
+
+  // The generated API routes import the `cloudflare:workers` virtual module.
+  // Ship an ambient declaration so they type-check out of the box — but only
+  // when the consumer hasn't generated their own via `wrangler types`, since
+  // two `declare module "cloudflare:workers"` blocks would clash.
+  //
+  // The `-` prefix keeps TanStack's file-router from treating this `.d.ts` as a
+  // route (it matches the default `routeFileIgnorePrefix`); TypeScript still
+  // picks it up since ambient declarations are name-agnostic.
+  if (!existsSync(join(root, "worker-configuration.d.ts"))) {
+    writeIfChanged(
+      join(routesDir, "-cloudflare-env.d.ts"),
+      `${GENERATED_HEADER}${cloudflareEnvDeclSource()}`,
+    );
+  }
 }
 
 function writeIfChanged(file: string, contents: string): void {

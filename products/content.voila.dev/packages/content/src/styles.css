@@ -1,0 +1,18 @@
+/*
+ * @voila/content — admin stylesheet.
+ *
+ * Import this once from a consumer app's entry stylesheet to style the
+ * generated admin shell:
+ *
+ *     @import "@voila/content/styles.css";
+ *
+ * It pulls in the `@voila/ui` Tailwind preset (which itself loads `tailwindcss`,
+ * the design tokens, and the `@theme` mapping + scans @voila/ui's components),
+ * then registers @voila/content's own admin components as a Tailwind source so
+ * their utility classes are generated even though this package is resolved from
+ * the consumer's node_modules. `@source` is resolved relative to this file.
+ */
+
+@import "@voila/ui/tailwind";
+
+@source ".";
