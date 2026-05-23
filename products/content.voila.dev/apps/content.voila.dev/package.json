@@ -11,6 +11,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "bun test",
+    "typecheck": "tsr generate && tsc --noEmit",
     "deploy": "bun run build && wrangler deploy"
   },
   "dependencies": {
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@tanstack/devtools-vite": "^0.7.0",
+    "@tanstack/router-cli": "^1.167.9",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "^4",

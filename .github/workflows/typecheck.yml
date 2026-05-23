@@ -31,7 +31,7 @@ jobs:
         working-directory: apps/ui.voila.dev
         run: bunx tsc --noEmit
 
-      - name: tsc --noEmit (products/content.voila.dev/apps/content.voila.dev)
+      - name: typecheck (products/content.voila.dev/apps/content.voila.dev)
         shell: bash
         working-directory: products/content.voila.dev/apps/content.voila.dev
-        run: bunx tsc --noEmit
+        run: bun run typecheck
