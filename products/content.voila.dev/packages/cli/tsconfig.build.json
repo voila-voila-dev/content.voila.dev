@@ -1,0 +1,10 @@
+{
+  "extends": "@voila/typescript-config/tsconfig.build.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "./dist",
+    "rootDir": "."
+  },
+  "include": ["src/**/*", "bin/**/*"],
+  "exclude": ["src/**/*.test.ts"]
+}
