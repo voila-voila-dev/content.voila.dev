@@ -11,6 +11,9 @@
  *   2. our raw token layer (`@voila/ui/styles.css`)
  *   3. a `@theme` mapping that exposes the tokens as Tailwind utilities
  *      (`bg-background`, `text-foreground`, `rounded-md`, etc.)
+ *   4. an `@source` registration so the classes used inside this package's
+ *      own components are scanned even when @voila/ui is installed under a
+ *      consumer's node_modules (where Tailwind's auto-detection skips it).
  *
  * Apps can override any token by re-declaring the CSS variable on `:root` or
  * a scoped element — no preset extension API needed.
@@ -18,6 +21,9 @@
 
 @import "tailwindcss";
 @import "./styles.css";
+
+/* Resolved relative to this file → works from workspace or node_modules. */
+@source ".";
 
 @theme inline {
   --color-background: hsl(var(--background));
@@ -57,4 +63,20 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
+}
+
+/*
+ * Default every border to the theme `--border` token. Tailwind v4 changed the
+ * default border color from `gray-200` (v3) to `currentColor`, which made bare
+ * `border` / `border-b` utilities render in the foreground (near-black) color.
+ * shadcn's base reset restores the intended light border; without it every
+ * uncoloured border in the design system reads as black. Explicit utilities
+ * (`border-sidebar-border`, etc.) still win — they live in the utilities layer.
+ */
+@layer base {
+  *,
+  ::after,
+  ::before {
+    @apply border-border;
+  }
 }
