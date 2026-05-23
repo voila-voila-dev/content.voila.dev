@@ -61,8 +61,8 @@ export async function schemaGenerate(
   });
 
   const collections = [
-    ...content.collections.map((c) => c.slug),
-    ...content.singletons.map((s) => s.slug),
+    ...Object.values(content.collections).map((c) => c.slug),
+    ...Object.values(content.singletons).map((s) => s.slug),
   ];
 
   return { bridge, config: configAbsPath, collections, dialect };

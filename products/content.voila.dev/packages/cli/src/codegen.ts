@@ -44,8 +44,8 @@ export function writeDrizzleBridge(options: WriteBridgeOptions): void {
   mkdirSync(dir, { recursive: true });
 
   const all: ReadonlyArray<AnyCollection | AnySingleton> = [
-    ...content.collections,
-    ...content.singletons,
+    ...Object.values(content.collections),
+    ...Object.values(content.singletons),
   ];
 
   // Validate up-front so codegen errors surface here rather than as a drizzle
