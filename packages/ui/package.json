@@ -33,8 +33,7 @@
     "react-day-picker": "^9.5.0",
     "react-resizable-panels": "^2.1.7",
     "sonner": "^1.7.1",
-    "tailwind-merge": "^2.6.0",
-    "vaul": "^1.1.2"
+    "tailwind-merge": "^2.6.0"
   },
   "peerDependencies": {
     "react": "catalog:",
@@ -55,9 +54,12 @@
     }
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^15.11.7",
+    "@testing-library/react": "^16.1.0",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@voila/typescript-config": "workspace:*",
+    "happy-dom": "^15.11.7",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-hook-form": "^7.54.0",

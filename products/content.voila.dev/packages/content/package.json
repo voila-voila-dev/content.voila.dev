@@ -1,0 +1,37 @@
+{
+  "name": "@voila/content",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./vite": "./src/vite.ts",
+    "./internal": "./src/internal.ts"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@voila/content-schema": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "vite": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@voila/typescript-config": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "vite": "catalog:"
+  }
+}
