@@ -102,11 +102,11 @@ Depends on M0. SQLite + D1 adapters must be green before this starts.
 
 ### REST read endpoints
 
-- [ ] `GET /admin/api/:collection` (list, with `?limit`, `?cursor`, `?orderBy`)
-- [ ] `GET /admin/api/:collection/:id` (find by id)
-- [ ] `GET /admin/api/:collection/by/:field/:value` (find by unique field)
-- [ ] Cursor pagination (no offset)
-- [ ] Error envelope spec (`{ error: { code, message, details? } }`)
+- [X] `GET /admin/api/:collection` (list, with `?limit`, `?cursor`, `?orderBy`)
+- [X] `GET /admin/api/:collection/:id` (find by id)
+- [X] `GET /admin/api/:collection/by/:field/:value` (find by unique field)
+- [X] Cursor pagination (no offset)
+- [X] Error envelope spec (`{ error: { code, message, details? } }`)
 
 ### Admin (read-only)
 
