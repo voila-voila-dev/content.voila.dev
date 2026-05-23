@@ -1,7 +1,27 @@
 import { describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  RouterContextProvider,
+} from "@tanstack/react-router";
 import { voila } from "@voila/content/vite";
+import type { ComponentType } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+
+function renderUnderRouter(Component: ComponentType, initialPath = "/"): string {
+  const rootRoute = createRootRoute();
+  const router = createRouter({
+    routeTree: rootRoute,
+    history: createMemoryHistory({ initialEntries: [initialPath] }),
+  });
+  return renderToStaticMarkup(
+    <RouterContextProvider router={router}>
+      <Component />
+    </RouterContextProvider>,
+  );
+}
 
 const ROOT = resolve(import.meta.dir, "..");
 
@@ -36,7 +56,7 @@ describe("playground admin routes (integration)", () => {
     regenerateRoutes();
     const mod = await import(`${ROOT}/src/routes/admin/$.tsx?t=${Date.now()}`);
     const Component = mod.Route.options.component;
-    const html = renderToStaticMarkup(<Component />);
+    const html = renderUnderRouter(Component);
     expect(html).toContain('id="voila-admin"');
     expect(html).toContain('data-mount-admin="/admin"');
     expect(html).toContain('data-mount-api="/admin/api"');
