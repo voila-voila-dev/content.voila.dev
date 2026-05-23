@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defineContent } from "./define.ts";
@@ -47,20 +47,54 @@ describe("voila() route generation", () => {
     fn?.call(plugin as any, { root } as any);
   }
 
-  test("writes admin splat, setup, and health route files when content.config.ts exists", () => {
+  test("writes layout, index, setup, view, and health route files when content.config.ts exists", () => {
     runConfigResolved(voila());
-    expect(existsSync(join(root, "src/routes/admin/$.tsx"))).toBe(true);
+    expect(existsSync(join(root, "src/routes/admin.tsx"))).toBe(true);
+    expect(existsSync(join(root, "src/routes/admin/index.tsx"))).toBe(true);
     expect(existsSync(join(root, "src/routes/admin/setup.tsx"))).toBe(true);
+    expect(existsSync(join(root, "src/routes/admin/collections.$collection.index.tsx"))).toBe(true);
+    expect(existsSync(join(root, "src/routes/admin/collections.$collection.$id.tsx"))).toBe(true);
+    expect(existsSync(join(root, "src/routes/admin/singletons.$singleton.tsx"))).toBe(true);
     expect(existsSync(join(root, "src/routes/admin/api/health.ts"))).toBe(true);
+  });
+
+  test("removes a stale admin/$.tsx splat from older generations", () => {
+    // Pre-seed the legacy splat as if a previous version of the plugin emitted it.
+    mkdirSync(join(root, "src/routes/admin"), { recursive: true });
+    writeFileSync(join(root, "src/routes/admin/$.tsx"), "// legacy splat\n");
+    runConfigResolved(voila());
+    expect(existsSync(join(root, "src/routes/admin/$.tsx"))).toBe(false);
   });
 
   test("generated files import content config + carry the DO NOT EDIT header", () => {
     runConfigResolved(voila());
-    const splat = readFileSync(join(root, "src/routes/admin/$.tsx"), "utf8");
-    expect(splat).toContain("DO NOT EDIT");
-    expect(splat).toContain('from "@voila/content/internal"');
-    expect(splat).toContain('import content from "../../../content.config"');
-    expect(splat).toContain('createFileRoute("/admin/$")');
+
+    const layout = readFileSync(join(root, "src/routes/admin.tsx"), "utf8");
+    expect(layout).toContain("DO NOT EDIT");
+    expect(layout).toContain('from "@voila/content/internal"');
+    expect(layout).toContain('import content from "../../content.config"');
+    expect(layout).toContain('createFileRoute("/admin")');
+
+    const list = readFileSync(
+      join(root, "src/routes/admin/collections.$collection.index.tsx"),
+      "utf8",
+    );
+    expect(list).toContain('createFileRoute("/admin/collections/$collection/")');
+    expect(list).toContain("CollectionListView");
+
+    const detail = readFileSync(
+      join(root, "src/routes/admin/collections.$collection.$id.tsx"),
+      "utf8",
+    );
+    expect(detail).toContain('createFileRoute("/admin/collections/$collection/$id")');
+    expect(detail).toContain("CollectionDetailView");
+
+    const singleton = readFileSync(
+      join(root, "src/routes/admin/singletons.$singleton.tsx"),
+      "utf8",
+    );
+    expect(singleton).toContain('createFileRoute("/admin/singletons/$singleton")');
+    expect(singleton).toContain("SingletonView");
   });
 
   test("generated health route is a TanStack Start file route with a GET server handler", () => {

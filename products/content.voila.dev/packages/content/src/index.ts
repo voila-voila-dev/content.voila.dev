@@ -9,6 +9,7 @@ export type {
   Content,
   ContentConfig,
   FieldsRecord,
+  ListConfig,
   Mount,
   ResolvedContentConfig,
   ResolvedMount,

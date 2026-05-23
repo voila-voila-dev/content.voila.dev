@@ -52,9 +52,9 @@ describe("playground admin routes (integration)", () => {
     expect(new Date(body.time).toString()).not.toBe("Invalid Date");
   });
 
-  test("GET /admin/$ renders the admin shell with playground branding", async () => {
+  test("GET /admin renders the admin shell with playground branding", async () => {
     regenerateRoutes();
-    const mod = await import(`${ROOT}/src/routes/admin/$.tsx?t=${Date.now()}`);
+    const mod = await import(`${ROOT}/src/routes/admin.tsx?t=${Date.now()}`);
     const Component = mod.Route.options.component;
     const html = renderUnderRouter(Component);
     expect(html).toContain('id="voila-admin"');
@@ -63,9 +63,9 @@ describe("playground admin routes (integration)", () => {
     expect(html).toContain('data-brand-name="Voila Playground"');
   });
 
-  test("GET /admin/$ head() returns branding-driven meta", async () => {
+  test("GET /admin head() returns branding-driven meta", async () => {
     regenerateRoutes();
-    const mod = await import(`${ROOT}/src/routes/admin/$.tsx?t=${Date.now()}`);
+    const mod = await import(`${ROOT}/src/routes/admin.tsx?t=${Date.now()}`);
     const head = mod.Route.options.head() as {
       meta: Array<{ title?: string; name?: string; content?: string }>;
     };
@@ -73,5 +73,20 @@ describe("playground admin routes (integration)", () => {
     expect(title).toBe("Voila Playground");
     const mountAdmin = head.meta.find((m) => m.name === "voila:mount-admin")?.content;
     expect(mountAdmin).toBe("/admin");
+  });
+
+  test("collection list route ships a component + validateSearch", async () => {
+    regenerateRoutes();
+    const mod = await import(
+      `${ROOT}/src/routes/admin/collections.$collection.index.tsx?t=${Date.now()}`
+    );
+    expect(typeof mod.Route.options.component).toBe("function");
+    expect(typeof mod.Route.options.validateSearch).toBe("function");
+  });
+
+  test("singleton route ships a component", async () => {
+    regenerateRoutes();
+    const mod = await import(`${ROOT}/src/routes/admin/singletons.$singleton.tsx?t=${Date.now()}`);
+    expect(typeof mod.Route.options.component).toBe("function");
   });
 });

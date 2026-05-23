@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import type { Plugin, ResolvedConfig } from "vite";
 import {
@@ -8,8 +8,13 @@ import {
   cloudflareEnvDeclSource,
 } from "./routes/admin-api.ts";
 import { healthRouteSource } from "./routes/admin-api-health.ts";
+import { adminIndexSource, adminLayoutSource } from "./routes/admin-layout.ts";
 import { adminSetupSource } from "./routes/admin-setup.ts";
-import { adminSplatSource } from "./routes/admin-splat.ts";
+import {
+  adminCollectionDetailSource,
+  adminCollectionListSource,
+  adminSingletonSource,
+} from "./routes/admin-views.ts";
 import type { Content } from "./types.ts";
 
 export type VoilaPluginOptions = {
@@ -77,15 +82,43 @@ function writeAdminRoutes({ root, configAbsPath }: { root: string; configAbsPath
     return rel;
   };
 
+  const layoutFile = join(root, "src", "routes", "admin.tsx");
+  const indexFile = join(routesDir, "index.tsx");
   const splatFile = join(routesDir, "$.tsx");
   const setupFile = join(routesDir, "setup.tsx");
+  const collectionListFile = join(routesDir, "collections.$collection.index.tsx");
+  const collectionDetailFile = join(routesDir, "collections.$collection.$id.tsx");
+  const singletonFile = join(routesDir, "singletons.$singleton.tsx");
   const healthFile = join(apiDir, "health.ts");
   const listFile = join(apiDir, "$collection.ts");
   const byIdFile = join(apiDir, "$collection.$id.ts");
   const byFieldFile = join(apiDir, "$collection.by.$field.$value.ts");
 
-  writeIfChanged(splatFile, `${GENERATED_HEADER}${adminSplatSource(configImportFrom(splatFile))}`);
+  // Drop a stale `admin/$.tsx` from older generations. The splat used to be
+  // the entry point; now `admin.tsx` is the layout and the index sits at
+  // `admin/index.tsx`. Leaving the splat in place creates an ambiguous match
+  // for `/admin` (both `/admin/$` and `/admin/` resolve there after trailing-
+  // slash normalization), which TanStack warns about on every navigation.
+  if (existsSync(splatFile)) rmSync(splatFile);
+
+  writeIfChanged(
+    layoutFile,
+    `${GENERATED_HEADER}${adminLayoutSource(configImportFrom(layoutFile))}`,
+  );
+  writeIfChanged(indexFile, `${GENERATED_HEADER}${adminIndexSource(configImportFrom(indexFile))}`);
   writeIfChanged(setupFile, `${GENERATED_HEADER}${adminSetupSource(configImportFrom(setupFile))}`);
+  writeIfChanged(
+    collectionListFile,
+    `${GENERATED_HEADER}${adminCollectionListSource(configImportFrom(collectionListFile))}`,
+  );
+  writeIfChanged(
+    collectionDetailFile,
+    `${GENERATED_HEADER}${adminCollectionDetailSource(configImportFrom(collectionDetailFile))}`,
+  );
+  writeIfChanged(
+    singletonFile,
+    `${GENERATED_HEADER}${adminSingletonSource(configImportFrom(singletonFile))}`,
+  );
   writeIfChanged(healthFile, `${GENERATED_HEADER}${healthRouteSource()}`);
   writeIfChanged(listFile, `${GENERATED_HEADER}${adminApiListSource(configImportFrom(listFile))}`);
   writeIfChanged(byIdFile, `${GENERATED_HEADER}${adminApiByIdSource(configImportFrom(byIdFile))}`);

@@ -30,7 +30,7 @@ function buildNavigation(config: ResolvedContentConfig): NavigationGroup[] {
       label: "Collections",
       items: collections.map((c) => ({
         label: c.label ?? c.slug,
-        href: `${config.mount.admin}/collections/${c.slug}`,
+        href: `${config.mount.admin}/collections/${c.slug}/`,
         icon: c.icon ?? FilesIcon,
       })),
     });
@@ -73,7 +73,15 @@ export function AdminSidebar({ config, user = null, onSignOut, children }: Admin
             <VoilaSidebar.Menu.Item>
               <VoilaSidebar.Menu.Button
                 size="lg"
-                render={<Link to={config.mount.admin} aria-label="Go to admin home" />}
+                render={
+                  // Trailing slash targets the admin index route explicitly so TanStack
+                  // doesn't ambiguously match. The Link types are built per-consumer-app
+                  // and can't see our generic `mount.admin` template, so cast through.
+                  <Link
+                    to={`${config.mount.admin}/` as unknown as "/admin"}
+                    aria-label="Go to admin home"
+                  />
+                }
               >
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-accent-foreground">
                   <HouseIcon className="size-4" />

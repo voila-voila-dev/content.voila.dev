@@ -30,6 +30,16 @@ export type ResolvedMount = Required<Mount>;
 
 export type FieldsRecord = Record<string, AnyFieldDef>;
 
+/**
+ * Per-collection list-view configuration. `columns` is the ordered list of
+ * field keys (or system keys: `id`, `createdAt`, `updatedAt`) that the admin
+ * table should render. Omit to fall back to every declared field plus
+ * `updatedAt`.
+ */
+export type ListConfig<Fields extends FieldsRecord = FieldsRecord> = {
+  columns?: ReadonlyArray<(keyof Fields & string) | "id" | "createdAt" | "updatedAt">;
+};
+
 export type CollectionDef<
   Slug extends string = string,
   Fields extends FieldsRecord = FieldsRecord,
@@ -39,6 +49,7 @@ export type CollectionDef<
   icon?: IconComponent;
   description?: string;
   fields: Fields;
+  list?: ListConfig<Fields>;
 };
 
 export type SingletonDef<

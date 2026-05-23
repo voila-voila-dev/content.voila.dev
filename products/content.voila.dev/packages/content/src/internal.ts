@@ -6,11 +6,29 @@
  * lockstep with the plugin's codegen.
  */
 
+export type { FindResponse, ListParams, ListResponse } from "./admin/api-client.ts";
+export { ApiError, fetchById, fetchList, queryKeys } from "./admin/api-client.ts";
+export {
+  CollectionDetailView,
+  detailQueryOptions,
+} from "./admin/collection-detail-view.tsx";
+export {
+  CollectionListView,
+  listQueryOptions,
+} from "./admin/collection-list-view.tsx";
+export { EmptyState } from "./admin/empty-state.tsx";
+export { formatFieldValue, ReadOnlyField } from "./admin/field-display.tsx";
 export { FormCard } from "./admin/form-card.tsx";
 export type { NavigationItem } from "./admin/page-layout.tsx";
 export { PageLayout } from "./admin/page-layout.tsx";
+export { getCollection, getSingleton } from "./admin/registry.ts";
 export { AdminSidebar } from "./admin/sidebar.tsx";
-export { AdminShell } from "./admin-shell.tsx";
+export {
+  SingletonView,
+  singletonQueryOptions,
+} from "./admin/singleton-view.tsx";
+export { DetailSkeleton, ListSkeleton } from "./admin/skeletons.tsx";
+export { AdminDashboard, AdminLayout, AdminShell } from "./admin-shell.tsx";
 export type { RouteHead } from "./head.ts";
 export { buildAdminHead, buildSetupHead } from "./head.ts";
 export { SetupPage } from "./setup-page.tsx";
