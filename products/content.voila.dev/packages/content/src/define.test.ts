@@ -75,13 +75,13 @@ describe("defineContent", () => {
     expect(() => defineContent({ mount: { admin: "studio" } })).toThrow(/must start with/);
   });
 
-  test("freezes the collections and singletons arrays", () => {
+  test("freezes the collections and singletons maps", () => {
     const content = defineContent();
     expect(Object.isFrozen(content.collections)).toBe(true);
     expect(Object.isFrozen(content.singletons)).toBe(true);
   });
 
-  test("exposes branding, collections, and singletons", () => {
+  test("exposes branding, collections, and singletons keyed by slug", () => {
     const posts = defineCollection({ slug: "posts", fields: { title: string() } });
     const settings = defineSingleton({ slug: "settings", fields: { title: string() } });
     const content = defineContent({
@@ -90,10 +90,16 @@ describe("defineContent", () => {
       singletons: [settings],
     });
     expect(content.branding.name).toBe("Acme");
-    expect(content.collections).toHaveLength(1);
-    expect(content.singletons).toHaveLength(1);
-    expect(content.collections[0]?.slug).toBe("posts");
-    expect(content.singletons[0]?.slug).toBe("settings");
+    expect(Object.keys(content.collections)).toEqual(["posts"]);
+    expect(Object.keys(content.singletons)).toEqual(["settings"]);
+    expect(content.collections.posts.slug).toBe("posts");
+    expect(content.singletons.settings.slug).toBe("settings");
+  });
+
+  test("rejects duplicate slugs in collections", () => {
+    const a = defineCollection({ slug: "posts", fields: { title: string() } });
+    const b = defineCollection({ slug: "posts", fields: { title: string() } });
+    expect(() => defineContent({ collections: [a, b] })).toThrow(/duplicate slug/);
   });
 
   test("returns a plain config object (no handle method)", () => {

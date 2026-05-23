@@ -26,48 +26,84 @@ export type ResolvedMount = Required<Mount>;
 
 export type FieldsRecord = Record<string, AnyFieldDef>;
 
-export type CollectionDef<Fields extends FieldsRecord = FieldsRecord> = {
-  slug: string;
+export type CollectionDef<
+  Slug extends string = string,
+  Fields extends FieldsRecord = FieldsRecord,
+> = {
+  slug: Slug;
   label?: string;
   icon?: string;
   description?: string;
   fields: Fields;
 };
 
-export type SingletonDef<Fields extends FieldsRecord = FieldsRecord> = {
-  slug: string;
+export type SingletonDef<
+  Slug extends string = string,
+  Fields extends FieldsRecord = FieldsRecord,
+> = {
+  slug: Slug;
   label?: string;
   icon?: string;
   description?: string;
   fields: Fields;
 };
 
-export type Collection<Fields extends FieldsRecord = FieldsRecord> = CollectionDef<Fields> & {
+export type Collection<
+  Slug extends string = string,
+  Fields extends FieldsRecord = FieldsRecord,
+> = CollectionDef<Slug, Fields> & {
   readonly kind: "collection";
 };
 
-export type Singleton<Fields extends FieldsRecord = FieldsRecord> = SingletonDef<Fields> & {
+export type Singleton<
+  Slug extends string = string,
+  Fields extends FieldsRecord = FieldsRecord,
+> = SingletonDef<Slug, Fields> & {
   readonly kind: "singleton";
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: variance escape hatch — registries operate on any field shape.
-export type AnyCollection = Collection<any>;
+export type AnyCollection = Collection<string, any>;
 // biome-ignore lint/suspicious/noExplicitAny: variance escape hatch — registries operate on any field shape.
-export type AnySingleton = Singleton<any>;
+export type AnySingleton = Singleton<string, any>;
 
-export type ContentConfig = {
+/** Map from slug → entry. Replaces the earlier array storage. */
+export type CollectionMap = Readonly<Record<string, AnyCollection>>;
+export type SingletonMap = Readonly<Record<string, AnySingleton>>;
+
+/**
+ * Type-level converter from a tuple of items with a literal `slug` to a
+ * record keyed by that slug. `defineContent` uses this to preserve per-slug
+ * types when the consumer passes their collections/singletons as an array.
+ */
+export type SlugMap<T extends { slug: string }> = {
+  readonly [Item in T as Item["slug"]]: Item;
+};
+
+export type ContentConfig<
+  Collections extends readonly AnyCollection[] = readonly AnyCollection[],
+  Singletons extends readonly AnySingleton[] = readonly AnySingleton[],
+> = {
   branding?: Branding;
   mount?: Mount;
-  collections?: AnyCollection[];
-  singletons?: AnySingleton[];
+  collections?: Collections;
+  singletons?: Singletons;
 };
 
-export type Content = {
+export type Content<
+  Collections extends CollectionMap = CollectionMap,
+  Singletons extends SingletonMap = SingletonMap,
+> = {
   branding: Branding;
   mount: ResolvedMount;
-  collections: readonly AnyCollection[];
-  singletons: readonly AnySingleton[];
+  /** Collections indexed by slug. Iterate via `Object.values(content.collections)`. */
+  collections: Collections;
+  /** Singletons indexed by slug. Iterate via `Object.values(content.singletons)`. */
+  singletons: Singletons;
 };
 
+/** Erased shape for code that needs to accept any Content. */
+export type AnyContent = Content<CollectionMap, SingletonMap>;
+
 /** Alias retained for internal symmetry with the pre-resolution input shape. */
-export type ResolvedContentConfig = Content;
+export type ResolvedContentConfig = AnyContent;
