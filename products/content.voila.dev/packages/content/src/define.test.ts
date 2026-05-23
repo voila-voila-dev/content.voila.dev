@@ -16,14 +16,15 @@ describe("defineCollection", () => {
   });
 
   test("preserves passed-in properties verbatim", () => {
+    const UserIcon = () => null;
     const c = defineCollection({
       slug: "authors",
       label: "Authors",
-      icon: "User",
+      icon: UserIcon,
       description: "People who write posts.",
       fields: { name: string({ required: true }) },
     });
-    expect(c.icon).toBe("User");
+    expect(c.icon).toBe(UserIcon);
     expect(c.description).toBe("People who write posts.");
   });
 });

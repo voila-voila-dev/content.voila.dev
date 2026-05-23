@@ -5,6 +5,11 @@
  * code; the surface is intentionally undocumented and may change in
  * lockstep with the plugin's codegen.
  */
+
+export { FormCard } from "./admin/form-card.tsx";
+export type { NavigationItem } from "./admin/page-layout.tsx";
+export { PageLayout } from "./admin/page-layout.tsx";
+export { AdminSidebar } from "./admin/sidebar.tsx";
 export { AdminShell } from "./admin-shell.tsx";
 export type { RouteHead } from "./head.ts";
 export { buildAdminHead, buildSetupHead } from "./head.ts";

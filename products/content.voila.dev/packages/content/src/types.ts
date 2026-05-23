@@ -1,4 +1,8 @@
 import type { AnyFieldDef } from "@voila/content-schema";
+import type { ComponentType } from "react";
+
+/** Icon component accepted by collection/singleton defs (e.g. a `@voila/ui/icons` export). */
+export type IconComponent = ComponentType<{ className?: string }>;
 
 export type Branding = {
   /** Display name shown in the sidebar header, browser tab, and emails. */
@@ -32,7 +36,7 @@ export type CollectionDef<
 > = {
   slug: Slug;
   label?: string;
-  icon?: string;
+  icon?: IconComponent;
   description?: string;
   fields: Fields;
 };
@@ -43,7 +47,7 @@ export type SingletonDef<
 > = {
   slug: Slug;
   label?: string;
-  icon?: string;
+  icon?: IconComponent;
   description?: string;
   fields: Fields;
 };
