@@ -11,7 +11,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "bun run build && wrangler deploy",
-    "db:init": "wrangler d1 execute DATABASE --local --file=migrations/0000_init.sql"
+    "db:schema": "voila schema generate",
+    "db:generate": "voila migrate generate",
+    "db:apply": "voila migrate apply --target d1-local --binding DATABASE",
+    "db:apply:remote": "voila migrate apply --target d1-remote --binding DATABASE"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.26.0",
@@ -32,6 +35,7 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "^4",
+    "@voila/content-cli": "workspace:*",
     "@voila/typescript-config": "workspace:*",
     "vite": "catalog:",
     "wrangler": "^4.70.0"
