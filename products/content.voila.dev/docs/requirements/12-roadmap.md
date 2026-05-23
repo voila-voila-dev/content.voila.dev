@@ -94,11 +94,11 @@ Depends on M0. SQLite + D1 adapters must be green before this starts.
 
 ### Schema → Database
 
-- [ ] Drizzle table generator from field defs (`schemaToTables(collections)`)
-- [ ] System columns: `id` (ulid), `createdAt`, `updatedAt`, `deletedAt` (nullable, for M2 soft delete)
-- [ ] `voila migrate generate` — wraps drizzle-kit, writes to `migrations/`
-- [ ] `voila migrate apply` — local SQLite + `--remote` for D1 (wraps `wrangler d1 migrations apply`)
-- [ ] Migration file naming + idempotency guard
+- [X] Drizzle table generator from field defs (`schemaToTables(collections)`)
+- [X] System columns: `id` (ulid), `createdAt`, `updatedAt`, `deletedAt` (nullable, for M2 soft delete)
+- [X] `voila migrate generate` — emits initial DDL via `emitInitialMigration` (drizzle-kit diff wrapper lands in M2)
+- [X] `voila migrate apply` — local SQLite + `--target d1-local|d1-remote` (wraps `wrangler d1 migrations apply`)
+- [X] Migration file naming + idempotency guard (`migrations/.voila-journal.json` schema-hash)
 
 ### REST read endpoints
 
