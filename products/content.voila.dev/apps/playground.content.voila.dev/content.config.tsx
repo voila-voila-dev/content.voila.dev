@@ -1,4 +1,5 @@
 import { defineCollection, defineContent, defineSingleton, fields } from "@voila/content";
+import { SparkleIcon } from "@voila/ui/icons";
 
 const posts = defineCollection({
   slug: "posts",
@@ -25,7 +26,10 @@ const config = defineSingleton({
 });
 
 export default defineContent({
-  branding: { name: "Voila Playground" },
+  branding: {
+    name: "Voila Playground",
+    logo: (props) => <SparkleIcon weight="fill" {...props} />,
+  },
   collections: [posts],
   singletons: [config],
 });

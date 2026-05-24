@@ -112,4 +112,14 @@ describe("voila() route generation", () => {
     runConfigResolved(voila());
     expect(existsSync(join(root, "src/routes/admin"))).toBe(false);
   });
+
+  test("falls back to a content.config.tsx sibling for the default path", () => {
+    rmSync(join(root, "content.config.ts"));
+    writeFileSync(join(root, "content.config.tsx"), "export default {};\n");
+    runConfigResolved(voila());
+    expect(existsSync(join(root, "src/routes/admin.tsx"))).toBe(true);
+    // Generated imports stay extensionless regardless of the config's extension.
+    const layout = readFileSync(join(root, "src/routes/admin.tsx"), "utf8");
+    expect(layout).toContain('import content from "../../content.config"');
+  });
 });

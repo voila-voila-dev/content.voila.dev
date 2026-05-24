@@ -63,6 +63,8 @@ export function AdminSidebar({ config, user = null, onSignOut, children }: Admin
   const pathname = location.pathname;
   const navigation = buildNavigation(config);
   const brandName = config.branding.name ?? "Voila";
+  const Logo = config.branding.logo;
+  const LogoDark = config.branding.logoDark;
   const userInitial = user?.name.charAt(0).toUpperCase() ?? "?";
 
   return (
@@ -84,7 +86,10 @@ export function AdminSidebar({ config, user = null, onSignOut, children }: Admin
                 }
               >
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-accent-foreground">
-                  <HouseIcon className="size-4" />
+                  {Logo && LogoDark && <Logo className="size-4 dark:hidden" />}
+                  {Logo && LogoDark && <LogoDark className="hidden size-4 dark:block" />}
+                  {Logo && !LogoDark && <Logo className="size-4" />}
+                  {!Logo && !LogoDark && <HouseIcon className="size-4" />}
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{brandName}</span>

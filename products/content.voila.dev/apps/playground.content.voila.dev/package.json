@@ -28,6 +28,7 @@
     "@tanstack/react-start": "^1.168.10",
     "@tanstack/router-plugin": "^1.132.0",
     "@voila/content": "workspace:*",
+    "@voila/ui": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",
     "tailwindcss": "^4.1.18"

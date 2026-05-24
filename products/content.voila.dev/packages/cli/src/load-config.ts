@@ -17,7 +17,12 @@ export interface LoadContentConfigOptions {
 export async function loadContentConfig(options: LoadContentConfigOptions = {}): Promise<Content> {
   const cwd = options.cwd ?? process.cwd();
   const path = options.config ?? "./content.config.ts";
-  const absPath = resolve(cwd, path);
+  let absPath = resolve(cwd, path);
+  // Accept a `.tsx` config (JSX in `defineContent`, e.g. `branding.logo`)
+  // when a `.ts` path was given but only the `.tsx` sibling exists.
+  if (!existsSync(absPath) && absPath.endsWith(".ts") && existsSync(`${absPath}x`)) {
+    absPath = `${absPath}x`;
+  }
   if (!existsSync(absPath)) {
     throw new Error(`content config not found: ${absPath}`);
   }

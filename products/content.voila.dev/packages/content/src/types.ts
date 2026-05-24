@@ -4,13 +4,16 @@ import type { ComponentType } from "react";
 /** Icon component accepted by collection/singleton defs (e.g. a `@voila/ui/icons` export). */
 export type IconComponent = ComponentType<{ className?: string }>;
 
+/** Logo component rendered in the admin sidebar (e.g. a `@voila/ui/icons` export or an inline SVG). */
+export type LogoComponent = ComponentType<{ className?: string }>;
+
 export type Branding = {
   /** Display name shown in the sidebar header, browser tab, and emails. */
   name?: string;
-  /** Light-mode logo URL. */
-  logo?: string;
-  /** Dark-mode logo URL. */
-  logoDark?: string;
+  /** Light-mode logo, rendered as a component (passed a `className`). */
+  logo?: LogoComponent;
+  /** Dark-mode logo, rendered as a component. Falls back to `logo` when omitted. */
+  logoDark?: LogoComponent;
   /** Favicon URL. */
   favicon?: string;
   /** CSS color string used as `--voila-color-accent`. */
