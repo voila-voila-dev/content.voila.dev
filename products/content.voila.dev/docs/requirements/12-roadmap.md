@@ -233,11 +233,15 @@ Depends on M2 (write path) and Cloudflare R2 binding (enabled in playground here
 
 ### Rich text
 
-- [ ] `richText` field (Plate-based, built on Slate)
+The editor ships as two standalone packages — `@voila/rich-text-editor` (behavior) and `@voila/rich-text-nodes` (presentation) — composed by the `richText` field. Their full feature roadmap lives in [`packages/rich-text-editor/docs.md`](../../../../packages/rich-text-editor/docs.md); the items below are only what M3 needs.
+
+- [ ] `richText` field wires `@voila/rich-text-editor` + `@voila/rich-text-nodes`
 - [ ] Default plugins: bold, italic, headings, lists, links, code, blockquote
+- [ ] `plugins` / `components` field options pass through for extension (see [03 — DX §f](./03-dx.md))
 - [ ] Inline image (uses media field machinery)
 - [ ] Mention plugin (for cross-references; resolves at render via `include`)
 - [ ] Markdown serialization roundtrip (`toMarkdown`, `fromMarkdown`)
+- [ ] Static (SSR) render path for read-only output on the public site
 - [ ] `markdown` field (raw, no Plate UI)
 - [ ] `code` field with syntax highlight (Shiki, server-side render)
 
