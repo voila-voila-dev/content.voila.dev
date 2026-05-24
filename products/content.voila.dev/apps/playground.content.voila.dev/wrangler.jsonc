@@ -5,15 +5,11 @@
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
 
-  // D1: active for M0+ — wire the SQL adapter through `content.config.ts`.
-  // Provision the database before deploying:
-  //   wrangler d1 create voila-playground
-  // and paste the returned `database_id` below.
   "d1_databases": [
     {
       "binding": "DATABASE",
       "database_name": "voila-playground",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "23ca52f9-f19e-4d8c-9bfa-82f9bfacaa86",
       "migrations_dir": "migrations"
     }
   ]

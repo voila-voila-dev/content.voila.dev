@@ -1,0 +1,48 @@
+name: playground.content.voila.dev — Preview
+
+on:
+  pull_request:
+    paths:
+      - "products/content.voila.dev/**"
+      - "packages/**"
+      - "bun.lock"
+      - ".github/workflows/playground.content.voila.dev-preview.yml"
+      - ".github/actions/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Build & upload preview version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      deployments: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/setup-bun
+      - uses: ./.github/actions/install
+
+      - name: Upload preview version to Cloudflare Workers
+        id: deploy
+        uses: ./.github/actions/cloudflare-workers-publish
+        with:
+          working-directory: products/content.voila.dev/apps/playground.content.voila.dev
+          command: versions upload --message "PR #${{ github.event.pull_request.number }} @ ${{ github.event.pull_request.head.sha }}"
+          api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request'
+        uses: ./.github/actions/sticky-pr-comment
+        with:
+          id: playground-content-voila-dev-preview
+          body: |
+            🧪 **Playground preview** — `playground.content.voila.dev`
+
+            - Preview: ${{ steps.deploy.outputs.deployment-url }}
+            - Commit: `${{ github.event.pull_request.head.sha }}`
