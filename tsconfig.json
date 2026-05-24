@@ -6,6 +6,7 @@
     { "path": "./products/content.voila.dev/packages/schema/tsconfig.build.json" },
     { "path": "./products/content.voila.dev/packages/database/tsconfig.build.json" },
     { "path": "./products/content.voila.dev/packages/content/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/cli/tsconfig.build.json" }
+    { "path": "./products/content.voila.dev/packages/cli/tsconfig.build.json" },
+    { "path": "./products/content.voila.dev/packages/client/tsconfig.build.json" }
   ]
 }

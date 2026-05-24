@@ -138,6 +138,20 @@
         "@voila/typescript-config": "workspace:*",
       },
     },
+    "products/content.voila.dev/packages/client": {
+      "name": "@voila/content-client",
+      "version": "0.1.0",
+      "dependencies": {
+        "@voila/content-schema": "workspace:*",
+      },
+      "devDependencies": {
+        "@voila/content": "workspace:*",
+        "@voila/typescript-config": "workspace:*",
+      },
+      "peerDependencies": {
+        "@voila/content": "workspace:*",
+      },
+    },
     "products/content.voila.dev/packages/content": {
       "name": "@voila/content",
       "version": "0.1.0",
@@ -917,6 +931,8 @@
     "@voila/content": ["@voila/content@workspace:products/content.voila.dev/packages/content"],
 
     "@voila/content-cli": ["@voila/content-cli@workspace:products/content.voila.dev/packages/cli"],
+
+    "@voila/content-client": ["@voila/content-client@workspace:products/content.voila.dev/packages/client"],
 
     "@voila/content-database": ["@voila/content-database@workspace:products/content.voila.dev/packages/database"],
 

@@ -2,6 +2,7 @@ export { fields } from "@voila/content-schema";
 export { defineCollection, defineContent, defineSingleton } from "./define.ts";
 export type {
   AnyCollection,
+  AnyContent,
   AnySingleton,
   Branding,
   Collection,
