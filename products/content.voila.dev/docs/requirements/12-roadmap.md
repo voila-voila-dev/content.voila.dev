@@ -77,12 +77,12 @@ Integration model lands per [ADR 0002](../../../../docs/decision-records/0002-ta
 
 ### Testing bar (M0)
 
-- [ ] `bun test` runner configured at the root; per-package `*.test.ts` colocated with source
-- [ ] **Unit**: `packages/schema` field constructors + validator derivation (Zod adapter + Standard Schema contract) — ≥ 90% line coverage on that package
-- [ ] **Unit**: `packages/ui` primitives smoke-render via `@testing-library/react` + `happy-dom`
-- [ ] **Integration**: plugin's generated admin route files (`src/routes/admin/$.tsx` + `api/health.ts`) hit via an in-memory `Request` against the playground build, asserting admin shell HTML + healthcheck JSON
-- [ ] **CI**: GitHub Actions matrix on `ubuntu-latest`, Bun stable; runs `bun run check`
-- [ ] Coverage report via `bun test --coverage`; baseline committed (no gate yet)
+- [X] `bun test` runner configured at the root; per-package `*.test.ts` colocated with source
+- [X] **Unit**: `packages/schema` field constructors + validator derivation (Zod adapter + Standard Schema contract) — ≥ 90% line coverage on that package
+- [X] **Unit**: `packages/ui` primitives smoke-render via `@testing-library/react` + `happy-dom`
+- [X] **Integration**: plugin's generated admin route files (`src/routes/admin/$.tsx` + `api/health.ts`) hit via an in-memory `Request` against the playground build, asserting admin shell HTML + healthcheck JSON
+- [X] **CI**: GitHub Actions matrix on `ubuntu-latest`, Bun stable; runs `bun run check`
+- [X] Coverage report via `bun test --coverage`; baseline committed (no gate yet)
 
 **Exit criterion**: `bun dev` in `products/content.voila.dev/apps/playground.content.voila.dev/` boots vite with Miniflare in-process (via `@cloudflare/vite-plugin`); `http://localhost:8787/admin` renders the empty admin shell with branding from `content.config.ts`. `bun run check` is green on CI.
 
@@ -110,17 +110,17 @@ Depends on M0. SQLite + D1 adapters must be green before this starts.
 
 ### Admin (read-only)
 
-- [ ] Collection list view with TanStack Table — sortable columns from `list.columns`
-- [ ] Detail view (read-only field renderers)
-- [ ] Singleton view
-- [ ] Sidebar nav generated from collection registry
-- [ ] Loading skeletons + empty states for both views
+- [X] Collection list view with TanStack Table — sortable columns from `list.columns`
+- [X] Detail view (read-only field renderers)
+- [X] Singleton view
+- [X] Sidebar nav generated from collection registry
+- [X] Loading skeletons + empty states for both views
 
 ### Typed client
 
-- [ ] `@voila/client` package — typed wrapper over `fetch`
-- [ ] `createClient<typeof content>()` factory returning `client.posts.find/findOne/list`
-- [ ] Type tests under `packages/client/test-d/` (asserts inferred shapes)
+- [X] `@voila/content-client` package — typed wrapper over `fetch`
+- [X] `createClient<typeof content>()` factory returning `client.posts.find/findOne/list`
+- [X] Type tests under `packages/client/test-d/` (asserts inferred shapes)
 
 ### Auth (read-side only)
 
@@ -233,17 +233,17 @@ Depends on M2 (write path) and Cloudflare R2 binding (enabled in playground here
 
 ### Rich text
 
-- [ ] `richText` field (Tiptap-based)
-- [ ] Default extensions: bold, italic, headings, lists, links, code, blockquote
+- [ ] `richText` field (Plate-based, built on Slate)
+- [ ] Default plugins: bold, italic, headings, lists, links, code, blockquote
 - [ ] Inline image (uses media field machinery)
-- [ ] Mention extension (for cross-references; resolves at render via `include`)
+- [ ] Mention plugin (for cross-references; resolves at render via `include`)
 - [ ] Markdown serialization roundtrip (`toMarkdown`, `fromMarkdown`)
-- [ ] `markdown` field (raw, no Tiptap UI)
+- [ ] `markdown` field (raw, no Plate UI)
 - [ ] `code` field with syntax highlight (Shiki, server-side render)
 
 ### Testing bar (M3)
 
-- [ ] **Unit**: Tiptap extensions render expected HTML/markdown
+- [ ] **Unit**: Plate plugins render expected HTML/markdown
 - [ ] **Unit**: image variant pipeline (golden image diff with tolerance)
 - [ ] **Integration**: full upload → variant → fetch via R2 (local Miniflare R2)
 - [ ] **Integration**: same against S3/MinIO
@@ -485,13 +485,6 @@ These are not assigned to a single milestone; chip away each week.
 - A landing page builder
 - A multi-CMS migrator (Strapi/Sanity/Contentful importers — community territory)
 - Anything proprietary in the core
-
-## Versioning
-
-- 0.x: free to break.
-- 1.0 ships when M7 closes and we've run two real sites on it for a month without incident.
-- After 1.0: semver, deprecation cycles ≥ one minor release.
-- **Release tooling**: [Changesets](https://github.com/changesets/changesets) drives every version bump and `CHANGELOG.md` across the monorepo. Every PR that touches a published package must include a `.changeset/*.md` entry (enforced by `changeset-bot` on PRs). `patch` / `minor` / `major` is declared per-changeset; `changeset version` aggregates them into per-package changelogs and bumps `package.json`. Pre-1.0 we operate in default mode (no `pre enter`); RC cycles before 1.0 use `changeset pre enter rc`.
 
 ## How to help (when public)
 

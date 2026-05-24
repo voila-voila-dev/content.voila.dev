@@ -91,9 +91,9 @@ fields.tuple([fields.number(), fields.number()])  // e.g. [lat, lng]
 
 ```ts
 fields.richText({
-  extensions: [headings, lists, links, codeBlock, mention({ source: 'users' })],
-  toolbar:    ['bold', 'italic', 'link', 'image'],
-  outputs:    ['html', 'json', 'plaintext'],   // what to expose to clients
+  plugins:  [headings, lists, links, codeBlock, mention({ source: 'users' })],
+  toolbar:  ['bold', 'italic', 'link', 'image'],
+  outputs:  ['html', 'json', 'plaintext'],   // what to expose to clients
 })
 
 fields.markdown({ flavor: 'gfm' })
@@ -258,7 +258,7 @@ type Post = InferDoc<typeof config, 'posts'>
 //      id: string
 //      title: string
 //      slug: string
-//      body: { html: string; json: RichTextNode; plaintext: string }
+//      body: { html: string; json: SlateNode[]; plaintext: string }
 //      cover: Media | null
 //      tags: string[]
 //      publishedAt: Date | null
