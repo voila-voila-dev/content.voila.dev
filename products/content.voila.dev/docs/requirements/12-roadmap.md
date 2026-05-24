@@ -124,10 +124,10 @@ Depends on M0. SQLite + D1 adapters must be green before this starts.
 
 ### Auth (read-side only)
 
-- [ ] Better Auth wired into the handler
-- [ ] Email magic link adapter (Resend default; SMTP fallback)
-- [ ] Session middleware for `/admin/*`
-- [ ] `voila seed admin` CLI command
+- [X] Better Auth wired into the handler — `@voila/content-auth/server` `createAuth()`; generated splat route `/admin/api/auth/$.ts` delegates to `auth.handler(request)`
+- [X] Email magic link adapter (Resend default; SMTP fallback) — `@voila/content-auth/mailers` with `resolveMailer({ env })`: Resend → SMTP → console fallback
+- [X] Session middleware for `/admin/*` — `requireSession()` invoked from the admin layout's `beforeLoad` via `createIsomorphicFn`; unauth → `/admin/login?next=…`
+- [X] `voila seed admin` CLI command — `--target sqlite|d1-local|d1-remote`, mirrors `migrate apply`; verified upserts on re-runs
 
 ### Testing bar (M1)
 
