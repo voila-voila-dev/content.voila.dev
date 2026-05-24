@@ -1,0 +1,11 @@
+/* Base styles for the editable surface only. Node appearance (headings,
+   lists, code, links, …) lives in `@voila/rich-text-nodes/styles.css`.
+   Import via `import "@voila/rich-text-editor/styles.css"`, or supply your own
+   `className`. */
+.voila-rich-text {
+  outline: none;
+  min-height: 8rem;
+  padding: 0.5rem 0.75rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
