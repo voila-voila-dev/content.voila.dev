@@ -4,3 +4,20 @@
 # Secret used to sign sessions and other auth-related tokens. Generate
 # with `openssl rand -base64 32`. Required.
 VOILA_AUTH_SECRET=replace-with-32-bytes-of-base64-randomness
+
+# Base URL Better Auth uses when minting cookie attributes (Secure flag,
+# domain) and the magic-link verify URL. Defaults to http://localhost:8787
+# for local dev; set this to your production origin (https://…) when
+# deploying.
+# VOILA_BASE_URL=http://localhost:8787
+
+# Magic-link email delivery. Set either Resend or SMTP_* below; leave both
+# blank in local dev to fall back to the stdout mailer (link printed to the
+# worker terminal).
+# RESEND_API_KEY=re_xxx
+# SMTP_HOST=smtp.example.com
+# SMTP_PORT=587
+# SMTP_USER=apikey
+# SMTP_PASS=secret
+# SMTP_SECURE=false
+AUTH_EMAIL_FROM=Voila <no-reply@example.com>
