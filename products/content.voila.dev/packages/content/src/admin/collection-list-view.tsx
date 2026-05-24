@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import type { AnyFieldDef } from "@voila/content-schema";
@@ -9,8 +9,9 @@ import type { AnyCollection, AnyContent } from "../types.ts";
 import { fetchList, type ListParams, queryKeys } from "./api-client.ts";
 import { EmptyState } from "./empty-state.tsx";
 import { formatFieldValue } from "./field-display.tsx";
+import { formatDateTime } from "./format.ts";
+import { humanizeFieldName } from "./humanize.ts";
 import { PageLayout } from "./page-layout.tsx";
-import { ListSkeleton } from "./skeletons.tsx";
 
 /**
  * Read-only collection list view. Wraps TanStack Table over the cursor-
@@ -70,14 +71,12 @@ function isSortable(collection: AnyCollection, key: string): boolean {
 function labelFor(collection: AnyCollection, key: string): string {
   if (SYSTEM_LABELS[key]) return SYSTEM_LABELS[key];
   const field = collection.fields[key] as AnyFieldDef | undefined;
-  return field?.label ?? key;
+  return field?.label ?? humanizeFieldName(key);
 }
 
 function renderCell(collection: AnyCollection, key: string, value: unknown) {
   if (SYSTEM_KINDS[key] === "datetime") {
-    if (value == null) return "—";
-    const d = value instanceof Date ? value : new Date(String(value));
-    return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
+    return value == null ? "—" : formatDateTime(value);
   }
   if (key === "id") return value == null ? "—" : String(value);
   const field = collection.fields[key];
@@ -89,8 +88,6 @@ export function listQueryOptions(apiMount: string, collection: string, params: L
   return {
     queryKey: queryKeys.list(collection, params),
     queryFn: () => fetchList(apiMount, collection, params),
-    // The admin SPA fetches client-side; relative URLs aren't valid during SSR.
-    enabled: typeof window !== "undefined",
   };
 }
 
@@ -106,7 +103,11 @@ export function CollectionListView({ config, collection }: CollectionListViewPro
     order: search.order,
   };
 
-  const { data, isPending } = useQuery(listQueryOptions(apiMount, collection.slug, params));
+  // Data is prefetched by the route loader (`ensureQueryData`) so SSR hands a
+  // fully-resolved cache to the client; `useSuspenseQuery` reads it without a
+  // render-blocking fetch. The route's `pendingComponent` shows the skeleton
+  // during slow client navigations.
+  const { data } = useSuspenseQuery(listQueryOptions(apiMount, collection.slug, params));
 
   const columnKeys = useMemo(() => resolveColumns(collection), [collection]);
 
@@ -136,7 +137,7 @@ export function CollectionListView({ config, collection }: CollectionListViewPro
     [collection, columnKeys, adminMount],
   );
 
-  const rowsData = (data?.data ?? []) as Row[];
+  const rowsData = (data.data ?? []) as Row[];
   const table = useReactTable({
     data: rowsData,
     columns,
@@ -167,8 +168,7 @@ export function CollectionListView({ config, collection }: CollectionListViewPro
   };
 
   const rows = table.getRowModel().rows;
-  const isLoading = isPending || !data;
-  const isEmpty = !isLoading && rows.length === 0 && !search.cursor;
+  const isEmpty = rows.length === 0 && !search.cursor;
 
   return (
     <PageLayout.Root>
@@ -181,9 +181,7 @@ export function CollectionListView({ config, collection }: CollectionListViewPro
         </div>
       </PageLayout.Header>
       <PageLayout.Body>
-        {isLoading ? (
-          <ListSkeleton cols={columnKeys.length} />
-        ) : isEmpty ? (
+        {isEmpty ? (
           <EmptyState
             icon={FilesIcon}
             title="No records yet"

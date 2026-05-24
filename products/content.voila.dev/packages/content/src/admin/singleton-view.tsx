@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { AnyFieldDef } from "@voila/content-schema";
 import { DatabaseIcon } from "@voila/ui/icons";
 import type { AnyContent, AnySingleton } from "../types.ts";
@@ -6,7 +6,6 @@ import { ApiError, fetchById, queryKeys } from "./api-client.ts";
 import { EmptyState } from "./empty-state.tsx";
 import { ReadOnlyField } from "./field-display.tsx";
 import { PageLayout } from "./page-layout.tsx";
-import { DetailSkeleton } from "./skeletons.tsx";
 
 /**
  * Read-only view for a singleton document. Singletons share the collections
@@ -32,26 +31,13 @@ export function singletonQueryOptions(apiMount: string, slug: string) {
         throw err;
       }
     },
-    // The admin SPA fetches client-side; relative URLs aren't valid during SSR.
-    enabled: typeof window !== "undefined",
   };
 }
 
 export function SingletonView({ config, singleton }: SingletonViewProps) {
-  const { data, isPending } = useQuery(singletonQueryOptions(config.mount.api, singleton.slug));
-
-  if (isPending || !data) {
-    return (
-      <PageLayout.Root>
-        <PageLayout.Header>
-          <PageLayout.Title>{singleton.label ?? singleton.slug}</PageLayout.Title>
-        </PageLayout.Header>
-        <PageLayout.Body>
-          <DetailSkeleton />
-        </PageLayout.Body>
-      </PageLayout.Root>
-    );
-  }
+  // Prefetched by the route loader; the route's `pendingComponent` renders the
+  // skeleton during slow client navigations (see admin-views.ts).
+  const { data } = useSuspenseQuery(singletonQueryOptions(config.mount.api, singleton.slug));
 
   const row = data.data;
 

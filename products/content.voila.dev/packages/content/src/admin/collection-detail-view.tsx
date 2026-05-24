@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { AnyFieldDef } from "@voila/content-schema";
 import { Button } from "@voila/ui";
@@ -8,8 +8,8 @@ import type { AnyCollection, AnyContent } from "../types.ts";
 import { ApiError, fetchById, queryKeys } from "./api-client.ts";
 import { EmptyState } from "./empty-state.tsx";
 import { ReadOnlyField } from "./field-display.tsx";
+import { formatDateTime } from "./format.ts";
 import { PageLayout } from "./page-layout.tsx";
-import { DetailSkeleton } from "./skeletons.tsx";
 
 /**
  * Read-only detail view for a single record in a collection. Iterates the
@@ -37,8 +37,6 @@ export function detailQueryOptions(apiMount: string, collection: string, id: str
         throw err;
       }
     },
-    // The admin SPA fetches client-side; relative URLs aren't valid during SSR.
-    enabled: typeof window !== "undefined",
   };
 }
 
@@ -47,20 +45,9 @@ export function CollectionDetailView({ config, collection, id }: CollectionDetai
   const apiMount = config.mount.api;
   const listHref = `${adminMount}/collections/${collection.slug}/`;
 
-  const { data, isPending } = useQuery(detailQueryOptions(apiMount, collection.slug, id));
-
-  if (isPending || !data) {
-    return (
-      <PageLayout.Root>
-        <PageLayout.Header>
-          <BackToList href={listHref} label={collection.label ?? collection.slug} />
-        </PageLayout.Header>
-        <PageLayout.Body>
-          <DetailSkeleton />
-        </PageLayout.Body>
-      </PageLayout.Root>
-    );
-  }
+  // Prefetched by the route loader; the route's `pendingComponent` renders the
+  // skeleton during slow client navigations (see admin-views.ts).
+  const { data } = useSuspenseQuery(detailQueryOptions(apiMount, collection.slug, id));
 
   const row = data.data as Record<string, unknown> | null;
 
@@ -141,9 +128,7 @@ function Meta({ label, value }: { label: string; value: ReactNode }) {
 }
 
 function fmtDate(value: unknown): string {
-  if (value == null) return "—";
-  const d = value instanceof Date ? value : new Date(String(value));
-  return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
+  return value == null ? "—" : formatDateTime(value);
 }
 
 function titleOf(row: Record<string, unknown>, collection: AnyCollection): string {

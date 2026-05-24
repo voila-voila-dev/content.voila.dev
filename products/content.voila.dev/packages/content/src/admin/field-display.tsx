@@ -1,6 +1,8 @@
 import type { AnyFieldDef } from "@voila/content-schema";
 import { cn } from "@voila/ui";
 import type { ComponentProps, ReactNode } from "react";
+import { formatDate, formatDateTime, formatNumber } from "./format.ts";
+import { humanizeFieldName } from "./humanize.ts";
 
 /**
  * Read-only field renderers used by the detail + singleton views.
@@ -19,16 +21,12 @@ export function formatFieldValue(field: AnyFieldDef, value: unknown): ReactNode 
   switch (field.kind) {
     case "boolean":
       return value ? "Yes" : "No";
-    case "datetime": {
-      const d = value instanceof Date ? value : new Date(String(value));
-      return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleString();
-    }
-    case "date": {
-      const d = value instanceof Date ? value : new Date(String(value));
-      return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleDateString();
-    }
+    case "datetime":
+      return formatDateTime(value);
+    case "date":
+      return formatDate(value);
     case "number":
-      return typeof value === "number" ? value.toLocaleString() : String(value);
+      return typeof value === "number" ? formatNumber(value) : String(value);
     case "json":
       return (
         <pre className="overflow-auto rounded-md bg-muted p-3 text-xs">
@@ -47,7 +45,7 @@ export interface ReadOnlyFieldProps extends ComponentProps<"div"> {
 }
 
 export function ReadOnlyField({ field, name, value, className, ...props }: ReadOnlyFieldProps) {
-  const label = field.label ?? name;
+  const label = field.label ?? humanizeFieldName(name);
   return (
     <div className={cn("grid gap-1.5", className)} {...props}>
       <div className="font-medium text-muted-foreground text-xs uppercase tracking-wide">

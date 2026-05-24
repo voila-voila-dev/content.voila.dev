@@ -31,10 +31,10 @@ describe("ReadOnlyField", () => {
     expect(html).toContain("Hello");
   });
 
-  test("falls back to the field name when no label is set", () => {
+  test("humanizes the field name when no label is set", () => {
     const html = renderToStaticMarkup(
-      <ReadOnlyField field={fields.string()} name="title" value="Hi" />,
+      <ReadOnlyField field={fields.string()} name="publishedAt" value="Hi" />,
     );
-    expect(html).toContain("title");
+    expect(html).toContain("Published At");
   });
 });
