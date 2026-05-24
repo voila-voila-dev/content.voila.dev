@@ -30,16 +30,22 @@ const SEARCH_SCHEMA = `(search: Record<string, unknown>): { cursor?: string; ord
   return { cursor, orderBy, order };
 }`;
 
-const API_BASE = `async function apiBase(): Promise<string> {
-  if (import.meta.env.SSR) {
+// Isomorphic resolver: server build dynamically imports the request helper to
+// produce an absolute URL; client build short-circuits to a relative path
+// (browser \`fetch\` resolves against the page origin). Using
+// \`createIsomorphicFn\` instead of an inline \`if (import.meta.env.SSR)\`
+// keeps the \`@tanstack/react-start/server\` import out of the client bundle,
+// so the TanStack import-protection plugin doesn't fire on every dev start.
+const API_BASE = `const apiBase = createIsomorphicFn()
+  .server(async (): Promise<string> => {
     const { getRequestUrl } = await import("@tanstack/react-start/server");
     return new URL(content.mount.api, getRequestUrl().origin).toString();
-  }
-  return content.mount.api;
-}`;
+  })
+  .client((): string | Promise<string> => content.mount.api);`;
 
 export function adminCollectionListSource(configImport: string): string {
   return `import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createIsomorphicFn } from "@tanstack/react-start";
 import {
   CollectionListView,
   getCollection,
@@ -90,6 +96,7 @@ function RouteComponent() {
 
 export function adminCollectionDetailSource(configImport: string): string {
   return `import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createIsomorphicFn } from "@tanstack/react-start";
 import {
   CollectionDetailView,
   DetailSkeleton,
@@ -130,6 +137,7 @@ function RouteComponent() {
 
 export function adminSingletonSource(configImport: string): string {
   return `import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createIsomorphicFn } from "@tanstack/react-start";
 import {
   DetailSkeleton,
   getSingleton,

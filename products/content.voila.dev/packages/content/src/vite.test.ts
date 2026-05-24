@@ -52,10 +52,16 @@ describe("voila() route generation", () => {
     expect(existsSync(join(root, "src/routes/admin.tsx"))).toBe(true);
     expect(existsSync(join(root, "src/routes/admin/index.tsx"))).toBe(true);
     expect(existsSync(join(root, "src/routes/admin/setup.tsx"))).toBe(true);
+    // Login lives at the routes root (non-nested) so the admin sidebar
+    // shell does NOT wrap the sign-in form.
+    expect(existsSync(join(root, "src/routes/admin_.login.tsx"))).toBe(true);
+    expect(existsSync(join(root, "src/routes/admin/login.tsx"))).toBe(false);
+    expect(existsSync(join(root, "src/routes/admin/-auth-server.ts"))).toBe(true);
     expect(existsSync(join(root, "src/routes/admin/collections.$collection.index.tsx"))).toBe(true);
     expect(existsSync(join(root, "src/routes/admin/collections.$collection.$id.tsx"))).toBe(true);
     expect(existsSync(join(root, "src/routes/admin/singletons.$singleton.tsx"))).toBe(true);
     expect(existsSync(join(root, "src/routes/admin/api/health.ts"))).toBe(true);
+    expect(existsSync(join(root, "src/routes/admin/api/auth/$.ts"))).toBe(true);
   });
 
   test("removes a stale admin/$.tsx splat from older generations", () => {
@@ -64,6 +70,17 @@ describe("voila() route generation", () => {
     writeFileSync(join(root, "src/routes/admin/$.tsx"), "// legacy splat\n");
     runConfigResolved(voila());
     expect(existsSync(join(root, "src/routes/admin/$.tsx"))).toBe(false);
+  });
+
+  test("removes a stale nested admin/login.tsx from the M1-pre-fix layout", () => {
+    // The first cut emitted the login route under `admin/`, which nested it
+    // inside the sidebar shell. Subsequent generations must drop that file so
+    // both routes don't compete for /admin/login.
+    mkdirSync(join(root, "src/routes/admin"), { recursive: true });
+    writeFileSync(join(root, "src/routes/admin/login.tsx"), "// legacy nested login\n");
+    runConfigResolved(voila());
+    expect(existsSync(join(root, "src/routes/admin/login.tsx"))).toBe(false);
+    expect(existsSync(join(root, "src/routes/admin_.login.tsx"))).toBe(true);
   });
 
   test("generated files import content config + carry the DO NOT EDIT header", () => {

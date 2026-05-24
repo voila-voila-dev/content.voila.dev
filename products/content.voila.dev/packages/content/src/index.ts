@@ -4,6 +4,7 @@ export type {
   AnyCollection,
   AnyContent,
   AnySingleton,
+  AuthConfigShape,
   Branding,
   Collection,
   CollectionDef,

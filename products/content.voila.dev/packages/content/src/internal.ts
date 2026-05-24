@@ -19,6 +19,7 @@ export {
 export { EmptyState } from "./admin/empty-state.tsx";
 export { formatFieldValue, ReadOnlyField } from "./admin/field-display.tsx";
 export { FormCard } from "./admin/form-card.tsx";
+export { LoginView } from "./admin/login-view.tsx";
 export type { NavigationItem } from "./admin/page-layout.tsx";
 export { PageLayout } from "./admin/page-layout.tsx";
 export { getCollection, getSingleton } from "./admin/registry.ts";

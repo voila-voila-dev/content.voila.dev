@@ -7,8 +7,10 @@ import {
   adminApiListSource,
   cloudflareEnvDeclSource,
 } from "./routes/admin-api.ts";
+import { adminApiAuthSplatSource, authSingletonSource } from "./routes/admin-api-auth.ts";
 import { healthRouteSource } from "./routes/admin-api-health.ts";
 import { adminIndexSource, adminLayoutSource } from "./routes/admin-layout.ts";
+import { adminLoginSource } from "./routes/admin-login.ts";
 import { adminSetupSource } from "./routes/admin-setup.ts";
 import {
   adminCollectionDetailSource,
@@ -104,6 +106,13 @@ function writeAdminRoutes({ root, configAbsPath }: { root: string; configAbsPath
   const indexFile = join(routesDir, "index.tsx");
   const splatFile = join(routesDir, "$.tsx");
   const setupFile = join(routesDir, "setup.tsx");
+  // Non-nested route: `admin_.login.tsx` lives at `src/routes/` (not under
+  // `admin/`) so TanStack treats `/admin/login` as a sibling of `/admin` for
+  // layout purposes. The URL stays `/admin/login`; the admin sidebar shell
+  // doesn't wrap the sign-in form. See TanStack docs → "Non-Nested Routes".
+  const loginFile = join(root, "src", "routes", "admin_.login.tsx");
+  const staleLoginFile = join(routesDir, "login.tsx");
+  const authServerFile = join(routesDir, "-auth-server.ts");
   const collectionListFile = join(routesDir, "collections.$collection.index.tsx");
   const collectionDetailFile = join(routesDir, "collections.$collection.$id.tsx");
   const singletonFile = join(routesDir, "singletons.$singleton.tsx");
@@ -111,6 +120,9 @@ function writeAdminRoutes({ root, configAbsPath }: { root: string; configAbsPath
   const listFile = join(apiDir, "$collection.ts");
   const byIdFile = join(apiDir, "$collection.$id.ts");
   const byFieldFile = join(apiDir, "$collection.by.$field.$value.ts");
+  const authDir = join(apiDir, "auth");
+  mkdirSync(authDir, { recursive: true });
+  const authSplatFile = join(authDir, "$.ts");
 
   // Drop a stale `admin/$.tsx` from older generations. The splat used to be
   // the entry point; now `admin.tsx` is the layout and the index sits at
@@ -118,6 +130,10 @@ function writeAdminRoutes({ root, configAbsPath }: { root: string; configAbsPath
   // for `/admin` (both `/admin/$` and `/admin/` resolve there after trailing-
   // slash normalization), which TanStack warns about on every navigation.
   if (existsSync(splatFile)) rmSync(splatFile);
+  // Drop the old nested `admin/login.tsx` so consumers upgrading from M1's
+  // first cut don't end up with two competing /admin/login routes (the
+  // non-nested file below now owns the URL).
+  if (existsSync(staleLoginFile)) rmSync(staleLoginFile);
 
   writeIfChanged(
     layoutFile,
@@ -125,6 +141,12 @@ function writeAdminRoutes({ root, configAbsPath }: { root: string; configAbsPath
   );
   writeIfChanged(indexFile, `${GENERATED_HEADER}${adminIndexSource(configImportFrom(indexFile))}`);
   writeIfChanged(setupFile, `${GENERATED_HEADER}${adminSetupSource(configImportFrom(setupFile))}`);
+  writeIfChanged(loginFile, `${GENERATED_HEADER}${adminLoginSource(configImportFrom(loginFile))}`);
+  writeIfChanged(
+    authServerFile,
+    `${GENERATED_HEADER}${authSingletonSource(configImportFrom(authServerFile))}`,
+  );
+  writeIfChanged(authSplatFile, `${GENERATED_HEADER}${adminApiAuthSplatSource()}`);
   writeIfChanged(
     collectionListFile,
     `${GENERATED_HEADER}${adminCollectionListSource(configImportFrom(collectionListFile))}`,
