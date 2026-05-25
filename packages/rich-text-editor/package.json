@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./mention": "./src/mention.ts",
+    "./nodes": "./src/nodes/index.ts",
     "./serialize": "./src/serialize.ts",
     "./styles.css": "./src/styles.css"
   },

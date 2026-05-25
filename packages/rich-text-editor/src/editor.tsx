@@ -11,8 +11,8 @@ export interface RichTextEditorProps {
   plugins?: typeof basicPlugins;
   /**
    * Map of node key → render component. The editor is presentation-agnostic;
-   * pass `nodeComponents` from `@voila/rich-text-nodes` for the default set, or
-   * your own components to fully restyle / extend rendering.
+   * pass `nodeComponents` from `@voila/rich-text-editor/nodes` for the default
+   * set, or your own components to fully restyle / extend rendering.
    */
   components?: NodeComponents;
   placeholder?: string;
@@ -23,9 +23,9 @@ export interface RichTextEditorProps {
 /**
  * A headless rich-text editor built on Plate (Slate). It wires plugins and
  * change handling but renders nodes with whatever `components` you give it —
- * keeping behavior (this package) separate from presentation
- * (`@voila/rich-text-nodes`). Style the content area via `className` (defaults
- * to `voila-rich-text`, see `./styles.css`).
+ * keeping behavior (this entry) separate from presentation
+ * (`@voila/rich-text-editor/nodes`). Style the content area via `className`
+ * (defaults to `voila-rich-text`, see `./styles.css`).
  */
 export function RichTextEditor({
   value,

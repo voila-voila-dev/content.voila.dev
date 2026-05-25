@@ -1,11 +1,53 @@
-/* Base styles for the editable surface only. Node appearance (headings,
-   lists, code, links, …) lives in `@voila/rich-text-nodes/styles.css`.
-   Import via `import "@voila/rich-text-editor/styles.css"`, or supply your own
-   `className`. */
+/* Styles for the rich-text editor: the editable surface plus the default
+   nodes (headings, lists, code, links, …). Scoped under `.voila-rich-text`
+   so they only touch the editor surface. Import via
+   `import "@voila/rich-text-editor/styles.css"`, or supply your own `className`. */
 .voila-rich-text {
   outline: none;
   min-height: 8rem;
   padding: 0.5rem 0.75rem;
   line-height: 1.6;
   white-space: pre-wrap;
+}
+
+.voila-rich-text h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin: 0.67em 0;
+}
+.voila-rich-text h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0.75em 0;
+}
+.voila-rich-text h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0.83em 0;
+}
+
+.voila-rich-text blockquote {
+  border-left: 3px solid currentColor;
+  margin: 0.5em 0;
+  padding-left: 1em;
+  opacity: 0.85;
+}
+
+.voila-rich-text ul,
+.voila-rich-text ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.voila-rich-text a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.voila-rich-text code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  background: rgba(127, 127, 127, 0.15);
+  padding: 0.1em 0.3em;
+  border-radius: 0.25rem;
 }

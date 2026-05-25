@@ -17,14 +17,15 @@ This doc is the editor's own roadmap, in the spirit of the product
 
 ---
 
-## Two packages
+## One package, two seams
 
-Behavior and presentation are deliberately separate so each can be swapped:
+Behavior and presentation live in one package but stay deliberately separable,
+so each can be swapped:
 
-| Package                  | Role          | Ships                                                                 |
-| ------------------------ | ------------- | --------------------------------------------------------------------- |
-| `@voila/rich-text-editor`| **Behavior**  | Plugin sets, the headless `<RichTextEditor>`, `mention()`, serialization (`toHtml` / `toJson` / `toPlainText`), base surface styles. |
-| `@voila/rich-text-nodes` | **Presentation** | The default `nodeComponents` map + each node's React component, exported individually so you can cherry-pick, restyle, or override. |
+| Entry                             | Role          | Ships                                                                 |
+| --------------------------------- | ------------- | --------------------------------------------------------------------- |
+| `@voila/rich-text-editor`         | **Behavior**  | Plugin sets, the headless `<RichTextEditor>`, `mention()`, serialization (`toHtml` / `toJson` / `toPlainText`), base surface styles. |
+| `@voila/rich-text-editor/nodes`   | **Presentation** | The default `nodeComponents` map + each node's React component, exported individually so you can cherry-pick, restyle, or override. |
 
 The editor renders nodes with whatever `components` map it's handed — so you can
 keep our plugins and bring your own components, or vice-versa. `@voila/content`
@@ -32,9 +33,9 @@ wires both and exposes `plugins` / `components` pass-throughs on the `richText`
 field.
 
 ```
-@voila/rich-text-editor   ──plugins, <RichTextEditor>──┐
-                                                        ├──►  @voila/content  ──►  richText field
-@voila/rich-text-nodes     ──nodeComponents────────────┘                          (extensible by the user)
+@voila/rich-text-editor         ──plugins, <RichTextEditor>──┐
+                                                              ├──►  @voila/content  ──►  richText field
+@voila/rich-text-editor/nodes    ──nodeComponents────────────┘                          (extensible by the user)
 ```
 
 ## Principles
@@ -55,13 +56,13 @@ field.
 
 ## Status today (shipped)
 
-- [X] Two-package split (`@voila/rich-text-editor` + `@voila/rich-text-nodes`)
+- [X] Behavior / presentation split (`@voila/rich-text-editor` + `/nodes` subpath)
 - [X] Headless `<RichTextEditor value onChange plugins components readOnly />`
 - [X] `basicPlugins`: bold, italic, underline, strikethrough, inline code; H1–H3; blockquote; links; bulleted/numbered lists
 - [X] `nodeComponents` default map + individual node components (overridable)
 - [X] `mention({ source })` factory (`@voila/rich-text-editor/mention`)
 - [X] Serialization: `toHtml`, `toJson`, `toPlainText` (self-contained, no DOM)
-- [X] Base + node styles (`styles.css` in each package)
+- [X] Base + node styles (`styles.css`)
 - [X] Unit tests for serialization and the component registry
 
 ---
@@ -104,7 +105,7 @@ interactive and a static component.
 - [ ] Markdown roundtrip: `toMarkdown` / `fromMarkdown` — `@platejs/markdown`
 - [ ] HTML deserialize on paste (Word/Google Docs cleanup) — `@platejs/docx`
 - [ ] DOCX import/export — `@platejs/docx-io`
-- [ ] Static SSR render set in `@voila/rich-text-nodes` (mirror of every node)
+- [ ] Static SSR render set in `@voila/rich-text-editor/nodes` (mirror of every node)
 - [ ] HTML sanitization policy (allowlist) for stored + rendered output
 - [ ] Plaintext/search-index projection (extends current `toPlainText`)
 

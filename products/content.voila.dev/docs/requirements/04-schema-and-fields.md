@@ -89,7 +89,7 @@ fields.tuple([fields.number(), fields.number()])  // e.g. [lat, lng]
 
 ### Rich content
 
-Powered by `@voila/rich-text-editor` (behavior) + `@voila/rich-text-nodes` (the default node components). Both are pass-through, so you extend plugins or swap any node's rendering without forking — see [03 — DX §f](./03-dx.md#f-custom-rich-text-plugins--node-rendering).
+Powered by `@voila/rich-text-editor` (behavior) and its `@voila/rich-text-editor/nodes` subpath (the default node components). Both are pass-through, so you extend plugins or swap any node's rendering without forking — see [03 — DX §f](./03-dx.md#f-custom-rich-text-plugins--node-rendering).
 
 ```ts
 fields.richText({

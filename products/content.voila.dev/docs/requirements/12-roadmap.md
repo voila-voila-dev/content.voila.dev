@@ -233,9 +233,9 @@ Depends on M2 (write path) and Cloudflare R2 binding (enabled in playground here
 
 ### Rich text
 
-The editor ships as two standalone packages — `@voila/rich-text-editor` (behavior) and `@voila/rich-text-nodes` (presentation) — composed by the `richText` field. Their full feature roadmap lives in [`packages/rich-text-editor/docs.md`](../../../../packages/rich-text-editor/docs.md); the items below are only what M3 needs.
+The editor ships as one standalone package — `@voila/rich-text-editor` (behavior) with its `/nodes` subpath (presentation) — composed by the `richText` field. Its full feature roadmap lives in [`packages/rich-text-editor/docs.md`](../../../../packages/rich-text-editor/docs.md); the items below are only what M3 needs.
 
-- [ ] `richText` field wires `@voila/rich-text-editor` + `@voila/rich-text-nodes`
+- [ ] `richText` field wires `@voila/rich-text-editor` + `@voila/rich-text-editor/nodes`
 - [ ] Default plugins: bold, italic, headings, lists, links, code, blockquote
 - [ ] `plugins` / `components` field options pass through for extension (see [03 — DX §f](./03-dx.md))
 - [ ] Inline image (uses media field machinery)

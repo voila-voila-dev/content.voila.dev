@@ -57,8 +57,7 @@ voila/
 ├── packages/                           # cross-product shared packages (no product prefix)
 │   ├── typescript-config/              # @voila/typescript-config — shared tsconfig bases
 │   ├── ui/                             # @voila/ui — shadcn-based design system
-│   ├── rich-text-editor/               # @voila/rich-text-editor — Plate/Slate editor behavior + serialization
-│   └── rich-text-nodes/                # @voila/rich-text-nodes — default React node components (presentation)
+│   └── rich-text-editor/               # @voila/rich-text-editor — Plate/Slate editor behavior + serialization + default node components (/nodes)
 │
 ├── docs/
 │   └── decision-records/               # org-wide ADRs

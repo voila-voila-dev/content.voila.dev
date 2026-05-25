@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { nodeComponents } from "../src/nodes.tsx";
+import { nodeComponents } from "../src/nodes/index.ts";
 
 describe("nodeComponents", () => {
   test("registers a component for every default node type", () => {
-    // Plugin keys for the `basicPlugins` set in @voila/rich-text-editor.
+    // Plugin keys for the `basicPlugins` set.
     const expected = [
       "bold",
       "italic",
