@@ -1,0 +1,14 @@
+# Package-local test config. A package-local bunfig.toml shadows the root one
+# entirely (Bun reads only the closest file).
+[test]
+preload = ["../../../../test/setup.ts"]
+
+# Coverage config for the package-aggregate gate (roadmap M1 testing bar:
+# @voila/content-schema ≥ 90% line coverage). Only activated by
+# `bun test --coverage`. The `../**` ignore keeps any future cross-package
+# imports out of the measurement. Bun's per-file `coverageThreshold` can't
+# express an aggregate gate, so `scripts/coverage-gate.ts` enforces the package
+# total from the lcov output instead.
+coverageReporter = ["text", "lcov"]
+coverageDir = "coverage"
+coveragePathIgnorePatterns = ["../**"]

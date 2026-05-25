@@ -291,6 +291,16 @@
         "zod",
       ],
     },
+    "scripts/coverage-gate": {
+      "name": "@voila/coverage-gate",
+      "version": "0.1.0",
+      "bin": {
+        "coverage-gate": "./index.ts",
+      },
+      "devDependencies": {
+        "@voila/typescript-config": "workspace:*",
+      },
+    },
   },
   "catalog": {
     "@types/react": "19.0.1",
@@ -1067,6 +1077,8 @@
     "@voila/content-database": ["@voila/content-database@workspace:products/content.voila.dev/packages/database"],
 
     "@voila/content-schema": ["@voila/content-schema@workspace:products/content.voila.dev/packages/schema"],
+
+    "@voila/coverage-gate": ["@voila/coverage-gate@workspace:scripts/coverage-gate"],
 
     "@voila/playground.content.voila.dev": ["@voila/playground.content.voila.dev@workspace:products/content.voila.dev/apps/playground.content.voila.dev"],
 

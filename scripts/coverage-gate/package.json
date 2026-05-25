@@ -1,0 +1,15 @@
+{
+  "name": "@voila/coverage-gate",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "bin": {
+    "coverage-gate": "./index.ts"
+  },
+  "devDependencies": {
+    "@voila/typescript-config": "workspace:*"
+  }
+}
