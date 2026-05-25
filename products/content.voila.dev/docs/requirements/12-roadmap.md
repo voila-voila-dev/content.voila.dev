@@ -131,12 +131,12 @@ Depends on M0. SQLite + D1 adapters must be green before this starts.
 
 ### Testing bar (M1)
 
-- [ ] **Unit**: schema-to-Drizzle generator — golden-file tests for each field type
-- [ ] **Integration**: REST read endpoints against a real SQLite file (created + torn down per test)
+- [X] **Unit**: schema-to-Drizzle generator — golden-file tests for each field type
+- [X] **Integration**: REST read endpoints against a real SQLite file (created + torn down per test)
 - [ ] **Integration**: REST read endpoints against `wrangler dev` D1 (workers-pool runner via `@cloudflare/vitest-pool-workers` adapted for `bun test`, or fall back to `wrangler dev --local` + fetch)
-- [ ] **Type**: client inference tests (`tsd`-style assertions)
+- [X] **Type**: client inference tests (`tsd`-style assertions)
 - [ ] **E2E (Playwright)**: log in via magic link (Resend test mode), browse `posts` list, open detail. Runs against the playground.
-- [ ] Coverage gate enabled: `packages/schema` ≥ 90%, `packages/content` ≥ 70%
+- [X] Coverage gate enabled: `packages/schema` ≥ 90%, `packages/content` ≥ 70%
 
 **Exit criterion**: 20-minute test #1 passes. `bun test` runs unit + integration + E2E in CI under 8 minutes.
 
