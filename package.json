@@ -5,6 +5,7 @@
     "packages": [
       "apps/*",
       "packages/*",
+      "scripts/*",
       "products/*/apps/*",
       "products/*/packages/*",
       "products/*/examples/*"
@@ -23,6 +24,9 @@
     "format": "biome format --write",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
+    "test:cov:schema": "bun scripts/coverage-gate/index.ts products/content.voila.dev/packages/schema 90",
+    "test:cov:content": "bun scripts/coverage-gate/index.ts products/content.voila.dev/packages/content 70",
+    "test:cov:gates": "bun run test:cov:schema && bun run test:cov:content",
     "check": "biome check --write && tsc -b && bun test",
     "changeset": "changeset",
     "version": "changeset version",

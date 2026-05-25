@@ -124,19 +124,19 @@ Depends on M0. SQLite + D1 adapters must be green before this starts.
 
 ### Auth (read-side only)
 
-- [ ] Better Auth wired into the handler
-- [ ] Email magic link adapter (Resend default; SMTP fallback)
-- [ ] Session middleware for `/admin/*`
-- [ ] `voila seed admin` CLI command
+- [X] Better Auth wired into the handler — `@voila/content-auth/server` `createAuth()`; generated splat route `/admin/api/auth/$.ts` delegates to `auth.handler(request)`
+- [X] Email magic link adapter (Resend default; SMTP fallback) — `@voila/content-auth/mailers` with `resolveMailer({ env })`: Resend → SMTP → console fallback
+- [X] Session middleware for `/admin/*` — `requireSession()` invoked from the admin layout's `beforeLoad` via `createIsomorphicFn`; unauth → `/admin/login?next=…`
+- [X] `voila seed admin` CLI command — `--target sqlite|d1-local|d1-remote`, mirrors `migrate apply`; verified upserts on re-runs
 
 ### Testing bar (M1)
 
-- [ ] **Unit**: schema-to-Drizzle generator — golden-file tests for each field type
-- [ ] **Integration**: REST read endpoints against a real SQLite file (created + torn down per test)
+- [X] **Unit**: schema-to-Drizzle generator — golden-file tests for each field type
+- [X] **Integration**: REST read endpoints against a real SQLite file (created + torn down per test)
 - [ ] **Integration**: REST read endpoints against `wrangler dev` D1 (workers-pool runner via `@cloudflare/vitest-pool-workers` adapted for `bun test`, or fall back to `wrangler dev --local` + fetch)
-- [ ] **Type**: client inference tests (`tsd`-style assertions)
+- [X] **Type**: client inference tests (`tsd`-style assertions)
 - [ ] **E2E (Playwright)**: log in via magic link (Resend test mode), browse `posts` list, open detail. Runs against the playground.
-- [ ] Coverage gate enabled: `packages/schema` ≥ 90%, `packages/content` ≥ 70%
+- [X] Coverage gate enabled: `packages/schema` ≥ 90%, `packages/content` ≥ 70%
 
 **Exit criterion**: 20-minute test #1 passes. `bun test` runs unit + integration + E2E in CI under 8 minutes.
 
@@ -233,11 +233,15 @@ Depends on M2 (write path) and Cloudflare R2 binding (enabled in playground here
 
 ### Rich text
 
-- [ ] `richText` field (Plate-based, built on Slate)
+The editor ships as one standalone package — `@voila/rich-text-editor` (behavior) with its `/nodes` subpath (presentation) — composed by the `richText` field. Its full feature roadmap lives in [`packages/rich-text-editor/docs.md`](../../../../packages/rich-text-editor/docs.md); the items below are only what M3 needs.
+
+- [ ] `richText` field wires `@voila/rich-text-editor` + `@voila/rich-text-editor/nodes`
 - [ ] Default plugins: bold, italic, headings, lists, links, code, blockquote
+- [ ] `plugins` / `components` field options pass through for extension (see [03 — DX §f](./03-dx.md))
 - [ ] Inline image (uses media field machinery)
 - [ ] Mention plugin (for cross-references; resolves at render via `include`)
 - [ ] Markdown serialization roundtrip (`toMarkdown`, `fromMarkdown`)
+- [ ] Static (SSR) render path for read-only output on the public site
 - [ ] `markdown` field (raw, no Plate UI)
 - [ ] `code` field with syntax highlight (Shiki, server-side render)
 

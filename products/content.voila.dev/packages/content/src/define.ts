@@ -56,6 +56,7 @@ export function defineContent<
     mount: resolveMount(config.mount),
     collections,
     singletons,
+    auth: config.auth,
   };
 }
 

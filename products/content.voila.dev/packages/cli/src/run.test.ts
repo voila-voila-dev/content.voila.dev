@@ -49,5 +49,20 @@ describe("run / parseFlags", () => {
     const code = await run(["--help"], io);
     expect(code).toBe(0);
     expect(out.join("\n")).toMatch(/voila migrate/);
+    expect(out.join("\n")).toMatch(/voila seed admin/);
+  });
+
+  test("seed admin: rejects an unknown --target", async () => {
+    const { err, io } = captureIo();
+    const code = await run(["seed", "admin", "--email", "a@b", "--target", "weird"], io);
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/unknown --target: weird/);
+  });
+
+  test("seed admin: requires --email", async () => {
+    const { err, io } = captureIo();
+    const code = await run(["seed", "admin", "--target", "sqlite", "--db", ":memory:"], io);
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/--email is required/);
   });
 });

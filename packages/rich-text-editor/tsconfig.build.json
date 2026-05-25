@@ -1,0 +1,15 @@
+{
+  "extends": "@voila/typescript-config/tsconfig.build.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    // Plate plugin builders and JSX node components routinely defeat inference
+    // for isolatedDeclarations. Disable it here only; other packages still
+    // enforce it via the build base.
+    "isolatedDeclarations": false
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}

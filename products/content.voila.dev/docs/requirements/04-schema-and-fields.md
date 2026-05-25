@@ -89,11 +89,14 @@ fields.tuple([fields.number(), fields.number()])  // e.g. [lat, lng]
 
 ### Rich content
 
+Powered by `@voila/rich-text-editor` (behavior) and its `@voila/rich-text-editor/nodes` subpath (the default node components). Both are pass-through, so you extend plugins or swap any node's rendering without forking — see [03 — DX §f](./03-dx.md#f-custom-rich-text-plugins--node-rendering).
+
 ```ts
 fields.richText({
-  plugins:  [headings, lists, links, codeBlock, mention({ source: 'users' })],
-  toolbar:  ['bold', 'italic', 'link', 'image'],
-  outputs:  ['html', 'json', 'plaintext'],   // what to expose to clients
+  plugins:    [headings, lists, links, codeBlock, mention({ source: 'users' })],
+  components: { [H1Plugin.key]: MyHeading },  // override node rendering (optional)
+  toolbar:    ['bold', 'italic', 'link', 'image'],
+  outputs:    ['html', 'json', 'plaintext'],  // what to expose to clients
 })
 
 fields.markdown({ flavor: 'gfm' })

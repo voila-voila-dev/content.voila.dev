@@ -1,6 +1,26 @@
 import type { AnyFieldDef } from "@voila/content-schema";
 import type { ComponentType } from "react";
 
+/**
+ * Shape of the `auth` block accepted by `defineContent`. Kept structural so
+ * `@voila/content` doesn't take a hard dependency on `@voila/content-auth` —
+ * the auth package's `AuthConfig` is assignable to this shape, and runtime
+ * code reads from `content.auth` via the auth package, never from here.
+ */
+export interface AuthConfigShape {
+  providers?: ReadonlyArray<"email">;
+  sessionTtl?: string;
+  roles?: readonly string[];
+  email?: Readonly<Record<string, unknown>>;
+  baseUrl?: string;
+  /**
+   * Escape hatch for the underlying authentication framework's raw options.
+   * Vendor-neutral name on purpose — Voila composes the field facade on top
+   * of whichever auth framework the runtime ships (Better Auth today).
+   */
+  authentication?: Readonly<Record<string, unknown>>;
+}
+
 /** Icon component accepted by collection/singleton defs (e.g. a `@voila/ui/icons` export). */
 export type IconComponent = ComponentType<{ className?: string }>;
 
@@ -106,6 +126,12 @@ export type ContentConfig<
   mount?: Mount;
   collections?: Collections;
   singletons?: Singletons;
+  /**
+   * Authentication configuration. The typed surface (providers, sessionTtl,
+   * roles, email) is opinionated; `auth.authentication` is the vendor-neutral
+   * escape hatch that flows raw framework options through to `createAuth`.
+   */
+  auth?: AuthConfigShape;
 };
 
 export type Content<
@@ -118,6 +144,8 @@ export type Content<
   collections: Collections;
   /** Singletons indexed by slug. Iterate via `Object.values(content.singletons)`. */
   singletons: Singletons;
+  /** Auth block as supplied to `defineContent`. `undefined` ⇒ defaults apply at the auth-runtime layer. */
+  auth?: AuthConfigShape;
 };
 
 /** Erased shape for code that needs to accept any Content. */

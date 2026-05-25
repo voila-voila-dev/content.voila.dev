@@ -1,0 +1,21 @@
+# Package-local test config. A package-local bunfig.toml shadows the root one
+# entirely (Bun reads only the closest file), so anything the root config
+# provides has to be repeated here.
+[test]
+# Re-register happy-dom — the admin component tests (`*.test.tsx`) need a DOM.
+preload = ["../../../../test/setup.ts"]
+
+# Coverage config for the package-aggregate gate (roadmap M1 testing bar:
+# @voila/content ≥ 70% line coverage). Only activated by `bun test --coverage`.
+#
+# Cross-package imports resolve through workspace symlinks to real,
+# non-node_modules paths and otherwise leak into the report, so everything
+# outside this package (any `../…` path) is excluded — the gate measures this
+# package's own source only.
+#
+# Bun's native `coverageThreshold` is per-file, not per-package, so it can't
+# express an aggregate gate; `scripts/coverage-gate.ts` parses the lcov output
+# and enforces the package total instead.
+coverageReporter = ["text", "lcov"]
+coverageDir = "coverage"
+coveragePathIgnorePatterns = ["../**"]

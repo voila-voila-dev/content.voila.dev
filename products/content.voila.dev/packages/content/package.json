@@ -28,11 +28,15 @@
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",
     "@tanstack/react-router": "^1.130.0",
+    "@voila/content-auth": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",
     "vite": "catalog:"
   },
   "peerDependenciesMeta": {
+    "@voila/content-auth": {
+      "optional": true
+    },
     "vite": {
       "optional": true
     }

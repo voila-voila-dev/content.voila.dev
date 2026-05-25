@@ -26,6 +26,6 @@ jobs:
         shell: bash
         run: bun run check
 
-      - name: Coverage baseline
+      - name: Coverage gates (schema ≥ 90%, content ≥ 70%)
         shell: bash
-        run: bun test --coverage
+        run: bun run test:cov:gates

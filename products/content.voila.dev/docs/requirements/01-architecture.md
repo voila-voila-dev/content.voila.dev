@@ -55,7 +55,9 @@ voila/
 │       └── docs/                       # product-specific design docs (this directory)
 │
 ├── packages/                           # cross-product shared packages (no product prefix)
-│   └── typescript-config/              # @voila/typescript-config — shared tsconfig bases
+│   ├── typescript-config/              # @voila/typescript-config — shared tsconfig bases
+│   ├── ui/                             # @voila/ui — shadcn-based design system
+│   └── rich-text-editor/               # @voila/rich-text-editor — Plate/Slate editor behavior + serialization + default node components (/nodes)
 │
 ├── docs/
 │   └── decision-records/               # org-wide ADRs
