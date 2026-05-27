@@ -39,7 +39,10 @@ jobs:
         uses: ./.github/actions/cloudflare-workers-publish
         with:
           working-directory: products/content.voila.dev/apps/playground.content.voila.dev
-          command: versions upload --message "PR #${{ github.event.pull_request.number }} @ ${{ github.event.pull_request.head.sha }}"
+          # `--preview-alias` mints a stable per-PR Preview URL
+          # (pr-<n>-voila-playground.<subdomain>.workers.dev) and makes wrangler
+          # print it, so the action can surface it in the PR comment below.
+          command: versions upload --preview-alias "pr-${{ github.event.pull_request.number || github.run_id }}" --message "PR #${{ github.event.pull_request.number }} @ ${{ github.event.pull_request.head.sha }}"
           api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
