@@ -44,6 +44,7 @@
     "@vitejs/plugin-react": "^4",
     "@voila/content-cli": "workspace:*",
     "@voila/typescript-config": "workspace:*",
+    "playwright": "^1.60.0",
     "vite": "catalog:",
     "wrangler": "^4.70.0"
   }
