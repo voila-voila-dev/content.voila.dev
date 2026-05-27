@@ -56,6 +56,10 @@ function pgColumnFor(name: string, field: AnyFieldDef) {
       return withMods(date(col, { mode: "string" }), field);
     case "datetime":
       return withMods(timestamp(col, { withTimezone: true, mode: "date" }), field);
+    case "select":
+      return withMods(text(col), field);
+    case "slug":
+      return withMods(text(col), field);
     case "json":
       return withMods(jsonb(col), field);
     default:

@@ -166,6 +166,23 @@ describe("schemaToTables", () => {
     expect(cfg.checks.find((c) => c.name === "posts_singleton")).toBeUndefined();
   });
 
+  test("maps select + slug fields to text columns", () => {
+    const posts: CollectionLike = {
+      kind: "collection",
+      slug: "posts",
+      fields: {
+        status: fields.select({ options: ["draft", "published"] }),
+        permalink: fields.slug({ from: "title", unique: true }),
+      },
+    };
+    const cfg = getTableConfig(schemaToTables([posts], { dialect: "sqlite" }).posts);
+    const status = cfg.columns.find((c) => c.name === "status");
+    const permalink = cfg.columns.find((c) => c.name === "permalink");
+    expect(status?.getSQLType()).toBe("text");
+    expect(permalink?.getSQLType()).toBe("text");
+    expect(permalink?.isUnique).toBe(true);
+  });
+
   test("runtime tables roundtrip against a real sqlite database", () => {
     const posts: CollectionLike = {
       kind: "collection",

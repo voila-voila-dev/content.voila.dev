@@ -8,6 +8,10 @@ export type StringField = FieldDef<string> & {
   max?: number;
   pattern?: RegExp;
   format?: StringFormat;
+  /** Render as a multi-line textarea instead of a single-line input. */
+  multiline?: boolean;
+  /** Initial visible rows when `multiline` is set. Defaults to 4. */
+  rows?: number;
 };
 
 export type StringFieldOptions = Omit<StringField, "kind">;

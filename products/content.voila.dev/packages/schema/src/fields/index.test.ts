@@ -9,6 +9,8 @@ describe("fields registry", () => {
       "datetime",
       "json",
       "number",
+      "select",
+      "slug",
       "string",
     ]);
   });
@@ -19,6 +21,8 @@ describe("fields registry", () => {
     expect(fields.boolean().kind).toBe("boolean");
     expect(fields.date().kind).toBe("date");
     expect(fields.datetime().kind).toBe("datetime");
+    expect(fields.select({ options: ["a"] }).kind).toBe("select");
+    expect(fields.slug().kind).toBe("slug");
     expect(fields.json().kind).toBe("json");
   });
 });

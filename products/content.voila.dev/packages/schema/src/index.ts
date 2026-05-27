@@ -1,4 +1,6 @@
 export { defineField } from "./define-field.ts";
+export type { DocumentValidationResult, FieldValidators } from "./document.ts";
+export { buildFieldValidators, validateDocument } from "./document.ts";
 export type {
   BooleanField,
   BooleanFieldOptions,
@@ -10,6 +12,11 @@ export type {
   JsonFieldOptions,
   NumberField,
   NumberFieldOptions,
+  SelectField,
+  SelectFieldOptions,
+  SelectOption,
+  SlugField,
+  SlugFieldOptions,
   StringField,
   StringFieldOptions,
   StringFormat,
@@ -21,6 +28,10 @@ export {
   fields,
   json,
   number,
+  select,
+  selectOption,
+  selectValues,
+  slug,
   string,
 } from "./fields/index.ts";
 export type { InferDoc, InferField } from "./infer.ts";
