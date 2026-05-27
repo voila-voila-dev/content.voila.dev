@@ -24,12 +24,18 @@ export interface CollectionDetailViewProps {
   id: string;
 }
 
-export function detailQueryOptions(apiMount: string, collection: string, id: string) {
+export function detailQueryOptions(
+  apiMount: string,
+  collection: string,
+  id: string,
+  init?: RequestInit,
+) {
   return {
     queryKey: queryKeys.byId(collection, id),
+    // `init` carries the forwarded session cookie during SSR; see listQueryOptions.
     queryFn: async () => {
       try {
-        return await fetchById(apiMount, collection, id);
+        return await fetchById(apiMount, collection, id, init);
       } catch (err) {
         if (err instanceof ApiError && err.code === "NOT_FOUND") {
           return { data: null as Record<string, unknown> | null };

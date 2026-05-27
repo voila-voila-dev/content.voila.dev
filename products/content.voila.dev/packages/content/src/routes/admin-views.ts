@@ -43,6 +43,19 @@ const API_BASE = `const apiBase = createIsomorphicFn()
   })
   .client((): string | Promise<string> => content.mount.api);`;
 
+// The read API now requires a session. During SSR the loader's \`fetch\` to the
+// API doesn't carry the browser's cookies automatically, so forward the
+// incoming request's \`Cookie\` header. On the client this is a no-op — the
+// browser attaches same-origin cookies itself. Kept behind \`createIsomorphicFn\`
+// so \`@tanstack/react-start/server\` never reaches the client bundle.
+const API_INIT = `const apiRequestInit = createIsomorphicFn()
+  .server(async (): Promise<RequestInit> => {
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const cookie = getRequest().headers.get("cookie");
+    return cookie ? { headers: { cookie } } : {};
+  })
+  .client((): RequestInit => ({}));`;
+
 export function adminCollectionListSource(configImport: string): string {
   return `import { createFileRoute, notFound } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
@@ -57,6 +70,8 @@ import content from "${configImport}";
 
 ${API_BASE}
 
+${API_INIT}
+
 export const Route = createFileRoute("/admin/collections/$collection/")({
   validateSearch: ${SEARCH_SCHEMA},
   loaderDeps: ({ search }) => ({
@@ -68,11 +83,16 @@ export const Route = createFileRoute("/admin/collections/$collection/")({
     const collection = getCollection(content, params.collection);
     if (!collection) throw notFound();
     await context.queryClient.ensureQueryData(
-      listQueryOptions(await apiBase(), collection.slug, {
-        cursor: deps.cursor ?? null,
-        orderBy: deps.orderBy,
-        order: deps.order,
-      }),
+      listQueryOptions(
+        await apiBase(),
+        collection.slug,
+        {
+          cursor: deps.cursor ?? null,
+          orderBy: deps.orderBy,
+          order: deps.order,
+        },
+        await apiRequestInit(),
+      ),
     );
   },
   pendingComponent: () => (
@@ -108,12 +128,14 @@ import content from "${configImport}";
 
 ${API_BASE}
 
+${API_INIT}
+
 export const Route = createFileRoute("/admin/collections/$collection/$id")({
   loader: async ({ context, params }) => {
     const collection = getCollection(content, params.collection);
     if (!collection) throw notFound();
     await context.queryClient.ensureQueryData(
-      detailQueryOptions(await apiBase(), collection.slug, params.id),
+      detailQueryOptions(await apiBase(), collection.slug, params.id, await apiRequestInit()),
     );
   },
   pendingComponent: () => (
@@ -149,12 +171,14 @@ import content from "${configImport}";
 
 ${API_BASE}
 
+${API_INIT}
+
 export const Route = createFileRoute("/admin/singletons/$singleton")({
   loader: async ({ context, params }) => {
     const singleton = getSingleton(content, params.singleton);
     if (!singleton) throw notFound();
     await context.queryClient.ensureQueryData(
-      singletonQueryOptions(await apiBase(), singleton.slug),
+      singletonQueryOptions(await apiBase(), singleton.slug, await apiRequestInit()),
     );
   },
   pendingComponent: () => (

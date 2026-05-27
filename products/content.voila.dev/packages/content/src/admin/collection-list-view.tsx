@@ -84,10 +84,19 @@ function renderCell(collection: AnyCollection, key: string, value: unknown) {
   return formatFieldValue(field, value);
 }
 
-export function listQueryOptions(apiMount: string, collection: string, params: ListParams) {
+export function listQueryOptions(
+  apiMount: string,
+  collection: string,
+  params: ListParams,
+  init?: RequestInit,
+) {
   return {
     queryKey: queryKeys.list(collection, params),
-    queryFn: () => fetchList(apiMount, collection, params),
+    // `init` carries the forwarded session cookie during SSR (the loader has
+    // it; the browser adds it automatically on client navigations). It's
+    // intentionally not part of the queryKey — the cache is keyed by data, not
+    // transport.
+    queryFn: () => fetchList(apiMount, collection, params, init),
   };
 }
 

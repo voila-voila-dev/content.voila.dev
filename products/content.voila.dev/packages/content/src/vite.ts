@@ -4,7 +4,9 @@ import type { Plugin, ResolvedConfig } from "vite";
 import {
   adminApiByFieldSource,
   adminApiByIdSource,
+  adminApiCsrfSource,
   adminApiListSource,
+  adminApiRestoreSource,
   cloudflareEnvDeclSource,
 } from "./routes/admin-api.ts";
 import { adminApiAuthSplatSource, authSingletonSource } from "./routes/admin-api-auth.ts";
@@ -120,6 +122,8 @@ function writeAdminRoutes({ root, configAbsPath }: { root: string; configAbsPath
   const listFile = join(apiDir, "$collection.ts");
   const byIdFile = join(apiDir, "$collection.$id.ts");
   const byFieldFile = join(apiDir, "$collection.by.$field.$value.ts");
+  const restoreFile = join(apiDir, "$collection.$id.restore.ts");
+  const csrfFile = join(apiDir, "csrf.ts");
   const authDir = join(apiDir, "auth");
   mkdirSync(authDir, { recursive: true });
   const authSplatFile = join(authDir, "$.ts");
@@ -166,6 +170,11 @@ function writeAdminRoutes({ root, configAbsPath }: { root: string; configAbsPath
     byFieldFile,
     `${GENERATED_HEADER}${adminApiByFieldSource(configImportFrom(byFieldFile))}`,
   );
+  writeIfChanged(
+    restoreFile,
+    `${GENERATED_HEADER}${adminApiRestoreSource(configImportFrom(restoreFile))}`,
+  );
+  writeIfChanged(csrfFile, `${GENERATED_HEADER}${adminApiCsrfSource()}`);
 
   // The generated API routes import the `cloudflare:workers` virtual module.
   // Ship an ambient declaration so they type-check out of the box — but only

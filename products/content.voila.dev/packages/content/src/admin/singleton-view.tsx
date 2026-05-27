@@ -18,12 +18,13 @@ export interface SingletonViewProps {
   singleton: AnySingleton;
 }
 
-export function singletonQueryOptions(apiMount: string, slug: string) {
+export function singletonQueryOptions(apiMount: string, slug: string, init?: RequestInit) {
   return {
     queryKey: queryKeys.byId(slug, slug),
+    // `init` carries the forwarded session cookie during SSR; see listQueryOptions.
     queryFn: async () => {
       try {
-        return await fetchById(apiMount, slug, slug);
+        return await fetchById(apiMount, slug, slug, init);
       } catch (err) {
         if (err instanceof ApiError && err.code === "NOT_FOUND") {
           return { data: null as Record<string, unknown> | null };

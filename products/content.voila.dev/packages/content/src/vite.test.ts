@@ -62,6 +62,12 @@ describe("voila() route generation", () => {
     expect(existsSync(join(root, "src/routes/admin/singletons.$singleton.tsx"))).toBe(true);
     expect(existsSync(join(root, "src/routes/admin/api/health.ts"))).toBe(true);
     expect(existsSync(join(root, "src/routes/admin/api/auth/$.ts"))).toBe(true);
+    // Write-path routes (M2): list+create share `$collection.ts`; the per-id
+    // file backs find/update/delete; restore + csrf get their own files.
+    expect(existsSync(join(root, "src/routes/admin/api/$collection.ts"))).toBe(true);
+    expect(existsSync(join(root, "src/routes/admin/api/$collection.$id.ts"))).toBe(true);
+    expect(existsSync(join(root, "src/routes/admin/api/$collection.$id.restore.ts"))).toBe(true);
+    expect(existsSync(join(root, "src/routes/admin/api/csrf.ts"))).toBe(true);
   });
 
   test("removes a stale admin/$.tsx splat from older generations", () => {
