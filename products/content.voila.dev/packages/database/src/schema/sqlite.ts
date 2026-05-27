@@ -57,6 +57,10 @@ function sqliteColumnFor(name: string, field: AnyFieldDef) {
       return withMods(text(col), field);
     case "datetime":
       return withMods(integer(col, { mode: "timestamp_ms" }), field);
+    case "select":
+      return withMods(text(col), field);
+    case "slug":
+      return withMods(text(col), field);
     case "json":
       return withMods(text(col, { mode: "json" }), field);
     default:
