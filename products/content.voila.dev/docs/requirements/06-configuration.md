@@ -1,14 +1,16 @@
 # 06 — Configuration
 
-`content.config.ts` lives at the root of your TanStack Start app. It is a plain TypeScript module, auto-discovered by the `@voila/content/vite` plugin — see [01 — Architecture](./01-architecture.md#single-integration-point) and [ADR 0002](../../../../docs/decision-records/0002-tanstack-start-integration.md).
+`content.config.ts` lives at the root of your TanStack Start app. It is a plain TypeScript module, imported directly by the vended mount file (`app/server/voila.ts`). See [01 — Architecture](./01-architecture.md#single-integration-point).
+
+`defineContent({...})` composes the default Layer graph from the values you provide and produces a `ManagedRuntime` consumed by the engine handler. Database and storage values are **Layers** — Effect's typed implementation-swapping mechanism. You pick the adapter that matches your target; the engine is unaware of the rest.
 
 ## Anatomy
 
 ```ts
 // content.config.ts
 import { defineContent } from '@voila/content'
-import { r2 } from '@voila/storage'
-import { d1 } from '@voila/content-database'
+import { D1Live } from '@voila/content-sql/d1'
+import { R2Live } from '@voila/content-storage'
 
 import { posts, authors } from './content/collections'
 import { siteSettings } from './content/singletons'
@@ -28,7 +30,7 @@ export default defineContent({
   // ── Mounting ───────────────────────────────────────────────────────────
   mount: {
     admin: '/admin',                     // where the admin SPA lives
-    api:   '/admin/api',                 // where REST/RPC lives
+    api:   '/admin/api',                 // where REST lives
     mcp:   '/admin/mcp',                 // where the MCP server lives
   },
 
@@ -36,9 +38,9 @@ export default defineContent({
   collections: [posts, authors],
   singletons:  [siteSettings],
 
-  // ── Storage ────────────────────────────────────────────────────────────
-  database: d1({ binding: 'DATABASE' }),
-  storage:  r2({ bucket: 'media', publicUrl: 'https://media.acme.com' }),
+  // ── Adapters (Layers) ──────────────────────────────────────────────────
+  database: D1Live({ binding: 'DATABASE' }),              // a Layer
+  storage:  R2Live({ bucket: 'media', publicUrl: 'https://media.acme.com' }), // a Layer
 
   // ── Auth ───────────────────────────────────────────────────────────────
   auth: {
@@ -92,6 +94,11 @@ export default defineContent({
   // ── Extensions (see 08) ────────────────────────────────────────────────
   ...extensions,
 
+  // ── Power-user Layer overrides ─────────────────────────────────────────
+  // Provide additional Layers to wrap or replace any engine Service.
+  // Ignored by most users — see "Layer escape hatch" below.
+  // layers: [Layer.effect(MutationService, auditedMutations)],
+
   // ── Retention ──────────────────────────────────────────────────────────
   retention: {
     versionDays: 90,
@@ -114,6 +121,48 @@ export default defineContent({
     auth: 'bearer',                      // 'bearer' | 'oauth' | 'none'
   },
 })
+```
+
+## Database
+
+`database` accepts a **Layer** that provides the `Database` Service. Pick the one that matches your target:
+
+| Import | Target |
+| --- | --- |
+| `D1Live` from `@voila/content-sql/d1` | Cloudflare D1 (production + `wrangler dev`) |
+| `PgLive` from `@voila/content-sql/pg` | Postgres (Neon, Supabase, local) |
+| `SqliteLive` from `@voila/content-sql/sqlite` | SQLite via Bun (local dev, CI) |
+
+```ts
+import { D1Live }     from '@voila/content-sql/d1'
+import { PgLive }     from '@voila/content-sql/pg'
+import { SqliteLive } from '@voila/content-sql/sqlite'
+
+// Cloudflare D1 — binding name from wrangler.jsonc
+database: D1Live({ binding: 'DATABASE' })
+
+// Postgres
+database: PgLive({ url: env.DATABASE_URL })
+
+// Local SQLite (useful in CI or non-CF local dev)
+database: SqliteLive({ filename: '.voila/dev.db' })
+```
+
+Swapping DB = swapping one Line. The engine never changes.
+
+## Storage
+
+`storage` accepts a **Layer** that provides the `Storage` Service:
+
+```ts
+import { R2Live } from '@voila/content-storage'
+import { S3Live } from '@voila/content-storage'
+
+// Cloudflare R2
+storage: R2Live({ bucket: 'media', publicUrl: 'https://media.acme.com' })
+
+// S3-compatible (AWS, MinIO, Tigris)
+storage: S3Live({ bucket: 'media', region: 'us-east-1' })
 ```
 
 ## Branding
@@ -147,7 +196,7 @@ If you omit `navigation`, the admin generates a default from your collections/si
 
 ## Auth
 
-Auth is powered by [Better Auth](https://www.better-auth.com/). Email magic-link + GitHub OAuth are wired in by default; the `auth` block in `content.config.ts` is a thin facade that compiles down to a Better Auth instance sharing the same Drizzle database.
+Auth is powered by [Better Auth](https://www.better-auth.com/). Email magic-link + GitHub OAuth are wired in by default; the `auth` block in `content.config.ts` is a thin facade that compiles down to a Better Auth instance sharing the same database Layer.
 
 To add a provider, drop in any Better Auth social provider:
 
@@ -168,6 +217,25 @@ auth: {
 ```
 
 Anything Better Auth supports (passkeys, 2FA, organizations, magic link, OIDC) is reachable via `auth.betterAuth` for escape-hatch config. Roles are an `as const` tuple, surfaced as a TypeScript union for `access` callbacks.
+
+## Layer escape hatch
+
+For power users who want to wrap or replace an engine Service without owning the engine source, `defineContent` accepts a `layers` array:
+
+```ts
+import { Layer } from 'effect'
+import { MutationService } from '@voila/content'
+
+defineContent({
+  // … other config …
+  database: TursoLive({ url }),                              // different dialect Layer
+  layers: [
+    Layer.effect(MutationService, auditedMutations),         // wrap the default resolver
+  ],
+})
+```
+
+`layers` are merged into the runtime after the defaults — they can wrap, override, or extend any `Service` the engine exposes. If you never touch this key, it does not exist from your perspective. The engine upgrades via `npm update` either way.
 
 ## Environment & secrets
 

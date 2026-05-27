@@ -6,13 +6,13 @@ i18n in `content.voila.dev` is **three distinct things**, kept separate. Conflat
 
 | # | Thing                                  | Where it lives                            | Who edits                              | How                                                    |
 | - | -------------------------------------- | ----------------------------------------- | -------------------------------------- | ------------------------------------------------------ |
-| 1 | **Admin UI strings**                   | `@voila/content` package repo (committed) | OSS contributors                       | PR / Fink / Sherlock                                   |
+| 1 | **Admin UI strings**                   | `@voila/content-registry` package repo (committed) | OSS contributors                       | PR / Fink / Sherlock                                   |
 | 2 | **Localized field values**             | Your DB (per-field, opt-in)               | Editors (web users)                    | Admin UI, locale tabs on the field                     |
 | 3 | **Messages** (static site UI strings)  | Your DB **and** your project's repo (synced) | Editors **and** developers           | Admin UI + `voila i18n pull / push`                   |
 
 That's the whole model.
 
-Pillar 1 is shipped with the package — you never touch it unless contributing translations. Pillar 2 is **dynamic content**: a post's title in five languages. Pillar 3 is **static UI copy on your consuming site**: `"Submit"`, `"Cart is empty"`, `"Welcome back, %name%"`.
+Pillar 1 is shipped with the vended registry items — you never touch it unless contributing translations. Pillar 2 is **dynamic content**: a post's title in five languages. Pillar 3 is **static UI copy on your consuming site**: `"Submit"`, `"Cart is empty"`, `"Welcome back, %name%"`.
 
 Pillars 2 and 3 both live in your DB, but they're modeled differently because they're different shapes:
 
@@ -30,10 +30,10 @@ All locale identifiers use **[BCP 47](https://www.rfc-editor.org/info/bcp47)**:
 
 ### Statically typed `Locale` union
 
-`@voila/i18n` exports a `Locale` type that is the **literal union of every CLDR locale tag** (≈ 700). It's the only string the framework accepts anywhere a locale is expected — `i18n.locales`, `defaultLocale`, `fallback` keys, `?locale=…`, the typed client's `{ locale }`, the localized-field storage shape, the MCP tools, the admin cookie.
+`@voila/content-schema` exports a `Locale` type that is the **literal union of every CLDR locale tag** (≈ 700). It's the only string the framework accepts anywhere a locale is expected — `i18n.locales`, `defaultLocale`, `fallback` keys, `?locale=…`, the typed client's `{ locale }`, the localized-field storage shape, the MCP tools, the admin cookie.
 
 ```ts
-import type { Locale } from '@voila/content'
+import type { Locale } from '@voila/content-schema'
 
 const fr: Locale = 'fr-FR'      // ✅
 const xx: Locale = 'foo-BAR'    // ❌  Type 'foo-BAR' is not assignable to type Locale
@@ -58,7 +58,7 @@ i18n: {
 ### Validating untrusted strings
 
 ```ts
-import { isLocale, parseAcceptLanguage, negotiate } from '@voila/i18n'
+import { isLocale, parseAcceptLanguage, negotiate } from '@voila/content'
 
 isLocale('fr-FR')                                      // true
 isLocale('fr_FR')                                      // false
@@ -74,10 +74,10 @@ negotiate({
 
 ## 1) Admin UI strings
 
-The admin SPA is itself translated. Strings live inside the `@voila/content` package:
+The admin SPA is itself translated. Strings live inside the `@voila/content-registry` package alongside the vended source:
 
 ```
-packages/content/
+packages/registry/
 ├── inlang/
 │   ├── project.inlang/settings.json
 │   └── messages/
@@ -86,14 +86,14 @@ packages/content/
 │       ├── it-IT.json
 │       ├── ja-JP.json
 │       └── …  (~15 base locales shipped)
-└── src/admin/paraglide/   ← compiled at package build, bundled into the SPA
+└── src/admin/paraglide/   ← compiled at package build, bundled into the vended SPA
 ```
 
 A locale picker lives above the user menu in the sidebar footer. Selection persists in the `voila_admin_locale` cookie. **Independent of the site's locale** — an English-speaking admin can edit French site content.
 
 ### Contributing translations
 
-Standard Inlang workflow — open `packages/content/inlang/` in [Fink](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) or VS Code [Sherlock](https://inlang.com/m/r7kp499g/app-inlang-ideExtension), edit, PR. CI's `voila i18n check` blocks merges that leave a locale incomplete relative to `en-US`.
+Standard Inlang workflow — open `packages/registry/inlang/` in [Fink](https://inlang.com/m/tdozzpar/app-inlang-finkLocalizationEditor) or VS Code [Sherlock](https://inlang.com/m/r7kp499g/app-inlang-ideExtension), edit, PR. CI's `voila i18n check` blocks merges that leave a locale incomplete relative to `en-US`.
 
 ### Per-app overrides (don't fork)
 
@@ -114,7 +114,7 @@ Resolution order: `override → shipped → defaultLocale ('en-US')`.
 
 ## 2) Localized field values
 
-For any field on any collection or singleton:
+For any field on any collection or singleton, set `localized: true`. Under the hood, a localized field is an `effect/Schema` whose storage shape is `{ [locale: Locale]: T }` — the locale dimension is encoded in the field's annotations and compiled to the appropriate DB column layout by `@voila/content-sql`.
 
 ```ts
 title: fields.string({ localized: true, required: true })
@@ -174,6 +174,8 @@ voila_messages
   tags         string[] optional     for grouping in the admin
   updatedAt    timestamp
 ```
+
+The message-sync Service — owned by `@voila/content-cli` and surfaced as the `voila i18n pull / push` commands — reads and writes this table. (Localized *field* storage, by contrast, is handled inside `@voila/content` + `@voila/content-sql`; there is no separate `i18n` package.)
 
 ### Editor workflow (web)
 
@@ -345,7 +347,8 @@ Three audiences, three workflows. No conflation.
 - **Standard Inlang format on disk** means we don't lock you into TanStack — the messages travel to Astro, Next, anything.
 - **Bidirectional sync, non-destructive** means devs and editors can each start work without coordinating. The merge converges.
 - **Static `Locale` union** means typos die at compile time, not in production logs.
+- **`effect/Schema` localized fields** encode the locale dimension in annotations, so `@voila/content-sql` can derive the right storage shape per dialect without bespoke migration logic.
 
 ---
 
-Continue → [12 — Roadmap](./12-roadmap.md)
+Continue → [Roadmap — Effect Rebuild](../pivot/roadmap-effect.md)

@@ -5,124 +5,136 @@ A **collection** is a repeatable type (posts, products, users). A **singleton** 
 ## Collection
 
 ```ts
-import { defineCollection, fields } from '@voila/content'
+import { defineCollection } from "@voila/content"
+import { fields } from "@voila/content-schema"
 
 export const posts = defineCollection({
-  slug: 'posts',
-  label: 'Posts',
-  icon: 'NewspaperClipping',           // any Phosphor icon name
-  description: 'Articles published on the blog.',
+  slug: "posts",
+  label: "Posts",
+  icon: "NewspaperClipping",           // any Phosphor icon name
+  description: "Articles published on the blog.",
 
   fields: {
     title: fields.string({ required: true }),
-    slug:  fields.slug({ from: 'title' }),
+    slug:  fields.slug({ from: "title" }),
     body:  fields.richText(),
-    cover: fields.media({ accept: ['image/*'] }),
+    cover: fields.media({ accept: ["image/*"] }),
     tags:  fields.array(fields.string()),
     publishedAt: fields.datetime(),
-    author: fields.relation({ to: 'users' }),
+    author: fields.relation({ to: "users" }),
   },
 
   // Behavior
   versioning: true,                    // every save creates a version
   drafts:     true,                    // separate draft/published states
-  scheduled:  true,                    // publishedAt in future → auto-publish via cron
+  scheduled:  true,                    // publishedAt in future → auto-publish via queue
   trash:      true,                    // soft delete
 
-  // Access control
+  // Access control — predicates compiled by RbacService into SQL WHERE
   access: {
     read:   () => true,                // public read
-    create: (ctx) => ctx.user?.role === 'editor',
-    update: (ctx, doc) => ctx.user?.id === doc.author || ctx.user?.role === 'admin',
-    delete: (ctx) => ctx.user?.role === 'admin',
+    create: (ctx) => ctx.user?.role === "editor",
+    update: (ctx, doc) => ctx.user?.id === doc.author || ctx.user?.role === "admin",
+    delete: (ctx) => ctx.user?.role === "admin",
   },
 
   // Admin presentation
   admin: {
-    group: 'Content',                  // sidebar group
-    titleField: 'title',
-    defaultSort: { field: 'publishedAt', dir: 'desc' },
+    group: "Content",                  // sidebar group
+    titleField: "title",
+    defaultSort: { field: "publishedAt", dir: "desc" },
   },
 
   // List view
   list: {
     columns: [
-      'title',
-      { field: 'publishedAt', label: 'Published' },
-      { field: 'tags', cell: TagPillsCell },
+      "title",
+      { field: "publishedAt", label: "Published" },
+      { field: "tags", cell: "TagPillsCell" },
     ],
-    filters: ['tags', 'publishedAt', 'author'],
-    search:  ['title', 'body'],
+    filters: ["tags", "publishedAt", "author"],
+    search:  ["title", "body"],
     pageSize: 25,
   },
 
   // Detail view
   detail: {
     layout: [
-      { tab: 'Content',  fields: ['title', 'slug', 'body', 'cover'] },
-      { tab: 'Metadata', fields: ['tags', 'publishedAt', 'author'] },
+      { tab: "Content",  fields: ["title", "slug", "body", "cover"] },
+      { tab: "Metadata", fields: ["tags", "publishedAt", "author"] },
     ],
-    sidebar: ['status', 'publishedAt', 'author'],
+    sidebar: ["status", "publishedAt", "author"],
   },
 
-  // Lifecycle hooks
+  // Lifecycle hooks — run by HookService (an Effect Service) in sequence
   hooks: {
-    beforeCreate: async ({ doc, ctx }) => doc,
-    afterCreate:  async ({ doc, ctx }) => {},
-    beforeUpdate: async ({ doc, prev, ctx }) => doc,
-    afterUpdate:  async ({ doc, prev, ctx }) => {},
-    beforeDelete: async ({ doc, ctx }) => {},
-    afterDelete:  async ({ doc, ctx }) => {},
+    beforeCreate: ({ doc, ctx }) => Effect.succeed(doc),
+    afterCreate:  ({ doc, ctx }) => Effect.void,
+    beforeUpdate: ({ doc, prev, ctx }) => Effect.succeed(doc),
+    afterUpdate:  ({ doc, prev, ctx }) => Effect.void,
+    beforeDelete: ({ doc, ctx }) => Effect.void,
+    afterDelete:  ({ doc, ctx }) => Effect.void,
   },
 
   // Row actions (see 08 — Extensions)
   actions: [
     {
-      id: 'duplicate',
-      label: 'Duplicate',
-      icon: 'CopySimple',
-      scope: 'row',
-      run: async ({ doc, ctx }) => ctx.database.posts.create({ ...doc, id: undefined, slug: `${doc.slug}-copy` }),
+      id: "duplicate",
+      label: "Duplicate",
+      icon: "CopySimple",
+      scope: "row",
+      run: ({ doc, ctx }) =>
+        Effect.flatMap(ctx.database.posts, (db) =>
+          db.create({ ...doc, id: undefined, slug: `${doc.slug}-copy` }),
+        ),
     },
   ],
-
-  // Override REST handlers if needed (almost never)
-  api: {
-    handlers: {
-      'GET /posts/:slug': customHandler,  // overrides default
-    },
-  },
 })
 ```
 
 Every prop except `slug` and `fields` is optional. Defaults are sensible.
+
+### Hooks and the Effect engine
+
+Hooks are functions that return `Effect` values. The engine's `HookService` sequences them — `before*` hooks may transform the document; `after*` hooks run for side effects. You never call them directly; provide them and the engine wires them into the resolver pipeline.
+
+If you want to intercept mutations globally (audit log, event bus), wrap the `MutationService` `Layer` instead of repeating hook logic across collections:
+
+```ts
+// content.config.ts
+defineContent({
+  // …
+  layers: [Layer.effect(MutationService, auditedMutations)],
+})
+```
 
 ## Singleton
 
 A singleton is a collection-of-one. It has no list view, no slug, no ID — just an edit page.
 
 ```ts
-import { defineSingleton, fields } from '@voila/content'
+import { defineSingleton } from "@voila/content"
+import { fields } from "@voila/content-schema"
 
 export const siteSettings = defineSingleton({
-  slug: 'site-settings',
-  label: 'Site Settings',
-  icon: 'Gear',
+  slug: "site-settings",
+  label: "Site Settings",
+  icon: "Gear",
 
   fields: {
     title:       fields.string({ required: true }),
     description: fields.string(),
-    logo:        fields.media({ accept: ['image/svg+xml', 'image/png'] }),
+    logo:        fields.media({ accept: ["image/svg+xml", "image/png"] }),
     primaryColor: fields.color(),
     social: fields.object({
-      twitter:   fields.string({ format: 'url' }),
-      instagram: fields.string({ format: 'url' }),
+      twitter:   fields.string({ format: "url" }),
+      instagram: fields.string({ format: "url" }),
     }),
   },
 
   access: {
     read:   () => true,
-    write:  (ctx) => ctx.user?.role === 'admin',
+    write:  (ctx) => ctx.user?.role === "admin",
   },
 })
 ```
@@ -140,14 +152,14 @@ const settings = await client.singletons.siteSettings.get()
 
 Three flavors, all handled the same way at the DX level:
 
-- **one-to-many**: `fields.relation({ to: 'authors' })` on the child.
-- **many-to-many**: `fields.relation({ to: 'tags', many: true })`. Junction table is auto-created and managed.
-- **polymorphic**: `fields.polymorphic({ to: ['posts', 'pages'] })`. Stored as `{ type, id }`.
+- **one-to-many**: `fields.relation({ to: "authors" })` on the child.
+- **many-to-many**: `fields.relation({ to: "tags", many: true })`. Junction table is auto-created and managed.
+- **polymorphic**: `fields.polymorphic({ to: ["posts", "pages"] })`. Stored as `{ type, id }`.
 
 The admin renders relations as searchable comboboxes. The API exposes `?include=author,tags`:
 
 ```ts
-const post = await client.posts.findOne({ slug }, { include: ['author', 'tags'] })
+const post = await client.posts.findOne({ slug }, { include: ["author", "tags"] })
 //          ^ author and tags are typed objects, not just IDs
 ```
 
@@ -161,14 +173,14 @@ When `versioning: true`:
 
 When `drafts: true`:
 
-- `posts` table has `status: 'draft' | 'published'`.
+- `posts` table has `status: "draft" | "published"`.
 - The public API returns only `published` by default.
 - Authenticated previews can request drafts: `?status=draft&token=...`.
 
 When `scheduled: true`:
 
 - A `publishedAt` in the future + status=published → status="scheduled".
-- A built-in cron job promotes scheduled docs every minute.
+- A built-in queue job (via `@voila/content`) promotes scheduled docs every minute.
 
 These three flags are independent. Turn them on per-collection.
 
@@ -185,7 +197,7 @@ GET  /admin/api/posts/export?format=json|csv
 POST /admin/api/posts/import        body: multipart form, file
 ```
 
-The admin exposes them as buttons in the list header. Import does dry-run + validation + commit.
+The admin exposes them as buttons in the list header. Import does dry-run + validation (via `Schema.decodeUnknown`) + commit.
 
 ## Search
 

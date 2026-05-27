@@ -2,13 +2,19 @@
 
 The admin is built to look like a serious product, not a CMS. Visually modeled on the admins of **[1year.com.tw](https://1year.com.tw)** and **[guide-scpi.fr](https://guide-scpi.fr)**: dense but quiet, monochrome with a single accent, generous spacing inside cards, hairline borders, no gradients.
 
+## You own the admin code
+
+The admin UI is **vended into your repo** by the registry CLI — you do not import a black-box admin package at runtime. `voila add admin-shell` (and friends) copies real source files into your project. You own them, restyle them directly, and evolve them at your own pace.
+
+`@voila/ui` is the **source-of-truth** for all registry UI items: shadcn-on-Base-UI primitives, Tailwind v4 token layer, Phosphor icons. The registry reads from `@voila/ui` and copies the result. Theming means editing your vended files and token CSS — not toggling a config knob in `defineContent`.
+
 ## Design language
 
 | Aspect       | Choice                                                                  |
 | ------------ | ----------------------------------------------------------------------- |
 | Primitives   | [Base UI](https://base-ui.com) (unstyled, accessible, headless)         |
 | Patterns     | shadcn/ui compositions on top of Base UI                                |
-| CSS          | Tailwind v4 + native CSS variables (no `theme()` indirection)           |
+| CSS          | Tailwind v4 + native CSS variables — use `(--var)` syntax, not `[--var]` |
 | Icons        | [Phosphor](https://phosphoricons.com) — outline weight as default       |
 | Typography   | `Inter` for UI, `JetBrains Mono` for code/IDs                           |
 | Radii        | 6px default, 4px for dense controls                                     |
@@ -47,10 +53,10 @@ The admin is built to look like a serious product, not a CMS. Visually modeled o
 
 ## Tokens
 
-All visual decisions go through CSS variables. Override them in your app's `globals.css`:
+All visual decisions go through CSS variables. The vended `app/styles/globals.css` is yours to edit:
 
 ```css
-/* app/styles/globals.css */
+/* app/styles/globals.css — VENDED, you own this */
 @import "@voila/ui/tokens.css";
 
 :root {
@@ -84,11 +90,11 @@ All visual decisions go through CSS variables. Override them in your app's `glob
 }
 ```
 
-Every Tailwind utility used by `@voila/ui` references these variables. Changing `--voila-color-accent` cascades to buttons, links, focus rings, active sidebar items, primary badges, etc.
+Every Tailwind utility in the vended components references these variables via Tailwind v4's `(--var)` CSS-variable syntax. Changing `--voila-color-accent` cascades to buttons, links, focus rings, active sidebar items, primary badges, etc.
 
 ## Tailwind setup
 
-The admin owns its own Tailwind config (`@voila/ui/tailwind.config.ts`). It compiles to a scoped layer:
+The vended admin components use a scoped Tailwind layer sourced from `@voila/ui`:
 
 ```css
 @layer voila;     /* admin styles */
@@ -101,7 +107,7 @@ If you don't use Tailwind in your public app, that's fine. The admin doesn't nee
 
 ## Components
 
-`packages/ui` ships a small library of opinionated components:
+`@voila/ui` is the source package; the registry vends the components you actually need into your repo. The catalog includes:
 
 ```
 button, badge, card, table, dropdown, dialog, drawer, popover,
@@ -109,7 +115,7 @@ combobox, select, datepicker, calendar, tabs, accordion, toast,
 tooltip, command palette, kbd, breadcrumb, pagination, empty state
 ```
 
-Each is:
+Each vended component is:
 
 - a thin wrapper around Base UI primitives,
 - styled with token variables,
@@ -117,8 +123,9 @@ Each is:
 - exported as both a composed component and its primitive parts.
 
 ```tsx
-import { Button } from '@voila/ui/button'
-import * as Popover from '@voila/ui/popover'  // primitive parts
+// after voila add button popover — these are your files
+import { Button } from "~/components/voila/ui/button"
+import * as Popover from "~/components/voila/ui/popover"  // primitive parts
 
 <Button variant="primary" icon="Plus">Create</Button>
 
@@ -133,45 +140,51 @@ import * as Popover from '@voila/ui/popover'  // primitive parts
 Phosphor only, single source. Use the helper to keep tree-shaking honest:
 
 ```tsx
-import { Icon } from '@voila/ui/icon'
+import { Icon } from "~/components/voila/ui/icon"
 <Icon name="NewspaperClipping" weight="duotone" size={16} />
 ```
 
 Field/collection `icon` strings are typed against the Phosphor name union.
 
+## Updating vended code
+
+Because you own the files, `npm update` does not push admin UI changes into your project. Use:
+
+```
+voila diff          # show drift between your vended copy and upstream
+voila add <item>    # re-vend (merge, don't overwrite) a registry item
+voila list          # browse what's available
+```
+
+You control when to take upstream changes. Breaking engine↔vended contracts are flagged by TypeScript at upgrade time — the typed client shape and widget props are the stable public API.
+
 ## Customizing the head
 
-The admin's `<head>` is templated. You can inject extras via `branding.head`:
+The vended admin shell file exposes a `<head>` slot. Edit it directly:
 
-```ts
-branding: {
-  head: ({ html }) => html`
-    <link rel="preconnect" href="https://media.acme.com" />
-  `,
-}
+```tsx
+// app/routes/admin/_shell.tsx — VENDED, you own this
+<head>
+  <link rel="preconnect" href="https://media.acme.com" />
+  {/* add anything here */}
+</head>
 ```
 
 ## Admin UI is translatable
 
-The admin SPA is itself fully translated via its own Paraglide/Inlang project, bundled at package build time. A locale picker lives above the user menu in the sidebar footer; selection persists as a cookie. Consumers can override or extend strings via `ui.messages` without forking. The admin's locale is independent of the site's locale — see [13 — i18n with Paraglide & Inlang](./13-i18n-paraglide.md).
+The admin is fully translated via its own Paraglide/Inlang project, compiled into the vended files at registry build time. A locale picker lives above the user menu in the sidebar footer; selection persists as a cookie. To override or extend strings, edit the vended message catalog directly — no forking needed. The admin's locale is independent of the site's locale — see [13 — i18n with Paraglide & Inlang](./13-i18n-paraglide.md).
 
-## Replacing a component (escape hatch)
+## Replacing a component
 
-For deep customization, swap any built-in component via `ui.overrides`:
+For deep customization, edit the vended file directly — it's yours. If you want a completely different component (e.g. your own command palette), replace the import in the file that uses it:
 
-```ts
-import { MyCommandPalette } from './components/command-palette'
-
-defineContent({
-  ui: {
-    overrides: {
-      CommandPalette: MyCommandPalette,
-    },
-  },
-})
+```tsx
+// app/components/voila/command-palette.tsx — VENDED, yours to edit
+import { MyCommandPalette } from "~/components/command-palette"
+export { MyCommandPalette as CommandPalette }
 ```
 
-The list of overridable components is documented in `@voila/ui/overrides`. Each receives a typed `props` interface so swaps are type-checked.
+No `ui.overrides` config key needed — the file is the override.
 
 ---
 

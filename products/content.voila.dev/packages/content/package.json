@@ -2,15 +2,12 @@
   "name": "@voila/content",
   "version": "0.1.0",
   "type": "module",
-  "sideEffects": [
-    "**/*.css"
-  ],
   "exports": {
     ".": "./src/index.ts",
     "./server": "./src/server/index.ts",
-    "./vite": "./src/vite.ts",
-    "./internal": "./src/internal.ts",
-    "./styles.css": "./src/styles.css"
+    "./client": "./src/client/index.ts",
+    "./queue/inline": "./src/queue/inline.ts",
+    "./queue/cloudflare": "./src/queue/cloudflare.ts"
   },
   "publishConfig": {
     "access": "public"
@@ -19,41 +16,12 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@tanstack/react-form": "^1.32.1",
-    "@tanstack/react-table": "^8.21.3",
-    "@voila/content-database": "workspace:*",
+    "effect": "^3.21.2",
+    "@effect/platform": "^0.96.1",
     "@voila/content-schema": "workspace:*",
-    "@voila/ui": "workspace:*",
-    "drizzle-orm": ">=0.40.0 <1.0.0",
-    "zod": "^4.0.0"
-  },
-  "peerDependencies": {
-    "@tanstack/react-query": "^5.0.0",
-    "@tanstack/react-router": "^1.130.0",
-    "@voila/content-auth": "workspace:*",
-    "react": "catalog:",
-    "react-dom": "catalog:",
-    "vite": "catalog:"
-  },
-  "peerDependenciesMeta": {
-    "@voila/content-auth": {
-      "optional": true
-    },
-    "vite": {
-      "optional": true
-    }
+    "@voila/content-sql": "workspace:*"
   },
   "devDependencies": {
-    "@happy-dom/global-registrator": "^15.11.7",
-    "@tanstack/react-query": "^5.100.13",
-    "@tanstack/react-router": "^1.170.7",
-    "@testing-library/react": "^16.1.0",
-    "@types/react": "catalog:",
-    "@types/react-dom": "catalog:",
-    "@voila/typescript-config": "workspace:*",
-    "happy-dom": "^15.11.7",
-    "react": "catalog:",
-    "react-dom": "catalog:",
-    "vite": "catalog:"
+    "@voila/typescript-config": "workspace:*"
   }
 }

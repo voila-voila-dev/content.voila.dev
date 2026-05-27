@@ -1,56 +1,57 @@
 # 09 — Media & Storage
 
-`@voila/storage` is a thin abstraction over S3-compatible object stores. The reference implementation is Cloudflare R2; any S3-compatible backend (AWS S3, Backblaze B2, MinIO, Wasabi, Tigris) works through the same interface.
+`@voila/content-storage` is a `Storage` **Service** (Effect `Context.Tag`) with pluggable backend **Layers**. The reference Layer is R2; any S3-compatible backend (AWS S3, Backblaze B2, MinIO, Wasabi, Tigris) slots in by providing a different Layer. Swapping the backend = one line in `content.config.ts`.
 
-## Storage adapters
+## Storage Layers
 
 ```ts
-import { r2 } from '@voila/storage'
+import { R2Live } from '@voila/content-storage'
 
-storage: r2({
-  bucket: 'media',                       // R2 binding name
-  publicUrl: 'https://media.acme.com',   // CDN domain (optional)
-  prefix: 'uploads',                      // key prefix
+storage: R2Live({
+  bucket:    'media',                      // R2 binding name in wrangler.jsonc
+  publicUrl: 'https://media.acme.com',    // CDN domain (optional)
+  prefix:    'uploads',                    // key prefix
 })
 ```
 
 ```ts
-import { s3 } from '@voila/storage'
+import { S3Live } from '@voila/content-storage'
 
-storage: s3({
-  endpoint:  env.S3_ENDPOINT,            // e.g. https://s3.fr-par.scw.cloud
-  region:    env.S3_REGION,
-  bucket:    env.S3_BUCKET,
+storage: S3Live({
+  endpoint:        env.S3_ENDPOINT,        // e.g. https://s3.fr-par.scw.cloud
+  region:          env.S3_REGION,
+  bucket:          env.S3_BUCKET,
   accessKeyId:     env.S3_ACCESS_KEY,
   secretAccessKey: env.S3_SECRET_KEY,
-  publicUrl: env.S3_PUBLIC_URL,
-  forcePathStyle: true,                  // for MinIO etc.
+  publicUrl:       env.S3_PUBLIC_URL,
+  forcePathStyle:  true,                   // for MinIO etc.
 })
 ```
 
-Both expose the same `StorageAdapter` interface; the rest of the system doesn't care which is plugged in.
+Both provide the same `Storage` `Service` interface; the rest of the engine calls the `Service` tag and never sees the backend. To BYO storage, implement the `Storage` `Service` interface (≈ 100 lines) and provide it as a `Layer`.
 
-### `StorageAdapter`
+### `Storage` Service interface (conceptual)
 
 ```ts
-interface StorageAdapter {
-  put(key: string, body: ReadableStream | ArrayBuffer | Blob, opts?: PutOpts): Promise<StorageObject>
-  get(key: string): Promise<StorageObject | null>
-  head(key: string): Promise<StorageMeta | null>
-  delete(key: string): Promise<void>
-  list(prefix?: string, cursor?: string): Promise<{ items: StorageMeta[]; cursor?: string }>
+// @voila/content-storage — the Service contract
+interface StorageService {
+  put(key: string, body: ReadableStream | ArrayBuffer | Blob, opts?: PutOpts): Effect<StorageObject>
+  get(key: string): Effect<StorageObject | null>
+  head(key: string): Effect<StorageMeta | null>
+  delete(key: string): Effect<void>
+  list(prefix?: string, cursor?: string): Effect<{ items: StorageMeta[]; cursor?: string }>
 
   publicUrl(key: string): string
-  signedUrl(key: string, opts: { ttl?: number; download?: boolean }): Promise<string>
+  signedUrl(key: string, opts: { ttl?: number; download?: boolean }): Effect<string>
 
   /** For direct browser uploads (presigned PUT) */
-  presignUpload(key: string, opts: { contentType: string; ttl?: number; maxSize?: number }): Promise<{ url: string; fields?: Record<string,string> }>
+  presignUpload(key: string, opts: { contentType: string; ttl?: number; maxSize?: number }): Effect<{ url: string; fields?: Record<string,string> }>
 }
 ```
 
-If you BYO storage, you can implement this interface in ~100 lines.
-
 ## The `media` field
+
+`field/media` is a **vended registry item** — a `defineField` wrapper plus the upload widget component. Add it to a collection just like any built-in field:
 
 ```ts
 cover: fields.media({
@@ -84,7 +85,7 @@ type Media = {
 }
 ```
 
-The public client returns ready-to-use URLs:
+The typed client returns ready-to-use URLs:
 
 ```tsx
 <img
@@ -99,15 +100,15 @@ The public client returns ready-to-use URLs:
 ## Upload flow
 
 ```
-1. Admin user picks a file in a media field
-2. Browser asks server for a presigned PUT URL              (POST /admin/api/media/presign)
-3. Browser uploads file directly to R2/S3                    (no proxy through worker)
-4. Browser POSTs the resulting key to /admin/api/media       (server records metadata)
-5. Server enqueues a `media.process` task                    (extract dims, generate variants)
-6. Variants land in R2 under `${key}/variants/${name}.${ext}`
+1. Admin user picks a file in a media field widget
+2. Widget calls HttpApi client: POST /admin/api/media/presign  → presigned PUT URL
+3. Browser uploads file directly to R2/S3                       (no proxy through worker)
+4. Widget calls HttpApi client: POST /admin/api/media           (server records metadata)
+5. Server enqueues a `media.process` task via @voila/content      (extract dims, generate variants)
+6. Variants land in R2 under ${key}/variants/${name}.${ext}
 ```
 
-Direct uploads keep the worker out of the data path. Critical on Cloudflare (CPU/time limits).
+Direct uploads keep the worker out of the data path. Critical on Cloudflare (CPU/time limits). The presign and record endpoints are part of the engine's `HttpApi` definition in `@voila/content/server`.
 
 ## Image transforms
 
@@ -136,13 +137,13 @@ Same media field, no separate `video` type.
 `visibility: 'private'` means:
 
 - Objects are uploaded with no public ACL.
-- The admin uses signed URLs.
+- The admin uses signed URLs (generated by the `Storage` Service).
 - The public client must request a signed URL per use: `client.media.sign(media.id)`.
 - The signed URL TTL is configurable; default 5 minutes.
 
 ## Media library
 
-A built-in `/admin/media` page lists everything in your storage prefix. Features:
+A built-in `/admin/media` page (vended registry item) lists everything in your storage prefix. Features:
 
 - Grid + list view
 - Filter by type, size, date
@@ -154,7 +155,7 @@ A built-in `/admin/media` page lists everything in your storage prefix. Features
 
 ## Garbage collection
 
-When a media field is cleared or a document is hard-deleted, the storage object is **not** deleted immediately. It enters an "orphan" pool. A daily cron (`gc-media-orphans`, retention configurable) finds objects referenced by zero documents and deletes them. Saves you from accidental loss after an editor undo.
+When a media field is cleared or a document is hard-deleted, the storage object is **not** deleted immediately. It enters an "orphan" pool. A daily cron (`gc-media-orphans`, retention configurable) finds objects referenced by zero documents and deletes them via the `Storage` Service. Saves you from accidental loss after an editor undo.
 
 ---
 

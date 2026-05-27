@@ -3,76 +3,99 @@
 ## A CMS that disappears into your app
 
 A headless CMS is not infrastructure. 
-It is a feature of your app. `content.voila.dev` is shipped as a library that you `import` and mount on a route.
+It is a feature of your app. `content.voila.dev` is shipped as a set of **Effect** packages you depend on, plus real route files the registry vends into your repo.
 It's not a server you deploy alongside your app.
 
 If you can `defineRoute`, you can self-host a CMS.
 
 ## Principles
 
-### 1. TanStack-native, end-to-end
+### 1. TanStack-native, end-to-end (the Head)
 
-Everything that can be a TanStack primitive, is.
+Everything in the admin UI that can be a TanStack primitive, is.
 
-- **Routing**: the admin is a TanStack Router subtree
+- **Routing**: the admin is a TanStack Router subtree — real files in your `app/`, not virtual routes
 - **Data**: TanStack Query for every read; TanStack DB for optimistic mutations
-- **Forms**: TanStack Form for every field, validated with any [Standard Schema](https://standardschema.dev/) validator (Zod by default; Valibot, ArkType, Effect Schema, etc. all supported)
+- **Forms**: TanStack Form for every field, validated against the schema's Standard Schema export (`Schema.standardSchemaV1`)
 - **Tables**: TanStack Table for every list view
-- **Server**: TanStack Start server functions, no separate Express/Hono
+- **Server**: TanStack Start server routes, no separate Express/Hono
 - **Deploy**: TanStack Start's Cloudflare adapter, no separate worker
 
-No second ecosystem to learn. If you know TanStack, you know the internals.
+No second ecosystem to learn. If you know TanStack, you know the Head — and you own every file in it.
 
-### 2. Schema is the source of truth
+### 2. Effect-native engine (the Engine)
 
-You write **one** TypeScript schema. From it we derive:
+The headless brain of the CMS is built entirely on the **Effect** platform. You depend on it as a versioned npm package and never have to open its source.
+
+- **Schema**: `effect/Schema` — field constructors, decode/encode, type inference, all in one annotated object
+- **Services**: every capability (documents, mutations, RBAC, auth, storage, tasks) is an `Effect` `Service` with a default `Layer`
+- **API**: `@effect/platform` `HttpApi` defines the REST surface; server handlers, the typed client, and OpenAPI all derive from the same definition
+- **Database**: `@effect/sql` — swap a database by providing a different dialect `Layer` (`D1Live`, `PgLive`, `SqliteLive`)
+- **Extensibility**: provide a different `Layer` for any `Service`; compose additional `HttpApiGroup`s on top — never fork, never eject
+
+Effect is deliberately encapsulated. The goal is the same as TanStack for the Head: **if you know Effect, you can extend the engine; if you don't, you never need to**.
+
+### 3. Schema is the source of truth
+
+You write **one** TypeScript schema using `effect/Schema` field constructors. From it we derive:
 
 - the admin UI (forms, tables, filters, detail views)
-- the public REST/RPC API
-- the typed client (`<typeof config>`)
-- the runtime validators (any [Standard Schema](https://standardschema.dev/) library — Zod by default)
-- the database migrations (Drizzle)
+- the public REST API (via `@effect/platform` `HttpApi`)
+- the typed client (`@voila/content/client`, derived from the same `HttpApi`)
+- the runtime validators (`Schema.decodeUnknown` / `Schema.encode`, server and client)
+- the database migrations (`@effect/sql` Migrator, reads field annotations)
 - the MCP tools and resources
+
+`effect/Schema` is itself Standard-Schema-compliant via `Schema.standardSchemaV1`, so the vended Head forms speak a standard contract — no translation layer. There is no Zod adapter, no pluggable validator system. One schema language, end to end.
 
 DRY taken to its logical conclusion.
 
-### 3. Edge-first, but portable
+### 4. Edge-first, but portable
 
-The reference target is Cloudflare (Workers + R2 + D1 + Queues + Cron). But every edge-coupled concern is hidden behind an adapter:
+The reference target is Cloudflare (Workers + R2 + D1 + Queues + Cron). But every edge-coupled concern is hidden behind a `Layer`:
 
-- `storage` adapter: R2, S3, any S3-compatible (MinIO, Backblaze B2)
-- `database` adapter: D1, Postgres, SQLite via Drizzle
-- `queue` adapter: Cloudflare Queues, BullMQ, in-memory
-- `cron` adapter: Cloudflare Cron Triggers, node-cron, GitHub Actions
+- `database` Layer: `@voila/content-sql/d1`, `@voila/content-sql/pg`, `@voila/content-sql/sqlite`
+- `storage` Layer: R2, S3, any S3-compatible (MinIO, Backblaze B2) via `@voila/content-storage`
+- `queue` Layer: Cloudflare Queues, inline/in-memory via `@voila/content`
+- `cron` Layer: Cloudflare Cron Triggers, node-cron, GitHub Actions
 
-Cloudflare is the happy path, not a lock-in.
+Cloudflare is the happy path, not a lock-in. Swapping a backend means providing a different `Layer`, not forking anything.
 
-### 4. Headless, but with a great head
+### 5. Headless, but with a great head
 
 Most headless CMSes have ugly admins.
 
 We don't. 
 
-The admin is built with the same UI primitives a serious product team would reach for:
+The admin is vended into your repo as real source files — TanStack routes and React components you fully own — built with the same UI primitives a serious product team would reach for:
 - shadcn/ui patterns over Base UI primitives
 - Tailwind v4 design tokens
-- Phosphor icons. 
+- Phosphor icons
 
-### 5. Extensible without forking
+Restyle it, re-path it, extend it with your own pages. It's your code.
 
-Custom widgets, pages, sidebar panels, row buttons, bulk actions, background tasks, cron jobs and webhooks are all first-class.
-You register them in your config, you don't patch the CMS.
+### 6. Extensible without forking
 
-### 6. Simple > clever
+Custom widgets, pages, sidebar panels, row buttons, bulk actions, background tasks, cron jobs, and webhooks are all first-class.
+You register them in your config or add a `Layer` — you don't patch the CMS.
 
-- No metaprogramming.
-- No reflection.
-- No code generation step at install time (types are inferred).
-- No "framework inside a framework". If TanStack has it, we use it.
+The two extension surfaces:
+- **Head extensions** (widgets, pages, UI): register in `content.config.ts` or run `voila add` to pull a registry item
+- **Engine extensions** (swap DB, intercept mutations, add endpoints): provide a different `Layer` for any `Service`
+
+### 7. Simple > clever
+
+- No virtual routes, no Vite plugin magic generating invisible files.
+- No reflection or runtime metaprogramming.
+- No code generation step at install time (types are inferred from `effect/Schema`).
+- Effect's `Layer` model is the one "concept beyond TanStack" you may encounter — only if you choose to extend the engine.
+
+The admin routes are greppable, debuggable, and PR-diffable because they are real files.
+The engine is a versioned dependency you `npm update`.
 
 If the documentation needs a glossary, we got it wrong.
 
-### 7. Full-featured, not minimal
+### 8. Full-featured, not minimal
 
 Simple at the surface, complete underneath. Day-one feature set:
 
@@ -87,7 +110,7 @@ Simple at the surface, complete underneath. Day-one feature set:
 - Live preview
 - MCP server for AI agents
 
-### 8. Open source, MIT, no hosted tier
+### 9. Open source, MIT, no hosted tier
 
 This is a library. There is no SaaS. Pay for Cloudflare, not for us.
 

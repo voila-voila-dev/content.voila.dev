@@ -1,8 +1,8 @@
 # 10 — API & MCP
 
-`content.voila.dev` exposes your content through three surfaces, all derived from the same schema:
+`content.voila.dev` exposes your content through three surfaces, all derived from a **single `HttpApi` definition**:
 
-1. **REST/RPC** — for browsers, mobile, anything that speaks HTTP.
+1. **REST** — for browsers, mobile, anything that speaks HTTP.
 2. **Typed client** — for your TanStack Start app & other TS consumers.
 3. **MCP** — for AI agents (Claude Desktop, Claude Code, Cursor, your own).
 
@@ -10,13 +10,23 @@ All three enforce the same RBAC, the same validation, the same hooks.
 
 ---
 
+## The `HttpApi` definition
+
+`@voila/content/server` owns **one `HttpApi`** (`@effect/platform`). From it three artifacts are derived for free:
+
+| Artifact | How | Package |
+| --- | --- | --- |
+| Server handlers | `HttpApiBuilder` — mounted by the vended server file | `@voila/content/server` |
+| Typed client | `HttpApiClient` | `@voila/content/client` |
+| OpenAPI document | `OpenApi.fromApi` | served at `GET /admin/api/__openapi.json` |
+
+Request and response schemas are `effect/Schema` objects reused from `@voila/content-schema`. You never maintain client types or OpenAPI by hand.
+
+---
+
 ## REST API
 
-Mounted under `mount.api` (default: `/admin/api`) as virtual server file
-routes contributed by the `@voila/content/vite` plugin. The same
-operations are also available as TanStack Start `createServerFn` calls
-for typed in-process invocation from the admin and the consumer's site
-code — REST is the transport, server functions are the typed entry.
+Mounted under `mount.api` (default: `/admin/api`) by the vended server route file (`app/server/voila.ts`). The `HttpApi` definition structures its endpoints as one `HttpApiGroup` per collection and one group each for singletons, media, tasks, and auth.
 
 ### Conventions
 
@@ -32,7 +42,7 @@ DELETE /:collection/:id              delete (soft if trash:true)
 GET    /singletons/:slug             read a singleton
 PUT    /singletons/:slug             write a singleton
 
-POST   /media/presign                request presigned upload
+POST   /media/presign                request presigned upload URL
 POST   /media                        record an uploaded object
 GET    /media/:id                    media metadata
 DELETE /media/:id                    delete an object
@@ -61,56 +71,47 @@ List endpoints accept:
 ?status=draft            (requires auth + permission)
 ```
 
-Bracket syntax is parsed deterministically (`qs`-style) and mapped to Drizzle WHERE clauses.
+Bracket syntax is parsed deterministically (`qs`-style) and compiled to typed SQL by `@voila/content-sql`.
 
-### Response shape
+### Response envelope
 
 ```json
-{
-  "data": [/* docs */],
-  "meta": {
-    "page": 1,
-    "pageSize": 25,
-    "total": 142,
-    "hasMore": true
-  }
-}
+{ "data": [/* docs */], "nextCursor": "…" }
 ```
 
 For singletons: `{ "data": { … } }`.
 
-For errors: RFC 7807 `application/problem+json`:
+Typed Effect errors (`HttpApiError` + domain errors) are mapped to the error envelope:
 
 ```json
-{
-  "type": "/errors/validation",
-  "title": "Validation failed",
-  "status": 422,
-  "errors": [
-    { "path": "title", "message": "Required" }
-  ]
-}
+{ "error": { "code": "VALIDATION", "fields": [{ "path": "title", "message": "Required" }] } }
 ```
 
-### Auth
+HTTP status codes follow from the typed error: `404 NOT_FOUND`, `422 VALIDATION`, `401 UNAUTHORIZED`, `409 CONFLICT`, etc.
 
-Auth is handled by [Better Auth](https://www.better-auth.com/) — see [06 — Configuration](./06-configuration.md#auth).
+### Auth & middleware
+
+Auth is handled by [Better Auth](https://www.better-auth.com/) bridged as an `@voila/content-auth` Layer — see [06 — Configuration](./06-configuration.md#auth).
 
 - **Session cookie** for the admin UI (HttpOnly, SameSite=Lax), issued by Better Auth.
 - **Bearer token** for programmatic access: `Authorization: Bearer <key>`.
 - API keys are managed in the admin under Settings → API Keys; scoped per collection and per verb.
+
+CSRF (HMAC double-submit) and session enforcement are `HttpApiMiddleware` attached to the `HttpApi` definition — not ad-hoc middleware in each handler.
 
 ---
 
 ## Typed client
 
 ```bash
-bun add @voila/client
+bun add @voila/content/client
 ```
+
+`@voila/content/client` is derived from the same `HttpApi` definition via `HttpApiClient`. It ships as a ready-to-use typed client — no separate codegen step.
 
 ```ts
 // app/lib/content.ts
-import { createClient } from '@voila/client'
+import { createClient } from '@voila/content/client'
 import type config from '~/content.config'
 
 export const content = createClient<typeof config>({
@@ -149,20 +150,20 @@ const { data } = useQuery({
 })
 ```
 
-For a fuller integration, `@voila/client/react` ships helpers that produce typed query keys & options:
+`@voila/content/client/react` ships helpers that produce typed query keys & options:
 
 ```ts
-import { contentQueries } from '@voila/client/react'
+import { contentQueries } from '@voila/content/client/react'
 
 useQuery(contentQueries.posts.findOne({ slug }))
 ```
 
 ### SSR & loaders
 
-Server-side, prefer the **server client** (skips HTTP, calls handlers directly):
+Server-side, prefer the **in-process client** (calls engine Services directly, skips HTTP):
 
 ```ts
-// in a server function / loader
+// in a TanStack Start server function / loader
 import { server } from '~/lib/content.server'
 
 export const Route = createFileRoute('/blog/$slug')({
@@ -170,13 +171,17 @@ export const Route = createFileRoute('/blog/$slug')({
 })
 ```
 
-`server` and `content` have identical types but the server one is in-process.
+`server` and `content` have identical types — `server` is a thin wrapper that calls the `HttpApi` handlers in-process via the engine's `ManagedRuntime` rather than over the network.
+
+> **Note on mutation path:** the typed-mutation path uses the `HttpApi` client (both over HTTP and in-process) as the default. `@effect/rpc` is available as an optional separate RPC channel if a team needs it — this is a deferred decision, not a default.
 
 ---
 
 ## MCP server
 
-Mounted under `mount.mcp` (default: `/admin/mcp`). Implements the [Model Context Protocol](https://modelcontextprotocol.io) over HTTP+JSON-RPC.
+`@voila/content-mcp` is generated from the `@voila/content-schema` types and `@voila/content/server`'s `HttpApi` definition (+ the OpenAPI document it emits). It runs HTTP+JSON-RPC and stdio transports from the same code.
+
+Mounted under `mount.mcp` (default: `/admin/mcp`). Implements the [Model Context Protocol](https://modelcontextprotocol.io).
 
 ### Tools (one per write operation)
 
@@ -185,7 +190,7 @@ Every collection emits a set of tools, derived from the schema:
 ```
 posts.list           input: { filter?, sort?, pageSize?, page? }
 posts.find           input: { id?: string, slug?: string }
-posts.create         input: <inferred from fields>
+posts.create         input: <inferred from effect/Schema fields>
 posts.update         input: { id, patch: <partial fields> }
 posts.delete         input: { id }
 posts.publish        input: { id, at?: string }   (if drafts/scheduled enabled)
@@ -243,7 +248,7 @@ It boots the same server, just over stdio.
 
 ### Why MCP matters here
 
-A headless CMS is a *content database with a UI*. The UI gives humans direct access; MCP gives AI agents direct, auth-scoped, type-checked access. Agents become a first-class client class — same RBAC, same validation, same hooks. They can:
+A headless CMS is a *content database with a UI*. The UI gives humans direct access; MCP gives AI agents direct, auth-scoped, type-checked access. Because MCP is generated from the same `HttpApi` and `effect/Schema` definitions as the REST API, agents become a first-class client class — same RBAC, same validation, same hooks. They can:
 
 - draft content into your CMS (`posts.create({ status: 'draft' })`)
 - run tasks (translation, regeneration, bulk edits)
@@ -255,7 +260,7 @@ Without us doing anything extra, because the schema is the program.
 
 ## OpenAPI
 
-`GET /admin/api/__openapi.json` returns an OpenAPI 3.1 document derived from the schema. Use it for generating clients in non-TS languages, or for hooking up Swagger UI.
+`GET /admin/api/__openapi.json` returns an OpenAPI 3.1 document generated by `OpenApi.fromApi` over the engine's `HttpApi` definition. Use it for generating clients in non-TS languages, or for hooking up Swagger UI. The document stays in sync with the schema automatically — no manual maintenance.
 
 ---
 

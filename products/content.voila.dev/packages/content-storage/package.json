@@ -1,0 +1,24 @@
+{
+  "name": "@voila/content-storage",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./r2": "./src/r2.ts",
+    "./s3": "./src/s3.ts"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "effect": "^3.21.2",
+    "@effect/platform": "^0.96.1",
+    "@voila/content-schema": "workspace:*"
+  },
+  "devDependencies": {
+    "@voila/typescript-config": "workspace:*"
+  }
+}

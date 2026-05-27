@@ -1,6 +1,0 @@
-/*
- * Pulls in Tailwind, the @voila/ui design tokens + theme, and registers the
- * @voila/ui and @voila/content component sources so the generated admin shell
- * is styled. Tailwind still auto-detects this app's own source files.
- */
-@import "@voila/content/styles.css";

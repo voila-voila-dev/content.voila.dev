@@ -13,50 +13,38 @@ voila/
 │       │   └── docs/                   # Documentation site (TanStack Start + MDX)
 │       │
 │       ├── packages/
-│       │   ├── content/                # @voila/content — the framework entry
-│       │   │   ├── src/
-│       │   │   │   ├── define.ts       # defineCollection, defineSingleton
-│       │   │   │   ├── vite.ts         # voila() vite plugin (subpath: @voila/content/vite)
-│       │   │   │   ├── admin/          # admin route options + React components
-│       │   │   │   ├── server-routes/  # server file route handlers (health, REST, MCP HTTP)
-│       │   │   │   ├── server-fns/     # createServerFn-based typed RPC (mutations)
-│       │   │   │   ├── auth/           # Better Auth wiring (session + RBAC)
-│       │   │   │   └── runtime/        # query, mutation, hooks
-│       │   │   └── package.json
 │       │   │
-│       │   ├── schema/                 # @voila/content-schema — field constructors, Standard Schema derivation
-│       │   │   └── src/fields/         # string, number, array, json, relation, media...
+│       │   │  ── Engine (Effect only, no React) ──────────────────────────────
 │       │   │
-│       │   ├── ui/                     # @voila/content-ui — design system
-│       │   │   ├── src/primitives/     # Base UI primitives wrapped
-│       │   │   ├── src/components/     # shadcn-style composed components
-│       │   │   ├── src/icons/          # Phosphor re-exports
-│       │   │   ├── src/tokens.css      # CSS variables (colors, radii, spacing)
-│       │   │   └── tailwind.config.ts
+│       │   ├── content-schema/         # @voila/content-schema — field constructors as annotated effect/Schemas; Locale type; deps: effect only
+│       │   │   └── src/fields/         # string, number, boolean, date, json, relation, media… (one file each)
 │       │   │
-│       │   ├── database/               # @voila/content-database — Drizzle adapter
-│       │   │   ├── src/adapters/d1.ts
-│       │   │   ├── src/adapters/postgres.ts
-│       │   │   ├── src/adapters/sqlite.ts
-│       │   │   └── src/migrate.ts      # schema → migration generator
+│       │   ├── content/                # @voila/content — the runtime brain
+│       │   │   └── src/
+│       │   │       ├── core/           #   resolver Services (Document/Mutation/Rbac/Hook) + default Layers, defineContent
+│       │   │       ├── server/         #   subpath @voila/content/server — HttpApi, handlers, middleware, OpenAPI (L4)
+│       │   │       ├── client/         #   subpath @voila/content/client — typed client from HttpApi (L5)
+│       │   │       ├── queue/          #   task API (defineTask) + inline/Cloudflare Layers; /queue/* optional adapters
+│       │   │       └── i18n/           #   localized-field support (storage-shape flip)
 │       │   │
-│       │   ├── storage/                # @voila/content-storage — media abstraction
-│       │   │   ├── src/adapters/r2.ts
-│       │   │   ├── src/adapters/s3.ts
-│       │   │   └── src/transforms.ts   # image/video pipeline
+│       │   ├── content-sql/            # @voila/content-sql — Database Service over @effect/sql; migration generator
+│       │   │   └── src/dialects/       #   subpaths /d1 /pg /sqlite — each a SqlClient Layer; drivers are optional peers
 │       │   │
-│       │   ├── client/                 # @voila/content-client — typed API client (browser + server)
-│       │   ├── cli/                    # @voila/content-cli — `voila` CLI (init, migrate, seed)
-│       │   ├── mcp/                    # @voila/content-mcp — MCP server bridging the API
-│       │   ├── i18n/                   # @voila/content-i18n — Paraglide/Inlang sync (site layer)
-│       │   └── extensions/             # @voila/content-extensions — widget/page/task/cron API
+│       │   ├── content-storage/        # @voila/content-storage — Storage Service + /r2 /s3 Layers, presign, transforms
+│       │   ├── content-auth/           # @voila/content-auth — Auth Service; Better Auth bridged as a Layer (swappable)
+│       │   ├── content-mcp/            # @voila/content-mcp — MCP server over HttpApi/schema; HTTP + stdio transports
+│       │   │
+│       │   │  ── Tooling ─────────────────────────────────────────────────────
+│       │   │
+│       │   ├── content-cli/            # @voila/content-cli — `voila` on @effect/cli: migrate, seed, add/diff/list, i18n sync, doctor, mcp
+│       │   └── content-registry/       # @voila/content-registry — registry.json manifest + vended source for L6–L11
 │       │
 │       ├── examples/                   # example consumers used in docs
 │       └── docs/                       # product-specific design docs (this directory)
 │
 ├── packages/                           # cross-product shared packages (no product prefix)
 │   ├── typescript-config/              # @voila/typescript-config — shared tsconfig bases
-│   ├── ui/                             # @voila/ui — shadcn-based design system
+│   ├── ui/                             # @voila/ui — shadcn-on-Base-UI primitives, Tailwind v4 tokens, Phosphor icons
 │   └── rich-text-editor/               # @voila/rich-text-editor — Plate/Slate editor behavior + serialization + default node components (/nodes)
 │
 ├── docs/
@@ -69,162 +57,161 @@ voila/
 └── lefthook.yml
 ```
 
+## The two worlds
+
+`content.voila.dev` is split into **two worlds** with a hard contract between them:
+
+| World | What it is | How you get it | Tech |
+| --- | --- | --- | --- |
+| **The Engine** | Headless CMS brain — schema, resolvers, SQL, HTTP API, auth, storage, tasks | `npm install` (versioned, semver) | **Effect only.** No React. |
+| **The Head** | Admin UI + its mount points | `voila add` (registry CLI, shadcn-style) | **TanStack + React.** You own it. |
+
+You **depend on** the Engine and **own** the Head. The contract between them is the typed HTTP client (`@voila/content/client`) and the schema types (`@voila/content-schema`). Effect never leaks into the Head; React never leaks into the Engine.
+
 ## Runtime architecture
 
 ```
-                ┌────────────────────────────────────────┐
-                │      Your TanStack Start app           │
-                │                                        │
-                │   content.config.ts                    │
-                │   └─ export default defineContent({…}) │
-                │            ▲                           │
-                │            │ auto-discovered           │
-                │            │                           │
-                │   vite.config.ts                       │
-                │   └─ voila()                           │
-                │            │                           │
-                │            ▼                           │
-                │   ┌──────────────────────────────┐     │
-                │   │  Virtual route tree (Vite)   │     │
-                │   │   /admin/*   → admin routes  │     │
-                │   │   /admin/api/* → server      │     │
-                │   │                  file routes │     │
-                │   └──────────────────────────────┘     │
-                │            │                           │
-                │            ▼                           │
-                │   ┌──────────────────────────────┐     │
-                │   │  TanStack Router + Start     │     │
-                │   │  (routing, SSR, server fns)  │     │
-                │   └──────────────────────────────┘     │
-                └─────────────────┬──────────────────────┘
-                                  │
-                                  ▼
-                ┌────────────────────────────────────────┐
-                │           @voila/content               │
-                │                                        │
-                │   admin/          server-routes/       │
-                │   ├ AdminShell    ├ health             │
-                │   ├ SetupPage     ├ rest (M1+)         │
-                │   └ collection    └ mcp (M6)           │
-                │     pages (M1+)                        │
-                │                                        │
-                │   server-fns/     virtual:voila/content│
-                │   (typed RPC      (re-exports the      │
-                │    mutations)      user's config)      │
-                └────────┬──────────────────┬────────────┘
-                         │                  │
-            ┌────────────┘                  └────────────┐
-            ▼                                            ▼
-    ┌─────────────────────────┐              ┌──────────────────┐
-    │ @voila/content-database │              │ @voila/storage   │
-    │        (Drizzle)        │              │  (R2 / S3)       │
-    └────────────┬────────────┘              └────────┬─────────┘
-                 │                                    │
-                 ▼                                    ▼
-        Cloudflare D1                          Cloudflare R2
-        Postgres                               Any S3-compatible
-        SQLite
+  ┌──────────────────────────────────────────────────────────────────┐
+  │                    Your TanStack Start app                        │
+  │                                                                   │
+  │   content.config.ts                                               │
+  │   └─ export default defineContent({                               │
+  │         collections: [posts],                                     │
+  │         database: D1Live({ binding: "DATABASE" }),  // a Layer    │
+  │         storage:  R2Live({ bucket: "media" }),       // a Layer   │
+  │      })                                                           │
+  │            │                                                      │
+  │            ▼  voila add (registry CLI, run once)                  │
+  │   ┌─────────────────────────────────────────────────────────┐     │
+  │   │  Vended route files (real files — you own these)        │     │
+  │   │                                                         │     │
+  │   │   app/server/voila.ts          ← thin mount file        │     │
+  │   │   app/routes/admin/$.tsx       ← admin splat route      │     │
+  │   │   app/routes/admin/_layout.tsx ← admin shell            │     │
+  │   │   app/routes/admin/posts/…     ← collection pages       │     │
+  │   │   components/admin/…           ← tables, forms, widgets │     │
+  │   └─────────────────────────────────────────────────────────┘     │
+  │            │                                                      │
+  │            ▼                                                      │
+  │   ┌─────────────────────────────────────────────────────────┐     │
+  │   │  TanStack Router + Start                                │     │
+  │   │  (routing, SSR, server routes)                          │     │
+  │   └─────────────────────────────────────────────────────────┘     │
+  └─────────────────────┬────────────────────────────────────────────┘
+                        │  HTTP (typed client / HttpApi)
+                        ▼
+  ┌──────────────────────────────────────────────────────────────────┐
+  │               The Engine (npm dependencies)                       │
+  │                                                                   │
+  │   @voila/content/server  ─── HttpApi definition                    │
+  │   │  HttpApiGroup per collection                                  │
+  │   │  HttpApiEndpoint per operation                                │
+  │   │  Derives: server handlers · typed client · OpenAPI           │
+  │   │                                                               │
+  │   @voila/content  ─── DocumentService · MutationService     │
+  │                             RbacService · HookService             │
+  │                             (Effect Services + default Layers)    │
+  │                                                                   │
+  │   @voila/content-auth          ─── Auth Service (Better Auth Layer)      │
+  │   @voila/content         ─── Task Service (Queues / inline Layer)  │
+  └──────────┬────────────────────────────────────────┬──────────────┘
+             │                                        │
+             ▼                                        ▼
+  ┌───────────────────────┐              ┌────────────────────────┐
+  │  @voila/content-sql           │              │  @voila/content-storage        │
+  │  @voila/content-sql/d1        │              │  (R2 / S3 Layer)       │
+  │  @voila/content-sql/pg        │              └──────────┬─────────────┘
+  │  @voila/content-sql/sqlite    │                         │
+  └──────────┬────────────┘                         ▼
+             │                              Cloudflare R2
+             ▼                              Any S3-compatible
+    Cloudflare D1
+    Postgres
+    SQLite
 ```
 
 ## Single integration point
 
-`@voila/content` integrates as a **vite plugin** plus a conventional
-**`content.config.ts`** at the project root. Add the plugin to
-`vite.config.ts`, drop the config file next to it, and the entire admin
-route tree is registered as virtual routes inside TanStack Start — no
-`app/routes/admin/*` files to author.
+The single integration point is **`voila add`** — the registry CLI command that vends real files into your repo — paired with a **`content.config.ts`** that wires the Engine's `Layer` graph.
+
+Run `voila add admin-shell` once (or after creating a new collection) and the CLI:
+1. Copies TanStack route files into your `app/routes/admin/`
+2. Copies React components (tables, forms, widgets) into your `components/admin/`
+3. Copies a thin server mount file at `app/server/voila.ts`
+4. Installs any npm dependencies the items declare
+
+No virtual routes. No Vite plugin generating invisible files. Every file the CLI copies is a real file you can read, grep, git-blame, and edit.
 
 ```ts
-// content.config.ts — auto-discovered by the plugin
-import { defineContent } from "@voila/content";
-import { d1 } from "@voila/content-database/d1";
-import { r2 } from "@voila/storage/r2";
+// content.config.ts — the Engine's configuration
+import { defineContent } from "@voila/content"
+import { D1Live } from "@voila/content-sql/d1"
+import { R2Live } from "@voila/content-storage"
 
-import { posts, authors } from "./app/content/collections";
-import { siteSettings } from "./app/content/singletons";
+import { posts, authors } from "./app/content/collections"
+import { siteSettings } from "./app/content/singletons"
 
 export default defineContent({
   branding: { name: "Acme CMS", accent: "#FF6A00" },
   collections: [posts, authors],
   singletons: [siteSettings],
-  database: d1({ binding: "DATABASE" }),
-  storage: r2({ bucket: "media" }),
-});
+  database: D1Live({ binding: "DATABASE" }),   // a Layer
+  storage:  R2Live({ bucket: "media" }),        // a Layer
+})
+// internally → Layer.mergeAll(SchemaLive, CoreLive, HttpLive, database, storage, …)
+//            → ManagedRuntime.make(…) consumed by the vended mount file
 ```
 
 ```ts
-// vite.config.ts
-import { defineConfig } from "vite";
-import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-import { voila } from "@voila/content/vite";
+// app/server/voila.ts — VENDED by `voila add`, ~3 lines you own
+import { makeHandler } from "@voila/content/server"
+import config from "~/content.config"
 
-export default defineConfig({
-  plugins: [
-    voila(),       // auto-discovers ./content.config.ts
-    tanstackStart(),
-  ],
-});
+export const voilaHandler = makeHandler(config)  // add your middleware here
 ```
 
-The plugin contributes three things to the consumer's app:
+The mount file is intentionally thin: you own the mount point (path, middleware, rate limiting) while the handler logic stays in the Engine dependency. That single seam is what makes this "you own your code" and "you never touch Effect internals" at the same time.
 
-- **Virtual client routes** under `mount.admin` — admin splat, setup, and
-  (in M1+) per-collection list/detail pages.
-- **Virtual server file routes** under `mount.api` — healthcheck in M0,
-  REST endpoints and HTTP MCP in later milestones.
-- **A `virtual:voila/content` module** that re-exports `content.config.ts`
-  so runtime code (admin components, server functions, the typed client)
-  imports from a stable specifier regardless of where the user's config
-  file lives.
+**Power-user extension** — swap or wrap any `Service` by providing a different `Layer`:
 
-The same `content.config.ts` is consumed by the CLI (`voila migrate`,
-`voila seed`), the standalone MCP stdio binary, and the consumer's own
-site code (e.g., `import content from "~/content.config"` in a public
-route loader).
+```ts
+defineContent({
+  // …
+  database: TursoLive({ url }),                         // swap the dialect Layer
+  layers: [Layer.effect(MutationService, auditedMutations)],  // wrap a resolver
+})
+```
 
-Override semantics:
+**`voila diff`** shows drift between your vended copy and upstream; **`voila list`** shows the full registry catalog. The opt-in **`--eject-server`** flag additionally vends the `HttpApi` definition + handlers for teams that want to own them — not the default.
 
-- A same-named file in the consumer's `app/routes/` wins over a virtual
-  route, so any admin page can be replaced surgically.
-- `voila({ config: "./other.config.ts" })` overrides the default
-  discovery path; `voila({ config: definedContent })` accepts an
-  inline object for multi-tenant setups.
-
-For consumers who can't use the plugin at all, the same components and
-handlers are exported as factory helpers — see
-[08 — Extensions](./08-extensions.md). See
-[ADR 0002](../../../../docs/decision-records/0002-tanstack-start-integration.md)
-for the full design rationale.
+The same `content.config.ts` is consumed by the CLI (`voila migrate`, `voila seed`), the standalone MCP stdio binary, and your own site code (e.g., `import content from "~/content.config"` in a public route loader).
 
 ## Data flow: a typical write
 
 ```
-1. User edits a Post in the admin                                  (browser)
-2. TanStack Form validates against the schema-derived validator    (browser)
-3. TanStack DB optimistic mutation updates the local store         (browser)
-4. createServerFn (or POST /admin/api/posts/:id) carries the diff  (browser → worker)
-5. Handler authenticates, authorizes (RBAC), re-validates          (worker)
-6. Drizzle UPDATE on D1; media URLs resolved against R2            (worker)
-7. Webhooks + cache invalidation queued via Cloudflare Queues      (worker)
-8. Response returns the canonical doc; TanStack DB reconciles      (browser)
-9. Live preview channel (Durable Object) notifies subscribers      (worker → browser)
+1. User edits a Post in the admin                                         (browser)
+2. TanStack Form validates via Schema.standardSchemaV1                    (browser)
+3. TanStack DB optimistic mutation updates the local store                 (browser)
+4. @voila/content/client POST /admin/api/posts/:id carries the diff       (browser → worker)
+5. HttpApiMiddleware: CSRF check, session enforcement                      (worker)
+6. HttpApi handler calls MutationService; Schema.decodeUnknown re-validates(worker)
+7. @voila/content-sql UPDATE on D1 (or Postgres); media URLs resolved via @voila/content-storage (worker)
+8. HookService fires after-update hooks; Webhooks queued via @voila/content  (worker)
+9. Response returns the canonical doc (envelope: { data }); TanStack DB reconciles (browser)
+10. Live preview channel (Durable Object) notifies subscribers             (worker → browser)
 ```
 
-Mutations from the admin use TanStack Start `createServerFn` for typed
-RPC; REST endpoints under `mount.api` are the same operations exposed
-for non-TS consumers. Both share identical validation, hooks, and RBAC
-logic — they're thin transport wrappers around the same resolvers.
+The typed client (`@voila/content/client`) is derived from the `HttpApi` definition in `@voila/content/server` — the same definition that produced the server handlers and the OpenAPI spec. Type safety from schema annotation to client call, with no manual sync.
+
+Mutations from the admin default to the `HttpApi` client everywhere. REST endpoints under `/admin/api/` are the same operations exposed for non-TS consumers. Both share identical validation, hooks, and RBAC — they're thin transport wrappers around the same `Service` `Layer`s.
 
 ## Why not a standalone server?
 
 We considered it. Three reasons we didn't:
 
 1. **Deploy story**: one binary, one URL, one auth surface.
-2. **Type sharing**: `import content from '~/content.config'` works in
-   the public site, the admin, and the CLI. No codegen.
-3. **TanStack Start already gives us 80% of a CMS server** (routing,
-   RPC, SSR, edge deploy). We commit to it as the integration substrate
-   — see [ADR 0002](../../../../docs/decision-records/0002-tanstack-start-integration.md).
+2. **Type sharing**: `import content from '~/content.config'` works in the public site, the admin, and the CLI. No codegen.
+3. **TanStack Start already gives us 80% of a CMS server** (routing, SSR, edge deploy). We commit to it as the integration substrate — see [ADR 0002](../../../../docs/decision-records/0002-tanstack-start-integration.md).
 
 ## What's NOT in scope
 

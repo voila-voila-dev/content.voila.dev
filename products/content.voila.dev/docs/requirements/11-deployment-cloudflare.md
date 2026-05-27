@@ -55,6 +55,34 @@ Required bindings (auto-suggested by `voila init`):
 }
 ```
 
+### How Cloudflare bindings map to Effect Layers
+
+Each Cloudflare binding feeds a typed Effect `Layer` in `content.config.ts`:
+
+```ts
+import { defineContent } from '@voila/content'
+import { D1Live } from '@voila/content-sql/d1'
+import { R2Live } from '@voila/content-storage'
+import { CloudflareQueueLive } from '@voila/content'
+
+export default defineContent({
+  collections: [posts, authors],
+  database: D1Live({ binding: 'DATABASE' }),    // D1 binding → @voila/content-sql/d1 Layer
+  storage:  R2Live({ bucket: 'MEDIA' }),         // R2 binding → @voila/content-storage Layer
+  queue:    CloudflareQueueLive({ binding: 'QUEUE' }),  // Queue binding → @voila/content Layer
+})
+```
+
+The vended server file (`app/server/voila.ts`) mounts the engine's `HttpApi` handler. It is a thin file you own — add middleware, repath, extend — without touching handler logic:
+
+```ts
+// app/server/voila.ts — VENDED, ~3 lines you own
+import { makeHandler } from '@voila/content/server'
+import config from '~/content.config'
+
+export const voilaHandler = makeHandler(config)   // add auth middleware here
+```
+
 The TanStack Start Cloudflare adapter handles the rest:
 
 ```bash
@@ -66,20 +94,23 @@ Or via Vercel/Netlify-style git-push deploy if you wire it up.
 
 ### D1 migrations
 
+Migrations are driven by `@effect/sql`'s `Migrator`, reading DDL generated from your field annotations. The `voila migrate` CLI command wraps it:
+
 ```bash
-bunx voila migrate         # generate + apply locally
-bunx voila migrate --remote # apply against the deployed D1 (wraps wrangler d1 migrations apply)
+bunx voila migrate generate   # schema → SQL migration files in migrations/
+bunx voila migrate apply      # apply locally (via @voila/content-sql/d1 or @voila/content-sql/sqlite)
+bunx voila migrate apply --remote  # apply against the deployed D1 (wraps wrangler d1 migrations apply)
 ```
 
-Migrations live in `migrations/` at the project root, committed to git. Reviewable in PRs.
+Migration files live in `migrations/` at the project root, committed to git. Reviewable in PRs.
 
 ### Cron triggers
 
-`voila migrate` writes your cron entries into `wrangler.jsonc` under `triggers.crons`. The deployed worker exports a `scheduled()` handler that dispatches to the registered jobs.
+`voila migrate` writes your cron entries into `wrangler.jsonc` under `triggers.crons`. The deployed worker exports a `scheduled()` handler that dispatches to the registered jobs via `@voila/content`.
 
 ### Queues
 
-Background tasks land on Cloudflare Queues. The same worker is also the consumer. Failures retry per the task's `retry` policy; permanent failures land on a dead-letter queue and surface in the admin's **Tasks** page.
+Background tasks land on Cloudflare Queues via the `CloudflareQueueLive` Layer. The same worker is also the consumer. Failures retry per the task's `retry` policy; permanent failures land on a dead-letter queue and surface in the admin's **Tasks** page.
 
 ### Durable Objects (optional)
 
@@ -89,7 +120,7 @@ If `live` features are enabled (live preview, presence, collaborative editing), 
 
 ## Other runtimes
 
-`@voila/content` is platform-agnostic at the handler level. The catch-all route uses the standard `Request`/`Response` Web API.
+`@voila/content` is platform-agnostic at the handler level. Swapping the runtime = swapping the `Layer`s; the rest of the engine is untouched.
 
 ### Node / Bun (self-hosted)
 
@@ -99,34 +130,34 @@ bun run start
 node ./.output/server/index.mjs
 ```
 
-For the database, use:
+For the database, provide the SQLite or Postgres Layer:
 
 ```ts
-import { sqlite } from '@voila/content-database/sqlite'
-database: sqlite({ url: 'file:./data/voila.db' }),
+import { SqliteLive } from '@voila/content-sql/sqlite'
+database: SqliteLive({ url: 'file:./data/voila.db' }),
 ```
 
 or
 
 ```ts
-import { postgres } from '@voila/content-database'
-database: postgres({ url: env.DATABASE_URL }),
+import { PgLive } from '@voila/content-sql/pg'
+database: PgLive({ url: env.DATABASE_URL }),
 ```
 
-For storage, the S3 adapter works with MinIO, Backblaze, Wasabi, Tigris, etc. (see [09](./09-media-storage.md)).
+For storage, the `S3Live` Layer from `@voila/content-storage` works with MinIO, Backblaze, Wasabi, Tigris, etc. (see [09](./09-media-storage.md)).
 
-For queues without Cloudflare, set `queue: 'inline'` (runs in-process) or plug in BullMQ via `@voila/queue/bullmq`.
+For queues without Cloudflare, set `queue: InlineLive` (runs in-process) or provide `BullMQLive` from `@voila/content/queue/bullmq`.
 
 ### Vercel / Netlify
 
-Both work via TanStack Start's respective adapters. You give up Cloudflare-specific perks (R2, Queues, D1, Cron Triggers), so:
+Both work via TanStack Start's respective adapters. You give up Cloudflare-specific perks (R2, Queues, D1, Cron Triggers), so swap the Layers:
 
-- Database → Vercel Postgres / Neon / Supabase
-- Storage → S3 / Backblaze
-- Queues → Upstash QStash adapter (`@voila/queue/qstash`)
+- Database → `PgLive` (Vercel Postgres / Neon / Supabase)
+- Storage → `S3Live` (S3 / Backblaze)
+- Queues → `QStashLive` from `@voila/content/queue/qstash`
 - Cron → Vercel Cron or external scheduler
 
-The config swap is mechanical; the rest of the app doesn't change.
+The Layer swap is mechanical; the rest of the app doesn't change.
 
 ---
 
@@ -153,4 +184,4 @@ The framework adds nothing to that bill. There is no SaaS layer.
 
 ---
 
-Continue → [12 — Roadmap](./12-roadmap.md)
+Continue → [Roadmap — Effect Rebuild](../pivot/roadmap-effect.md)

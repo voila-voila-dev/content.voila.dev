@@ -4,11 +4,13 @@
   "references": [
     { "path": "./packages/ui/tsconfig.build.json" },
     { "path": "./packages/rich-text-editor/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/schema/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/database/tsconfig.build.json" },
+    { "path": "./products/content.voila.dev/packages/content-schema/tsconfig.build.json" },
     { "path": "./products/content.voila.dev/packages/content/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/auth/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/cli/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/client/tsconfig.build.json" }
+    { "path": "./products/content.voila.dev/packages/content-sql/tsconfig.build.json" },
+    { "path": "./products/content.voila.dev/packages/content-storage/tsconfig.build.json" },
+    { "path": "./products/content.voila.dev/packages/content-auth/tsconfig.build.json" },
+    { "path": "./products/content.voila.dev/packages/content-mcp/tsconfig.build.json" },
+    { "path": "./products/content.voila.dev/packages/content-cli/tsconfig.build.json" },
+    { "path": "./products/content.voila.dev/packages/content-registry/tsconfig.build.json" }
   ]
 }

@@ -1,0 +1,44 @@
+{
+  "name": "@voila/content-sql",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./d1": "./src/d1.ts",
+    "./pg": "./src/pg.ts",
+    "./sqlite": "./src/sqlite.ts"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "effect": "^3.21.2",
+    "@effect/sql": "^0.51.1",
+    "@voila/content-schema": "workspace:*"
+  },
+  "peerDependencies": {
+    "@effect/sql-d1": "^0.49.0",
+    "@effect/sql-pg": "^0.52.1",
+    "@effect/sql-sqlite-bun": "^0.52.0"
+  },
+  "peerDependenciesMeta": {
+    "@effect/sql-d1": {
+      "optional": true
+    },
+    "@effect/sql-pg": {
+      "optional": true
+    },
+    "@effect/sql-sqlite-bun": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@voila/typescript-config": "workspace:*",
+    "@effect/sql-d1": "^0.49.0",
+    "@effect/sql-pg": "^0.52.1",
+    "@effect/sql-sqlite-bun": "^0.52.0"
+  }
+}

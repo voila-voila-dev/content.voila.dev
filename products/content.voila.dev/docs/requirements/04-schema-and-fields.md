@@ -4,45 +4,38 @@ The schema is the program. This doc spells out the field surface.
 
 ## Field constructor shape
 
-Every field is a function returning a `FieldDef`:
+A field **is** an `effect/Schema` carrying voila metadata in its annotations. One object is simultaneously the type, the validator (decode/encode), the DB column spec, and the UI hint. There is no separate `FieldDef` type.
 
 ```ts
-type FieldDef<T = unknown> = {
-  kind: string                       // 'string' | 'number' | …
-  required?: boolean
-  default?: T | (() => T)
-  unique?: boolean
-  index?: boolean
-  searchable?: boolean | { weight?: number }
-  localized?: boolean                // per-locale storage
-  hidden?: boolean | 'list' | 'detail'
-  readOnly?: boolean | ((ctx) => boolean)
-  access?: {
-    read?:   (ctx, doc?) => boolean
-    write?:  (ctx, doc?) => boolean
-  }
-  validate?: (value, ctx) => string | true | Promise<string | true>
-  transform?: {
-    input?:  (value, ctx) => unknown // before persist
-    output?: (value, ctx) => unknown // after load
-  }
-  widget?: React.ComponentType<WidgetProps>
-  cell?:   React.ComponentType<CellProps>
-  filter?: 'text' | 'select' | 'range' | 'date' | false
-  label?:  string
-  description?: string
-  group?:  string                    // tab/section in the detail UI
-}
+// conceptual shape — constructors live in @voila/content-schema
+import { Schema } from "effect"
+
+// what a constructor returns: an annotated Schema
+export const string = (opts?: StringOpts) =>
+  Schema.String.pipe(
+    opts?.min !== undefined ? Schema.minLength(opts.min) : identity,
+    opts?.max !== undefined ? Schema.maxLength(opts.max) : identity,
+    Schema.annotations({
+      [VoilaField]: {
+        kind: "string",
+        unique: opts?.unique,
+        widget: "string",
+        // … DB column spec, UI hints
+      },
+    }),
+  )
 ```
 
-Every constructor extends this with its own type-specific props.
+Every constructor accepts type-specific options and returns an annotated Schema. The annotations drive DB column derivation, migration generation, and admin widget selection.
 
 ## Built-in field types
 
 ### Primitives
 
 ```ts
-fields.string({ min, max, pattern, format: 'email' | 'url' | 'uuid' })
+import { fields } from "@voila/content-schema"
+
+fields.string({ min, max, pattern, format: "email" | "url" | "uuid" })
 fields.number({ min, max, integer, step })
 fields.boolean()
 fields.date()        // date-only, ISO 8601
@@ -54,17 +47,17 @@ fields.time()
 
 ```ts
 fields.slug({
-  from: 'title',          // source field
+  from: "title",          // source field
   unique: true,
-  reserved: ['admin', 'api'],
+  reserved: ["admin", "api"],
 })
-fields.id({ format: 'uuid' | 'cuid2' | 'ulid' })  // rarely needed (auto)
+fields.id({ format: "uuid" | "cuid2" | "ulid" })  // rarely needed (auto)
 ```
 
 ### Selections
 
 ```ts
-fields.select({ options: ['draft', 'published', 'archived'] as const })
+fields.select({ options: ["draft", "published", "archived"] as const })
 fields.multiSelect({ options: tagOptions })
 fields.enum(StatusEnum)              // re-uses a TS enum/const
 ```
@@ -93,27 +86,27 @@ Powered by `@voila/rich-text-editor` (behavior) and its `@voila/rich-text-editor
 
 ```ts
 fields.richText({
-  plugins:    [headings, lists, links, codeBlock, mention({ source: 'users' })],
+  plugins:    [headings, lists, links, codeBlock, mention({ source: "users" })],
   components: { [H1Plugin.key]: MyHeading },  // override node rendering (optional)
-  toolbar:    ['bold', 'italic', 'link', 'image'],
-  outputs:    ['html', 'json', 'plaintext'],  // what to expose to clients
+  toolbar:    ["bold", "italic", "link", "image"],
+  outputs:    ["html", "json", "plaintext"],  // what to expose to clients
 })
 
-fields.markdown({ flavor: 'gfm' })
-fields.code({ language: 'ts' | 'sql' | 'json' })
-fields.color({ format: 'hex' | 'rgb' | 'oklch' })
+fields.markdown({ flavor: "gfm" })
+fields.code({ language: "ts" | "sql" | "json" })
+fields.color({ format: "hex" | "rgb" | "oklch" })
 ```
 
 ### Media
 
 ```ts
 fields.media({
-  accept: ['image/*'],
+  accept: ["image/*"],
   max: 5 * 1024 * 1024,              // bytes
   multiple: false,
   transforms: {                       // generated on upload
-    thumb: { width: 200,  height: 200, fit: 'cover', format: 'webp' },
-    full:  { width: 1600, quality: 82, format: 'webp' },
+    thumb: { width: 200,  height: 200, fit: "cover", format: "webp" },
+    full:  { width: 1600, quality: 82, format: "webp" },
   },
 })
 ```
@@ -124,71 +117,63 @@ See [09 — Media & Storage](./09-media-storage.md) for the full pipeline.
 
 ```ts
 fields.relation({
-  to: 'authors',
+  to: "authors",
   many: false,                       // one-to-one / many-to-one
-  onDelete: 'restrict' | 'cascade' | 'setNull',
+  onDelete: "restrict" | "cascade" | "setNull",
   filter: (ctx) => ({ active: true }),
 })
 
 fields.relation({
-  to: 'tags',
+  to: "tags",
   many: true,                        // many-to-many (junction table auto-created)
-  through: 'post_tags',              // optional, default auto
+  through: "post_tags",              // optional, default auto
 })
 
 fields.polymorphic({
-  to: ['posts', 'pages'],            // discriminated union
+  to: ["posts", "pages"],            // discriminated union
 })
 ```
 
 ### Geo / specialized
 
 ```ts
-fields.geo({ format: 'lngLat' | 'wkt' })
+fields.geo({ format: "lngLat" | "wkt" })
 fields.duration()                    // ISO 8601 P1DT2H, stored as seconds
-fields.password({ hash: 'argon2id' })// hashed at rest, never returned
+fields.password({ hash: "argon2id" })// hashed at rest, never returned
 fields.secret()                      // encrypted at rest (KV-backed key)
 ```
 
 ## Validation
 
-Three layers, in order:
+`effect/Schema` is the one schema language. There is no pluggable validator library, no Zod, no adapter. Validation is:
 
-1. **Static**: constructor params (`min`, `max`, `pattern`) → derived [Standard Schema](https://standardschema.dev/) validator (Zod by default).
-2. **Field-level**: `validate(value, ctx)` for cross-field logic.
-3. **Doc-level**: `collection.validate(doc, ctx)` for whole-document invariants.
+- **`Schema.decodeUnknown`** — parse/validate incoming data (HTTP request body, form submit, import).
+- **`Schema.encode`** — serialize for persistence.
+
+The **same** schema instance runs on client and server. There is no separate "server copy" — the single source of truth is the annotated Schema in `@voila/content-schema`.
+
+`effect/Schema` is itself Standard-Schema-compliant via `Schema.standardSchemaV1`, so the Head (TanStack Form, vended form components) speaks a standard contract without knowing Effect.
+
+### Field-level cross-field logic
+
+Use `Schema.filter` on the field schema, or a doc-level filter on the collection struct:
+
+```ts
+// field-level
+fields.string().pipe(
+  Schema.filter((value, { doc }) => {
+    if (doc.kind === "short" && value.length > 280)
+      return "Too long for short posts"
+    return true
+  }),
+)
+```
 
 Errors bubble up to the form as field-level messages. Doc-level errors render as a banner.
 
-### Validator library
-
-The static layer compiles each field's constraints into a Standard Schema-compatible validator. Zod is the default — it's what `@voila/content-schema` ships with and what every example in these docs uses. But Standard Schema is a spec, not a vendor: you can plug in Valibot, ArkType, Effect Schema, or any other [Standard Schema](https://standardschema.dev/) implementation.
-
-```ts
-// content.config.ts
-import { defineContent } from '@voila/content'
-import { valibotAdapter } from '@voila/content-schema/adapters/valibot'
-
-export default defineContent({
-  validator: valibotAdapter(),   // optional; defaults to Zod
-  collections: [posts, authors],
-})
-```
-
-Field-level `validate(value, ctx)` runs after the static layer, regardless of which library you pick — it's a plain function, not a schema.
-
-```ts
-fields.string({
-  validate: (value, { doc }) => {
-    if (doc.kind === 'short' && value.length > 280) return 'Too long for short posts'
-    return true
-  },
-})
-```
-
 ## Transformation
 
-Two hooks per field:
+Two annotation hooks per field (carried in field annotations, applied by the engine):
 
 ```ts
 fields.string({
@@ -207,7 +192,7 @@ Collection-level hooks (see [05](./05-collections-singletons.md)) handle multi-f
 
 ```ts
 title: fields.string({ localized: true, required: true })
-// stored as: { 'en-US': 'Hello', 'fr-FR': 'Bonjour', 'it-IT': 'Ciao' }
+// stored as: { "en-US": "Hello", "fr-FR": "Bonjour", "it-IT": "Ciao" }
 ```
 
 The admin shows a locale tab strip on the field. The public API returns the requested locale (`?locale=fr-FR`) or the fallback chain. Locale identifiers follow [BCP 47](https://www.rfc-editor.org/info/bcp47) (`en-US`, `fr-FR`, `pt-BR`, `zh-Hant-TW`, …) — see [13 — i18n with Paraglide & Inlang](./13-i18n-paraglide.md#locale-tags).
@@ -220,43 +205,44 @@ The admin shows a locale tab strip on the field. The public API returns the requ
 internalNotes: fields.string({
   hidden: true,                        // never in list view
   access: {
-    read:  (ctx) => ctx.user.role === 'editor',
-    write: (ctx) => ctx.user.role === 'editor',
+    read:  (ctx) => ctx.user.role === "editor",
+    write: (ctx) => ctx.user.role === "editor",
   },
 })
 ```
 
-Hidden fields are excluded from the public REST output unless the requester has read access. RBAC is enforced at the query layer (Drizzle middleware), not the API surface — so MCP, REST, and the admin all share the same enforcement.
+Hidden fields are excluded from the public REST output unless the requester has read access. RBAC is enforced by `RbacService` at the query layer — so MCP, REST, and the admin all share the same enforcement.
 
 ## Custom fields
 
-A custom field is just a function returning a `FieldDef`:
+A custom field is a function returning an annotated Schema — the same shape as any built-in:
 
 ```ts
 // fields/rating.ts
-import { fields, type FieldDef } from '@voila/schema'
+import { fields } from "@voila/content-schema"
+import { Schema } from "effect"
 
-export function rating(opts: { max?: number } = {}): FieldDef<number> {
-  return fields.number({
-    min: 0,
-    max: opts.max ?? 5,
-    integer: true,
-    widget: RatingStarsWidget,
-    cell: RatingStarsCell,
-    filter: 'range',
-  })
+export function rating(opts: { max?: number } = {}) {
+  return fields.number({ min: 0, max: opts.max ?? 5, integer: true }).pipe(
+    Schema.annotations({
+      [VoilaField]: {
+        widget: "rating-stars",   // widget key registered in the Head
+        filter: "range",
+      },
+    }),
+  )
 }
 ```
 
-Use it like any built-in field. No registration step.
+Use it like any built-in field. No registration step beyond declaring the widget in the vended widget layer.
 
 ## Inference
 
 ```ts
-import type { InferDoc } from '@voila/content'
-import config from '~/content.config'
+import type { InferDoc } from "@voila/content-schema"
+import config from "~/content.config"
 
-type Post = InferDoc<typeof config, 'posts'>
+type Post = InferDoc<typeof config, "posts">
 // ^? {
 //      id: string
 //      title: string
@@ -267,6 +253,8 @@ type Post = InferDoc<typeof config, 'posts'>
 //      publishedAt: Date | null
 //    }
 ```
+
+`InferDoc` walks the collection's struct of field Schemas and resolves each field's `Schema.Schema.Type`, producing the plain TypeScript document type.
 
 ---
 
