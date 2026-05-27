@@ -27,6 +27,13 @@ jobs:
       - uses: ./.github/actions/setup-bun
       - uses: ./.github/actions/install
 
+      # TanStack Start's worker entry (`@tanstack/react-start/server-entry` in
+      # wrangler.jsonc) is a virtual module emitted by the Vite build, so
+      # wrangler can only upload once `vite build` has run.
+      - name: Build
+        working-directory: products/content.voila.dev/apps/playground.content.voila.dev
+        run: bun run build
+
       - name: Upload preview version to Cloudflare Workers
         id: deploy
         uses: ./.github/actions/cloudflare-workers-publish
