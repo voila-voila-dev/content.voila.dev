@@ -12,6 +12,7 @@ export {
   CollectionDetailView,
   detailQueryOptions,
 } from "./admin/collection-detail-view.tsx";
+export { CollectionForm, type CollectionFormProps } from "./admin/collection-form.tsx";
 export {
   CollectionListView,
   listQueryOptions,

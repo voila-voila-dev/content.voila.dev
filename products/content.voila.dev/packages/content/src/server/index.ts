@@ -21,6 +21,7 @@ export type {
   NotFoundError,
   UnknownCollectionError,
   UnknownFieldError,
+  ValidationError,
 } from "./errors.ts";
 export {
   badRequest,
@@ -32,7 +33,9 @@ export {
   notFound,
   unknownCollection,
   unknownField,
+  validationFailed,
 } from "./errors.ts";
-
 export type { ReadHandlerContext } from "./handlers/index.ts";
 export { handleFindByField, handleFindById, handleList } from "./handlers/index.ts";
+export type { ValidatableCollection } from "./validate.ts";
+export { validateWrite } from "./validate.ts";

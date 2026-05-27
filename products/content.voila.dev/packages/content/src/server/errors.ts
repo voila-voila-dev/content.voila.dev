@@ -37,6 +37,13 @@ export interface FieldNotUniqueError extends BaseError {
   readonly field: string;
 }
 
+export interface ValidationError extends BaseError {
+  readonly code: "VALIDATION";
+  readonly collectionSlug: string;
+  /** Per-field error messages, keyed by field name. */
+  readonly fields: Record<string, string[]>;
+}
+
 export interface InvalidOrderError extends BaseError {
   readonly code: "INVALID_ORDER";
   readonly collectionSlug: string;
@@ -62,6 +69,7 @@ export type ApiFailure =
   | UnknownCollectionError
   | UnknownFieldError
   | FieldNotUniqueError
+  | ValidationError
   | InvalidOrderError
   | InvalidCursorError
   | NotFoundError
@@ -74,6 +82,7 @@ const STATUS: Record<ApiErrorCode, number> = {
   UNKNOWN_COLLECTION: 404,
   UNKNOWN_FIELD: 404,
   FIELD_NOT_UNIQUE: 400,
+  VALIDATION: 422,
   INVALID_ORDER: 400,
   INVALID_CURSOR: 400,
   NOT_FOUND: 404,
@@ -96,6 +105,13 @@ export function unknownField(collectionSlug: string, field: string): UnknownFiel
 
 export function fieldNotUnique(collectionSlug: string, field: string): FieldNotUniqueError {
   return { code: "FIELD_NOT_UNIQUE", collectionSlug, field };
+}
+
+export function validationFailed(
+  collectionSlug: string,
+  fields: Record<string, string[]>,
+): ValidationError {
+  return { code: "VALIDATION", collectionSlug, fields };
 }
 
 export function invalidOrder(collectionSlug: string, orderKey: string): InvalidOrderError {
