@@ -179,9 +179,9 @@ Depends on M1 (REST + auth + admin shell).
 
 ### Postgres adapter (lands here, not M7)
 
-- [ ] `@voila/content-database/postgres` using `drizzle-orm/postgres-js`
-- [ ] Migration parity with SQLite/D1 adapter
-- [ ] `voila migrate apply --postgres` path
+- [X] `@voila/content-database/postgres` using `drizzle-orm/postgres-js`
+- [X] Migration parity with SQLite/D1 adapter
+- [X] `voila migrate apply --target postgres` path (`--db <connection-url>`; mirrors the sqlite drizzle migrator)
 
 ### Lifecycle
 

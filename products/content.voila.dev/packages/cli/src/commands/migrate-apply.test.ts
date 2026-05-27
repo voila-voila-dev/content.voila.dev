@@ -2,8 +2,14 @@ import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { postgres } from "@voila/content-database/postgres";
+import { sql } from "drizzle-orm";
 import { migrateApply } from "./migrate-apply.ts";
 import { migrateGenerate } from "./migrate-generate.ts";
+
+// The postgres apply path needs a real server. Set TEST_POSTGRES_URL (e.g. via
+// docker compose in CI) to opt in; without it, that block is skipped.
+const TEST_POSTGRES_URL = process.env.TEST_POSTGRES_URL;
 
 const ROOT = resolve(import.meta.dir, "..", "..", ".tmp-apply");
 const dirs: string[] = [];
@@ -77,6 +83,57 @@ describe("migrateApply (sqlite, via drizzle migrator)", () => {
   test("rejects sqlite target without --db", async () => {
     const cwd = tmpDir();
     await expect(migrateApply({ cwd, target: "sqlite" })).rejects.toThrow(/--db is required/);
+  });
+});
+
+describe("migrateApply (postgres, via drizzle migrator)", () => {
+  test("rejects postgres target without --db", async () => {
+    const cwd = tmpDir();
+    await expect(migrateApply({ cwd, target: "postgres" })).rejects.toThrow(
+      /--db is required when target is "postgres"/,
+    );
+  });
+
+  describe.skipIf(!TEST_POSTGRES_URL)("against TEST_POSTGRES_URL", () => {
+    const url = TEST_POSTGRES_URL as string;
+
+    // Drop everything the migration created so the suite is re-runnable. The
+    // postgres migrator tracks state in the `drizzle` schema; the generated
+    // DDL creates `posts` in `public`.
+    async function reset(): Promise<void> {
+      const adapter = postgres({ url });
+      try {
+        await adapter.drizzle.execute(sql`DROP TABLE IF EXISTS "posts" CASCADE`);
+        await adapter.drizzle.execute(sql`DROP SCHEMA IF EXISTS "drizzle" CASCADE`);
+      } finally {
+        await adapter.close?.();
+      }
+    }
+
+    test("applies the generated migration and is idempotent", async () => {
+      const cwd = tmpDir();
+      writeConfig(cwd);
+      await migrateGenerate({ cwd, name: "init", dialect: "postgres" });
+      await reset();
+
+      const first = await migrateApply({ cwd, target: "postgres", db: url });
+      expect(first).toEqual({ target: "postgres", delegated: false });
+
+      // Re-running applies nothing new — the migrator's tracking table guards it.
+      const second = await migrateApply({ cwd, target: "postgres", db: url });
+      expect(second).toEqual({ target: "postgres", delegated: false });
+
+      const adapter = postgres({ url });
+      try {
+        const rows = (await adapter.drizzle.execute(
+          sql`SELECT to_regclass('public.posts')::text AS t`,
+        )) as unknown as Array<{ t: string | null }>;
+        expect(rows[0]?.t).toBe("posts");
+      } finally {
+        await adapter.close?.();
+        await reset();
+      }
+    });
   });
 });
 

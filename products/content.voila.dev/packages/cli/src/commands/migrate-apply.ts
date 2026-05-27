@@ -11,11 +11,16 @@ export interface MigrateApplyOptions {
   out?: string;
   /**
    * Target. `"sqlite"` opens a local sqlite file via Drizzle's bun-sqlite
+   * migrator. `"postgres"` opens a connection via Drizzle's postgres-js
    * migrator. `"d1-local"` and `"d1-remote"` shell out to
    * `wrangler d1 migrations apply`.
    */
-  target?: "sqlite" | "d1-local" | "d1-remote";
-  /** SQLite URL (`":memory:"`, `"file:./voila.db"`, or a bare path). Required when target is `"sqlite"`. */
+  target?: "sqlite" | "postgres" | "d1-local" | "d1-remote";
+  /**
+   * Database location, required for the local migrator targets:
+   *   - `sqlite`   → a SQLite URL (`":memory:"`, `"file:./voila.db"`, or a bare path)
+   *   - `postgres` → a connection URL (`postgres://user:pass@host:5432/db`)
+   */
   db?: string;
   /** Wrangler D1 binding name. Required when target is `"d1-local"` / `"d1-remote"`. */
   binding?: string;
@@ -27,7 +32,7 @@ export interface MigrateApplyOptions {
 
 export interface MigrateApplyResult {
   /** The target this run dispatched to. */
-  target: "sqlite" | "d1-local" | "d1-remote";
+  target: "sqlite" | "postgres" | "d1-local" | "d1-remote";
   /**
    * `true` when the apply was handed off to wrangler. Drizzle's `migrate()`
    * and wrangler both own structured tracking tables (`__drizzle_migrations`
@@ -44,10 +49,13 @@ const DEFAULT_OUT_DIR = "./migrations";
  *
  * - **Local SQLite** opens the file via `bun:sqlite` and calls Drizzle's
  *   `migrate()`, which tracks applied migrations in `__drizzle_migrations`.
+ * - **Postgres** opens a connection via the `@voila/content-database/postgres`
+ *   adapter and calls Drizzle's postgres-js `migrate()`, which tracks applied
+ *   migrations in the `drizzle.__drizzle_migrations` table.
  * - **D1 (local + remote)** shells out to `wrangler d1 migrations apply
  *   <binding> [--local|--remote]`; wrangler owns the `d1_migrations` table.
  *
- * Both code paths delegate to a third-party that already does idempotency
+ * Every code path delegates to a third-party that already does idempotency
  * and tracking — we just dispatch.
  */
 export async function migrateApply(options: MigrateApplyOptions = {}): Promise<MigrateApplyResult> {
@@ -57,6 +65,13 @@ export async function migrateApply(options: MigrateApplyOptions = {}): Promise<M
 
   if (target === "d1-local" || target === "d1-remote") {
     return applyViaWrangler({ cwd, out: options.out, target, options });
+  }
+
+  if (target === "postgres") {
+    if (!options.db) {
+      throw new Error(`migrate apply: --db is required when target is "postgres"`);
+    }
+    return applyLocalPostgres({ outDir, url: options.db });
   }
 
   if (!options.db) {
@@ -74,6 +89,32 @@ function applyLocalSqlite(args: { cwd: string; outDir: string; url: string }): M
     return { target: "sqlite", delegated: false };
   } finally {
     db.close();
+  }
+}
+
+/**
+ * Apply migrations to Postgres via Drizzle's postgres-js migrator.
+ *
+ * Both the adapter and the migrator are imported lazily so that sqlite/D1
+ * users never pull in the optional `postgres` peer dependency just by loading
+ * the CLI — it's only required when `--target postgres` is actually used. The
+ * adapter (`@voila/content-database/postgres`) is the same one the runtime
+ * write path uses, which is where migration parity comes from.
+ */
+async function applyLocalPostgres(args: {
+  outDir: string;
+  url: string;
+}): Promise<MigrateApplyResult> {
+  const [{ postgres }, { migrate: migratePostgres }] = await Promise.all([
+    import("@voila/content-database/postgres"),
+    import("drizzle-orm/postgres-js/migrator"),
+  ]);
+  const adapter = postgres({ url: args.url });
+  try {
+    await migratePostgres(adapter.drizzle, { migrationsFolder: args.outDir });
+    return { target: "postgres", delegated: false };
+  } finally {
+    await adapter.close?.();
   }
 }
 
