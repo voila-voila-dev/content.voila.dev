@@ -29,6 +29,17 @@ export {
   singletonQueryOptions,
 } from "./admin/singleton-view.tsx";
 export { DetailSkeleton, ListSkeleton } from "./admin/skeletons.tsx";
+export {
+  BooleanWidget,
+  DateWidget,
+  FieldWidget,
+  type FieldWidgetProps,
+  NumberWidget,
+  SelectWidget,
+  SlugWidget,
+  StringWidget,
+  slugify,
+} from "./admin/widgets/index.ts";
 export { AdminDashboard, AdminLayout, AdminShell } from "./admin-shell.tsx";
 export type { RouteHead } from "./head.ts";
 export { buildAdminHead, buildSetupHead } from "./head.ts";
