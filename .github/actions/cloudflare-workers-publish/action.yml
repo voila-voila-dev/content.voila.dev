@@ -35,5 +35,8 @@ runs:
       run: |
         set -o pipefail
         bunx wrangler $WRANGLER_COMMAND | tee wrangler-output.log
-        url=$(grep -oE 'https://[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev' wrangler-output.log | tail -1)
+        # `versions upload` may not print a *.workers.dev URL; a no-match `grep`
+        # must not fail the step (runs under `set -e -o pipefail`) when the
+        # publish itself succeeded. Trailing `|| true` keeps the URL optional.
+        url=$(grep -oE 'https://[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev' wrangler-output.log | tail -1 || true)
         echo "deployment-url=$url" >> "$GITHUB_OUTPUT"
