@@ -77,3 +77,14 @@ async function safeGetSession(auth: Auth, headers: Headers): Promise<AuthSession
     return null;
   }
 }
+
+/**
+ * Request-shaped, fail-soft session resolver for the REST API guard
+ * (`@voila/content`'s `requireApiSession`). Returns the active session or
+ * `null` — never throws on a bad/absent cookie — so a 401 is produced instead
+ * of a 500. The generated `/admin/api/*` routes wire this to the auth
+ * singleton.
+ */
+export async function getSessionSafe(auth: Auth, request: Request): Promise<AuthSession | null> {
+  return safeGetSession(auth, request.headers);
+}

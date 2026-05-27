@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Auth } from "better-auth";
-import { requireSession } from "./index.ts";
+import { getSessionSafe, requireSession } from "./index.ts";
 
 interface FakeAuthOptions {
   session?: { user: { id: string; email: string }; session: { id: string; expiresAt: Date } };
@@ -78,5 +78,25 @@ describe("requireSession", () => {
       auth: fakeAuth({ throws: true }),
     });
     expect(guard.kind).toBe("redirect");
+  });
+});
+
+describe("getSessionSafe", () => {
+  const req = () => new Request("https://app/admin/api/posts");
+
+  test("returns the session when present", async () => {
+    const session = {
+      user: { id: "u1", email: "u@x" },
+      session: { id: "s1", expiresAt: new Date(Date.now() + 60_000) },
+    };
+    expect(await getSessionSafe(fakeAuth({ session }), req())).toEqual(session);
+  });
+
+  test("returns null when there's no session", async () => {
+    expect(await getSessionSafe(fakeAuth({}), req())).toBeNull();
+  });
+
+  test("returns null (never throws) on a malformed cookie", async () => {
+    expect(await getSessionSafe(fakeAuth({ throws: true }), req())).toBeNull();
   });
 });
