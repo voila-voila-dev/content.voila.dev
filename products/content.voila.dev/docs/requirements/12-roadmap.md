@@ -165,11 +165,12 @@ Depends on M1 (REST + auth + admin shell).
 
 ### REST write endpoints
 
-- [ ] `POST /admin/api/:collection` (create)
-- [ ] `PATCH /admin/api/:collection/:id` (partial update)
-- [ ] `DELETE /admin/api/:collection/:id` (soft delete by default)
-- [ ] `POST /admin/api/:collection/:id/restore`
-- [ ] CSRF protection (double-submit cookie)
+- [X] `POST /admin/api/:collection` (create) — `handleCreate`; validates via `validateWrite`, DB fills system columns, unique violations → `409 CONFLICT`, returns `201 { data }`
+- [X] `PATCH /admin/api/:collection/:id` (partial update) — `handleUpdate`; `validateWritePartial` (only-supplied-fields), bumps `updatedAt`, scoped to live rows
+- [X] `DELETE /admin/api/:collection/:id` (soft delete by default) — `handleDelete`; stamps `deletedAt`, `?hard=true` purges
+- [X] `POST /admin/api/:collection/:id/restore` — `handleRestore`; clears `deletedAt` on a soft-deleted row
+- [X] CSRF protection (double-submit cookie) — `server/csrf.ts`: **HMAC-signed** token (`<random>.<HMAC-SHA256(VOILA_AUTH_SECRET, random)>`) in the `voila_csrf` cookie + `x-voila-csrf` header, constant-time compare *and* signature check (defeats cookie injection); issued by `GET /admin/api/csrf`, enforced on every write (`403 CSRF`)
+- [X] API-level session enforcement — every `/admin/api/*` data handler (reads + writes) runs `requireApiSession` via an injected resolver (`getSessionSafe(getAuth(), request)`); no session → `401 UNAUTHORIZED`. SSR read loaders forward the `Cookie` header so the admin UI keeps working
 
 ### State
 
