@@ -52,6 +52,23 @@ describe("run / parseFlags", () => {
     expect(out.join("\n")).toMatch(/voila seed admin/);
   });
 
+  test("migrate apply: rejects an unknown --target", async () => {
+    const { err, io } = captureIo();
+    const code = await run(["migrate", "apply", "--target", "mysql"], io);
+    expect(code).toBe(1);
+    expect(err.join("\n")).toMatch(/unknown --target: mysql/);
+  });
+
+  test("migrate apply: postgres is a recognized target", async () => {
+    const { err, io } = captureIo();
+    // No --db, so it errors downstream — but with the db-required message,
+    // proving postgres passed target validation rather than being rejected.
+    const code = await run(["migrate", "apply", "--target", "postgres"], io);
+    expect(code).toBe(1);
+    expect(err.join("\n")).not.toMatch(/unknown --target/);
+    expect(err.join("\n")).toMatch(/--db is required when target is "postgres"/);
+  });
+
   test("seed admin: rejects an unknown --target", async () => {
     const { err, io } = captureIo();
     const code = await run(["seed", "admin", "--email", "a@b", "--target", "weird"], io);

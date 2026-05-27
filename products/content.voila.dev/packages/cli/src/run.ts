@@ -19,7 +19,7 @@ const USAGE = `voila — Voila CMS toolbelt
 Usage:
   voila schema generate  [--dialect sqlite|postgres] [--bridge <path>] [--config <path>]
   voila migrate generate [--name <slug>] [--dialect sqlite|postgres] [--out <dir>] [--bridge <path>] [--config <path>]
-  voila migrate apply    [--target sqlite|d1-local|d1-remote] [--db <url>] [--binding <name>] [--out <dir>] [--config <wrangler.jsonc>]
+  voila migrate apply    [--target sqlite|postgres|d1-local|d1-remote] [--db <url>] [--binding <name>] [--out <dir>] [--config <wrangler.jsonc>]
   voila migrate install-auth [--dialect sqlite|postgres] [--out <dir>]
   voila seed admin       --email <addr> [--name <name>] [--target sqlite|d1-local|d1-remote] [--db <url>] [--binding <name>] [--config <wrangler.jsonc>]
 `;
@@ -109,8 +109,14 @@ async function runApply(rest: readonly string[], io: CliIO): Promise<number> {
     io.err((e as Error).message);
     return 1;
   }
-  const target = (flags.target as "sqlite" | "d1-local" | "d1-remote" | undefined) ?? "sqlite";
-  if (target !== "sqlite" && target !== "d1-local" && target !== "d1-remote") {
+  const target =
+    (flags.target as "sqlite" | "postgres" | "d1-local" | "d1-remote" | undefined) ?? "sqlite";
+  if (
+    target !== "sqlite" &&
+    target !== "postgres" &&
+    target !== "d1-local" &&
+    target !== "d1-remote"
+  ) {
     io.err(`unknown --target: ${flags.target}`);
     return 1;
   }
@@ -125,7 +131,7 @@ async function runApply(rest: readonly string[], io: CliIO): Promise<number> {
     if (result.delegated) {
       io.out(`voila: ${target} apply delegated to wrangler (see output above).`);
     } else {
-      io.out(`voila: sqlite apply complete (drizzle migrator).`);
+      io.out(`voila: ${target} apply complete (drizzle migrator).`);
     }
     return 0;
   } catch (e) {
