@@ -5,6 +5,14 @@
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
 
+  // Production serves at voila-playground.<subdomain>.workers.dev; PR previews
+  // (via `wrangler versions upload --preview-alias`) at
+  // <alias>-voila-playground.<subdomain>.workers.dev. Set explicitly so the
+  // behaviour doesn't depend on Cloudflare's defaults (and to silence the
+  // "settings not in your Wrangler file" deploy warnings).
+  "workers_dev": true,
+  "preview_urls": true,
+
   "d1_databases": [
     {
       "binding": "DATABASE",
