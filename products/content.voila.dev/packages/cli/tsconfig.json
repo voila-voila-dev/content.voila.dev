@@ -1,4 +1,10 @@
 {
   "extends": "@voila/typescript-config/tsconfig.base.json",
+  "compilerOptions": {
+    // `@voila/content` resolves to source in-repo and re-exports DOM-using
+    // admin widgets; the editor/typecheck needs DOM to check that pulled-in
+    // source. See tsconfig.build.json.
+    "lib": ["ESNext", "DOM", "DOM.Iterable"]
+  },
   "include": ["src/**/*", "bin/**/*"]
 }
