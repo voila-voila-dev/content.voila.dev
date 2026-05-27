@@ -125,14 +125,44 @@ export type Row<C extends AnyContent = AnyContent> = RowsOf<C>;
 export type RowFromTable<T extends Table> = InferSelectModel<T>;
 
 /**
+ * Resolves the active session for a request, or `null` when there's none.
+ * Implementations must fail soft (a malformed/expired cookie ⇒ `null`, not a
+ * throw). Defined here (rather than in `../auth.ts`) so the context can
+ * reference it without a circular import. See `requireApiSession`.
+ */
+export interface ApiSessionResolver {
+  getSession(request: Request): Promise<unknown | null> | unknown | null;
+}
+
+/**
  * Handler context, parametric on the precise `Content` type so each handler
  * can derive precise row types and slug unions from the consumer's config.
+ * Reads and writes share the base shape — both take a SQLite-family adapter and
+ * an optional session resolver. Writes additionally carry the CSRF secret.
  */
-export interface ReadHandlerContext<C extends AnyContent = AnyContent> {
+export interface HandlerContext<C extends AnyContent = AnyContent> {
   readonly request: Request;
   readonly params: Record<string, string | undefined>;
   readonly content: C;
   readonly adapter: ReadAdapter;
+  /**
+   * Session resolver for API-level auth. When present, the handler enforces a
+   * session (`401` if absent); when omitted, enforcement is skipped (used by
+   * data-logic tests). The generated routes always inject one.
+   */
+  readonly auth?: ApiSessionResolver;
+}
+
+/** Context for the read handlers (`GET`). */
+export type ReadHandlerContext<C extends AnyContent = AnyContent> = HandlerContext<C>;
+
+/**
+ * Context for the write handlers (`POST`/`PATCH`/`DELETE`/restore). Adds the
+ * `csrfSecret` used to verify the signed double-submit token (the deployment's
+ * `VOILA_AUTH_SECRET`, injected by the generated routes).
+ */
+export interface WriteHandlerContext<C extends AnyContent = AnyContent> extends HandlerContext<C> {
+  readonly csrfSecret: string;
 }
 
 /**

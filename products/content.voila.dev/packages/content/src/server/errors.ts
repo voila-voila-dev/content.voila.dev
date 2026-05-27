@@ -59,6 +59,21 @@ export interface NotFoundError extends BaseError {
   readonly collectionSlug: string;
 }
 
+export interface ConflictError extends BaseError {
+  readonly code: "CONFLICT";
+  readonly collectionSlug: string;
+  /** The unique field that collided, when the driver names it. */
+  readonly field?: string;
+}
+
+export interface CsrfError extends BaseError {
+  readonly code: "CSRF";
+}
+
+export interface UnauthorizedError extends BaseError {
+  readonly code: "UNAUTHORIZED";
+}
+
 export interface InternalError extends BaseError {
   readonly code: "INTERNAL";
 }
@@ -73,6 +88,9 @@ export type ApiFailure =
   | InvalidOrderError
   | InvalidCursorError
   | NotFoundError
+  | ConflictError
+  | CsrfError
+  | UnauthorizedError
   | InternalError;
 
 export type ApiErrorCode = ApiFailure["code"];
@@ -86,6 +104,9 @@ const STATUS: Record<ApiErrorCode, number> = {
   INVALID_ORDER: 400,
   INVALID_CURSOR: 400,
   NOT_FOUND: 404,
+  CONFLICT: 409,
+  CSRF: 403,
+  UNAUTHORIZED: 401,
   INTERNAL: 500,
 };
 
@@ -124,6 +145,20 @@ export function invalidCursor(): InvalidCursorError {
 
 export function notFound(collectionSlug: string): NotFoundError {
   return { code: "NOT_FOUND", collectionSlug };
+}
+
+export function conflict(collectionSlug: string, field?: string): ConflictError {
+  return field === undefined
+    ? { code: "CONFLICT", collectionSlug }
+    : { code: "CONFLICT", collectionSlug, field };
+}
+
+export function csrfFailed(): CsrfError {
+  return { code: "CSRF" };
+}
+
+export function unauthorized(): UnauthorizedError {
+  return { code: "UNAUTHORIZED" };
 }
 
 /**

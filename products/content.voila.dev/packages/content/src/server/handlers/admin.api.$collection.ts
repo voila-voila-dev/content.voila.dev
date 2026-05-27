@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gt, isNull, lt, or, type SQL } from "drizzle-orm";
 import { ok } from "../../shared/result.ts";
 import type { AnyContent } from "../../types.ts";
+import { requireApiSession } from "../auth.ts";
 import { cursorValueOf, encodeCursor, parseListQuery, reviveCursorValue } from "../query.ts";
 import { requireCollection, tableFor } from "../tables.ts";
 import { column, type ReadHandlerContext, type RowsOf, respond } from "./shared.ts";
@@ -9,6 +10,9 @@ import { column, type ReadHandlerContext, type RowsOf, respond } from "./shared.
 export function handleList<C extends AnyContent>(ctx: ReadHandlerContext<C>): Promise<Response> {
   return respond(
     async () => {
+      const session = await requireApiSession(ctx);
+      if (!session.ok) return session;
+
       const matched = requireCollection(ctx.content, ctx.params.collection);
       if (!matched.ok) return matched;
       const { entry } = matched.value;

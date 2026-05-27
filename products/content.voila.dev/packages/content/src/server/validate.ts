@@ -1,6 +1,6 @@
 /**
- * Server-side write validation. The future write endpoints (`POST`/`PATCH`,
- * separate roadmap item) call this before touching the database.
+ * Server-side write validation. The write endpoints (`POST`/`PATCH`) call this
+ * before touching the database.
  *
  * It reuses the exact same `validateDocument` the admin form runs as its
  * client-side gate, so the two never disagree on what is valid — the single
@@ -9,7 +9,7 @@
  */
 
 import type { AnyFieldDef, ValidatorAdapter } from "@voila/content-schema";
-import { validateDocument } from "@voila/content-schema";
+import { validateDocument, validatePartialDocument } from "@voila/content-schema";
 import { zodAdapter } from "@voila/content-schema/adapters/zod";
 import type { Result } from "../shared/result.ts";
 import { err, ok } from "../shared/result.ts";
@@ -34,6 +34,24 @@ export async function validateWrite(
   adapter: ValidatorAdapter = zodAdapter,
 ): Promise<Result<Record<string, unknown>, ValidationError>> {
   const result = await validateDocument(collection.fields, input, adapter);
+  if (result.valid) return ok(result.value);
+  return err(validationFailed(collection.slug, result.errors));
+}
+
+/**
+ * `PATCH` counterpart to {@link validateWrite}: validates only the fields the
+ * caller actually sent, against the same per-field validators, and returns the
+ * partial patch. Omitted fields are left untouched; an explicitly-supplied
+ * invalid value still fails. Shares the validation source of truth with both
+ * the full-write path and the form, so partial and full writes can never
+ * diverge on what a field accepts.
+ */
+export async function validateWritePartial(
+  collection: ValidatableCollection,
+  input: unknown,
+  adapter: ValidatorAdapter = zodAdapter,
+): Promise<Result<Record<string, unknown>, ValidationError>> {
+  const result = await validatePartialDocument(collection.fields, input, adapter);
   if (result.valid) return ok(result.value);
   return err(validationFailed(collection.slug, result.errors));
 }

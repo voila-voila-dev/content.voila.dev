@@ -2,6 +2,7 @@ import type { AnyFieldDef } from "@voila/content-schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { err, ok } from "../../shared/result.ts";
 import type { AnyContent } from "../../types.ts";
+import { requireApiSession } from "../auth.ts";
 import { fieldNotUnique, notFound, unknownField } from "../errors.ts";
 import { coerceFieldValue } from "../query.ts";
 import { requireCollection, tableFor } from "../tables.ts";
@@ -13,6 +14,9 @@ export function handleFindByField<C extends AnyContent>(
 ): Promise<Response> {
   return respond(
     async () => {
+      const session = await requireApiSession(ctx);
+      if (!session.ok) return session;
+
       const matched = requireCollection(ctx.content, ctx.params.collection);
       if (!matched.ok) return matched;
       const { entry } = matched.value;
