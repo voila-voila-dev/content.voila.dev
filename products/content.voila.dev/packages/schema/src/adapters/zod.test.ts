@@ -5,6 +5,8 @@ import { date } from "../fields/date.ts";
 import { datetime } from "../fields/datetime.ts";
 import { json } from "../fields/json.ts";
 import { number } from "../fields/number.ts";
+import { select } from "../fields/select.ts";
+import { slug } from "../fields/slug.ts";
 import { string } from "../fields/string.ts";
 import { toValidator } from "../validator.ts";
 import { zodAdapter } from "./zod.ts";
@@ -126,6 +128,77 @@ describe("zodAdapter — date / datetime", () => {
     expect((await run(v, "2026-05-21T10:30:00Z")).issues).toBeUndefined();
     expect((await run(v, "2026-05-21T10:30:00+02:00")).issues).toBeUndefined();
     expect((await run(v, "not a date")).issues).toBeDefined();
+  });
+});
+
+describe("zodAdapter — select", () => {
+  test("accepts a value from the options list", async () => {
+    const v = toValidator(select({ required: true, options: ["draft", "published"] }), zodAdapter);
+    expect((await run(v, "draft")).issues).toBeUndefined();
+    expect((await run(v, "archived")).issues).toBeDefined();
+  });
+
+  test("honors the object option's value, not its label", async () => {
+    const v = toValidator(
+      select({ required: true, options: [{ label: "Published", value: "pub" }] }),
+      zodAdapter,
+    );
+    expect((await run(v, "pub")).issues).toBeUndefined();
+    expect((await run(v, "Published")).issues).toBeDefined();
+  });
+
+  test("falls back to a plain string when options are empty", async () => {
+    const v = toValidator(select({ required: true, options: [] }), zodAdapter);
+    expect((await run(v, "anything")).issues).toBeUndefined();
+  });
+});
+
+describe("zodAdapter — slug", () => {
+  test("accepts a hyphen-separated slug", async () => {
+    const v = toValidator(slug({ required: true }), zodAdapter);
+    expect((await run(v, "hello-world")).issues).toBeUndefined();
+    expect((await run(v, "Hello World")).issues).toBeDefined();
+    expect((await run(v, "trailing-")).issues).toBeDefined();
+  });
+
+  test("respects a custom separator", async () => {
+    const v = toValidator(slug({ required: true, separator: "_" }), zodAdapter);
+    expect((await run(v, "hello_world")).issues).toBeUndefined();
+    expect((await run(v, "hello-world")).issues).toBeDefined();
+  });
+});
+
+describe("zodAdapter — empty input on optional fields", () => {
+  test('treats "" as absent for an optional slug', async () => {
+    const v = toValidator(slug({}), zodAdapter);
+    const result = await run(v, "");
+    expect(result.issues).toBeUndefined();
+    if (!result.issues) expect(result.value).toBeUndefined();
+    // a non-empty but invalid value still fails
+    expect((await run(v, "Not A Slug")).issues).toBeDefined();
+  });
+
+  test('treats "" as absent for an optional select', async () => {
+    const v = toValidator(select({ options: ["draft", "published"] }), zodAdapter);
+    expect((await run(v, "")).issues).toBeUndefined();
+    expect((await run(v, "archived")).issues).toBeDefined();
+  });
+
+  test('treats "" as absent for an optional number', async () => {
+    const v = toValidator(number({}), zodAdapter);
+    expect((await run(v, "")).issues).toBeUndefined();
+  });
+
+  test('"" falls back to the field default', async () => {
+    const v = toValidator(string({ default: "hi" }), zodAdapter);
+    const result = await run(v, "");
+    expect(result.issues).toBeUndefined();
+    if (!result.issues) expect(result.value).toBe("hi");
+  });
+
+  test('a required field still rejects ""', async () => {
+    const v = toValidator(slug({ required: true }), zodAdapter);
+    expect((await run(v, "")).issues).toBeDefined();
   });
 });
 
