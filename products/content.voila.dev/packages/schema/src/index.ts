@@ -1,6 +1,6 @@
 export { defineField } from "./define-field.ts";
 export type { DocumentValidationResult, FieldValidators } from "./document.ts";
-export { buildFieldValidators, validateDocument } from "./document.ts";
+export { buildFieldValidators, validateDocument, validatePartialDocument } from "./document.ts";
 export type {
   BooleanField,
   BooleanFieldOptions,

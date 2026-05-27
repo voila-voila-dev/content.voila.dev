@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { zodAdapter } from "./adapters/zod.ts";
-import { buildFieldValidators, validateDocument } from "./document.ts";
+import { buildFieldValidators, validateDocument, validatePartialDocument } from "./document.ts";
 import { number } from "./fields/number.ts";
 import { select } from "./fields/select.ts";
 import { slug } from "./fields/slug.ts";
@@ -81,5 +81,39 @@ describe("validateDocument", () => {
     const result = await validateDocument(fields, undefined, zodAdapter);
     expect(result.valid).toBe(false); // required fields missing
     if (!result.valid) expect(result.errors.title).toBeDefined();
+  });
+});
+
+describe("validatePartialDocument", () => {
+  test("validates only the keys present in the input", async () => {
+    // `title` and `status` are required, but omitting them is fine in a patch.
+    const result = await validatePartialDocument(fields, { views: 7 }, zodAdapter);
+    expect(result.valid).toBe(true);
+    if (result.valid) {
+      expect(result.value).toEqual({ views: 7 });
+      expect("title" in result.value).toBe(false);
+    }
+  });
+
+  test("still rejects an explicitly-supplied invalid value", async () => {
+    const result = await validatePartialDocument(fields, { title: "no" }, zodAdapter);
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.errors.title).toBeDefined();
+      expect(result.errors.status).toBeUndefined(); // omitted ⇒ not checked
+    }
+  });
+
+  test("ignores unknown keys and yields an empty patch for no known keys", async () => {
+    const result = await validatePartialDocument(fields, { rogue: "x" }, zodAdapter);
+    expect(result.valid).toBe(true);
+    if (result.valid) expect(result.value).toEqual({});
+  });
+
+  test("does not apply defaults for omitted fields", async () => {
+    // `views` has default 0, but a patch that omits it must not resurrect it.
+    const result = await validatePartialDocument(fields, { title: "Hello" }, zodAdapter);
+    expect(result.valid).toBe(true);
+    if (result.valid) expect("views" in result.value).toBe(false);
   });
 });

@@ -74,3 +74,39 @@ export async function validateDocument(
   if (Object.keys(errors).length > 0) return { valid: false, errors };
   return { valid: true, value };
 }
+
+/**
+ * Validate a *partial* document — only the keys actually present in `input` are
+ * checked, against the same per-field validators `validateDocument` uses. This
+ * is the write path's `PATCH` semantics: an omitted field is left untouched, but
+ * an explicitly-supplied value (including an invalid one for a required field)
+ * is still validated. Unknown and system-column keys are ignored.
+ *
+ * Shares the field validators with `validateDocument`, so a `PATCH` can never
+ * accept a value a `POST` would reject — the single source of truth holds across
+ * full and partial writes alike.
+ */
+export async function validatePartialDocument(
+  fields: Record<string, AnyFieldDef>,
+  input: unknown,
+  adapter: ValidatorAdapter,
+): Promise<DocumentValidationResult> {
+  const validators = buildFieldValidators(fields, adapter);
+  const source = (input ?? {}) as Record<string, unknown>;
+  const value: Record<string, unknown> = {};
+  const errors: Record<string, string[]> = {};
+
+  for (const [name, schema] of Object.entries(validators)) {
+    // Only fields the caller actually sent participate in a partial update.
+    if (!Object.hasOwn(source, name)) continue;
+    const result = await runStandard(schema, source[name]);
+    if (result.ok) {
+      if (result.value !== undefined) value[name] = result.value;
+    } else {
+      errors[name] = result.messages;
+    }
+  }
+
+  if (Object.keys(errors).length > 0) return { valid: false, errors };
+  return { valid: true, value };
+}
