@@ -135,7 +135,7 @@ Depends on M0. SQLite + D1 adapters must be green before this starts.
 - [X] **Integration**: REST read endpoints against a real SQLite file (created + torn down per test)
 - [ ] **Integration**: REST read endpoints against `wrangler dev` D1 (workers-pool runner via `@cloudflare/vitest-pool-workers` adapted for `bun test`, or fall back to `wrangler dev --local` + fetch)
 - [X] **Type**: client inference tests (`tsd`-style assertions)
-- [ ] **E2E (Playwright)**: log in via magic link (Resend test mode), browse `posts` list, open detail. Runs against the playground.
+- [X] **E2E (Playwright)**: log in via magic link (`consoleMailer` fallback — link captured from dev-server stdout), browse `posts` list, open detail. Runs against the playground. Opt-in via `E2E=1` so root `bun test` stays fast.
 - [X] Coverage gate enabled: `packages/schema` ≥ 90%, `packages/content` ≥ 70%
 
 **Exit criterion**: 20-minute test #1 passes. `bun test` runs unit + integration + E2E in CI under 8 minutes.
@@ -148,20 +148,20 @@ Depends on M1 (REST + auth + admin shell).
 
 ### Field widgets
 
-- [ ] `string` widget (single/multiline)
-- [ ] `number` widget (with min/max/step)
-- [ ] `boolean` widget (switch)
-- [ ] `date` + `datetime` widgets
-- [ ] `select` widget (static options)
-- [ ] `slug` widget (auto-derived from a sibling field; manual override)
-- [ ] Widget registry + `defineWidget` API
+- [X] `string` widget (single/multiline)
+- [X] `number` widget (with min/max/step)
+- [X] `boolean` widget (switch)
+- [X] `date` + `datetime` widgets
+- [X] `select` widget (static options) — new `select` field kind
+- [X] `slug` widget (auto-derived from a sibling field; manual override) — new `slug` field kind
+- [X] Widget registry + `defineWidget` API — controlled `WidgetProps` contract; `resolveWidget` keyed by field kind with string-widget fallback; `FieldWidget` host (label/description/error/aria)
 
 ### Form layer
 
-- [ ] TanStack Form integration; per-field Standard Schema validators from `toValidator` (Zod adapter by default)
-- [ ] Server-side validation reuses the same validator (single source of truth, library-agnostic via Standard Schema)
-- [ ] Field-level error rendering
-- [ ] Form-level submit errors + retry
+- [X] TanStack Form integration; per-field Standard Schema validators from `toValidator` (Zod adapter by default) — `CollectionForm` drives TanStack Form, one `FieldWidget` per field with validators from `buildFieldValidators` (`@voila/content-schema`); `adapter` prop swaps the Standard Schema library
+- [X] Server-side validation reuses the same validator (single source of truth, library-agnostic via Standard Schema) — `validateDocument` (schema) is shared; server `validateWrite` (`@voila/content/server`) runs it and returns a `VALIDATION` (422) envelope; the form runs the identical `validateDocument` as its submit gate
+- [X] Field-level error rendering — per-field validator errors surface in `FieldWidget` (label/`aria-invalid`/`role="alert"`); thrown server `{ fields }` errors map back onto the offending fields and clear on edit
+- [X] Form-level submit errors + retry — a destructive `Alert` banner on submit failure; the save button becomes a Retry that re-submits; cleared on the next attempt
 
 ### REST write endpoints
 
