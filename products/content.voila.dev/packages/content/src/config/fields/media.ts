@@ -12,12 +12,11 @@ export interface MediaTransform {
   readonly format?: MediaFormat;
 }
 
-export interface MediaOpts extends BaseFieldOpts<MediaValue | ReadonlyArray<MediaValue>> {
+export interface MediaOpts extends BaseFieldOpts<MediaValue> {
   /** MIME globs the uploader accepts, e.g. `["image/*"]`. */
   readonly accept?: ReadonlyArray<string>;
   /** Max file size in bytes. */
   readonly max?: number;
-  readonly multiple?: boolean;
   /** Named transforms generated on upload. */
   readonly transforms?: Readonly<Record<string, MediaTransform>>;
 }
@@ -44,17 +43,16 @@ const MediaValueSchema = Schema.Struct({
   variants: Schema.optional(Schema.Record({ key: Schema.String, value: Schema.String })),
 });
 
+// A media field is always a single file. Compose `array(media())` for galleries.
 export const media = <const O extends MediaOpts = MediaOpts>(
   opts?: O,
-): WithLocalized<MediaValue | ReadonlyArray<MediaValue>, O> => {
+): WithLocalized<MediaValue, O> => {
   const o = opts ?? ({} as O);
-  const inner: Schema.Schema.Any = o.multiple ? Schema.Array(MediaValueSchema) : MediaValueSchema;
-  return applyCommon(inner, o, {
+  return applyCommon(MediaValueSchema, o, {
     kind: "media",
     widget: "media",
     accept: o.accept,
     max: o.max,
-    multiple: o.multiple ?? false,
     transforms: o.transforms,
-  }) as WithLocalized<MediaValue | ReadonlyArray<MediaValue>, O>;
+  }) as WithLocalized<MediaValue, O>;
 };

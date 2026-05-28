@@ -27,5 +27,6 @@ export { isLocale, LOCALES, VoilaField } from "./config/fields";
 // `rt.defineElement` / `rt.defineMark` to introduce custom kinds.
 export * as rt from "./config/fields/rich-text";
 export type { I18nConfig } from "./config/i18n";
+export type { InferDoc, InferFields, InferSingleton } from "./config/infer";
 export type { Singleton, SingletonDef } from "./config/singleton";
 export { defineSingleton } from "./config/singleton";

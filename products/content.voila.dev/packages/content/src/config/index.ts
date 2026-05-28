@@ -17,5 +17,6 @@ export type {
 export * as fields from "./fields";
 export { isLocale, LOCALES, VoilaField } from "./fields";
 export type { I18nConfig } from "./i18n";
+export type { InferDoc, InferFields, InferSingleton } from "./infer";
 export type { Singleton, SingletonDef } from "./singleton";
 export { defineSingleton } from "./singleton";
