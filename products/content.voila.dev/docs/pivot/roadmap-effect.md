@@ -97,9 +97,14 @@ branding; `voila add` produced real files; `bun run check` green. **✅ Achieved
 ## M1 — Read path: SQL → HttpApi → client → vended views (week 3–4)
 
 ### Engine
-- [ ] **`@voila/content-sql`:** schema→table generator from field annotations; system
-  columns (`id` ulid, `createdAt`, `updatedAt`, `deletedAt`); `voila migrate
-  generate|apply` (sqlite + `--target d1-local|d1-remote`) via `Migrator`.
+- [x] **`@voila/content-sql`:** schema→DDL generator from field annotations;
+  system columns prepended (`id` ulid PK, `created_at`, `updated_at`,
+  `deleted_at`); dialect-neutral `TableSchema[]` rendered to sqlite +
+  postgres `CREATE TABLE` / `CREATE INDEX`. ULIDs minted by
+  `Database.insert` (no DB default on `id`); `createdAt`/`updatedAt` keep
+  DB-side defaults so raw INSERTs stay sane.
+- [ ] **`@voila/content-sql`:** `voila migrate generate|apply` (sqlite +
+  `--target d1-local|d1-remote`) via `@effect/sql/Migrator`.
 - [ ] **`@voila/content/server`:** the `voilaRpc` `RpcGroup` definition
   (`@effect/rpc`); read procedures — `posts.list` (`?limit/cursor/orderBy`),
   `posts.find`, `posts.findOne`. Cursor pagination. Error envelope via typed
@@ -129,7 +134,9 @@ branding; `voila add` produced real files; `bun run check` green. **✅ Achieved
   effect-atom via `Atom.set` so the client hydrates without a fetch waterfall.**
 
 ### Testing bar (M1)
-- [ ] **Unit:** schema→DDL generator — golden files per field type (ported).
+- [x] **Unit:** schema→DDL generator — golden files per field type. Goldens
+  committed under `src/ddl/__golden__/all-fields.{sqlite,postgres}.sql`;
+  `UPDATE_GOLDENS=1 bun test` regenerates. 123/0 fail at commit.
 - [ ] **Integration (RPC):** read procedures against real SQLite (per-test
   file) using a test `Layer`; in-memory RPC transport.
 - [ ] **Integration (D1):** read procedures against `wrangler dev`/Miniflare D1.
