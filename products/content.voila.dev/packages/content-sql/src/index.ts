@@ -14,6 +14,7 @@ export {
   type Row,
 } from "./database.ts";
 export { DatabaseError, MigrationError } from "./error.ts";
+export { NoopDatabaseLive } from "./noop.ts";
 export { toColumnName } from "./to-column-name.ts";
 
 import type { SqlClient } from "@effect/sql";
