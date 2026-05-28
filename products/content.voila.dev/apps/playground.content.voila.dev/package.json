@@ -6,7 +6,8 @@
     "#/*": "./src/*"
   },
   "scripts": {
-    "dev": "vite dev --port 3000",
+    "dev": "bun run build && wrangler dev --port 8787 --local",
+    "dev:vite": "vite dev --port 3000",
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "bun run build && wrangler deploy",

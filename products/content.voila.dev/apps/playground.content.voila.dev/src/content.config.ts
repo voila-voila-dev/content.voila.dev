@@ -1,11 +1,12 @@
 // Playground content config — wires the M0 minimal runtime.
 //
-// For M0 the D1 binding may not be available outside Worker context;
-// use Sqlite in-memory as the local dev default. Swap to D1Live in Workers.
+// M0 doesn't query the database (admin shell only renders branding), so we
+// use `NoopDatabaseLive` to keep both `bun:sqlite` and the Cloudflare D1
+// binding out of the Workers bundle. When the read path lands in M1, swap
+// to `DatabaseLive.pipe(Layer.provide(D1Live({ binding: env.DATABASE })))`
+// in the worker entry and `SqliteLive({ url: ":memory:" })` locally.
 import { boolean, defineCollection, defineContent, string } from "@voila/content";
-import { DatabaseLive } from "@voila/content-sql";
-import { SqliteLive } from "@voila/content-sql/sqlite";
-import { Layer } from "effect";
+import { NoopDatabaseLive } from "@voila/content-sql";
 
 const posts = defineCollection({
   slug: "posts",
@@ -19,5 +20,5 @@ const posts = defineCollection({
 export default defineContent({
   branding: { name: "Playground" },
   collections: [posts],
-  database: DatabaseLive.pipe(Layer.provide(SqliteLive({ url: ":memory:" }))),
+  database: NoopDatabaseLive,
 });
