@@ -19,8 +19,6 @@
     "@tanstack/react-start": "latest",
     "@tanstack/router-plugin": "^1.132.0",
     "@voila/content": "workspace:*",
-    "@voila/content-schema": "workspace:*",
-    "@voila/content-sql": "workspace:*",
     "effect": "^3.21.2",
     "react": "catalog:",
     "react-dom": "catalog:"

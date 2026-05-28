@@ -33,5 +33,7 @@ export interface FieldMeta {
   readonly defaultValue?: unknown;
   readonly access?: FieldAccess;
   readonly transform?: FieldTransform;
+  /** Override the generated DB column name; see `BaseFieldOpts.column`. */
+  readonly column?: string;
   readonly [extraKey: string]: unknown;
 }

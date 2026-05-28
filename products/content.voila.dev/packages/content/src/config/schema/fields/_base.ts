@@ -24,6 +24,13 @@ export interface BaseFieldOpts<T = unknown> {
   readonly defaultValue?: T;
   readonly access?: FieldAccess;
   readonly transform?: FieldTransform<T>;
+  /**
+   * Override the generated DB column name. Defaults to
+   * `toColumnName(fieldName)` (camelCase → snake_case). Used verbatim, so the
+   * caller is responsible for picking a valid SQL identifier; the DDL layer
+   * still quotes it and rejects collisions within a table.
+   */
+  readonly column?: string;
 }
 
 const pickCommon = (opts: BaseFieldOpts): Partial<FieldMeta> => {
@@ -37,6 +44,7 @@ const pickCommon = (opts: BaseFieldOpts): Partial<FieldMeta> => {
   if (opts.defaultValue !== undefined) m.defaultValue = opts.defaultValue;
   if (opts.access !== undefined) m.access = opts.access;
   if (opts.transform !== undefined) m.transform = opts.transform;
+  if (opts.column !== undefined) m.column = opts.column;
   return m as Partial<FieldMeta>;
 };
 
