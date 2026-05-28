@@ -1,5 +1,12 @@
 # 01 — Architecture
 
+> **⚠️ Pre-pivot doc.** Head state/form/sync choices in this file are
+> superseded by the Effect pivot. Authoritative reference:
+> [Canon §1 + §6 + §10](../pivot/effect-architecture-canon.md). The Head now
+> uses **`effect-atom`** (state), **`effect-form`** (forms), and **LiveStore**
+> (local cache + CF DO sync, M3+) — not TanStack Query / TanStack Form / REST
+> polling. Engine packages and the Engine/Head split itself are unchanged.
+
 ## Repo layout
 
 Bun workspaces monorepo, organized by product. Each product owns its own `apps/`, `packages/`, and `examples/` subtree under `products/<domain>/`. Anything that isn't tied to a single product (shared configs, ADRs) lives at the repo root. See [ADR 0001](../../../../docs/decision-records/0001-monorepo-and-package-naming.md) for the full rationale.

@@ -100,26 +100,47 @@ branding; `voila add` produced real files; `bun run check` green. **✅ Achieved
 - [ ] **`@voila/content-sql`:** schema→table generator from field annotations; system
   columns (`id` ulid, `createdAt`, `updatedAt`, `deletedAt`); `voila migrate
   generate|apply` (sqlite + `--target d1-local|d1-remote`) via `Migrator`.
-- [ ] **`@voila/content/server`:** the `HttpApi` definition; read endpoints as
-  `HttpApiEndpoint`s — list (`?limit/cursor/orderBy`), find by id, find by
-  unique field. Cursor pagination. Error envelope via typed-error mapping.
-- [ ] **`@voila/content/client`:** typed client derived via `HttpApiClient`;
-  `client.posts.find/findOne/list`. Type tests.
+- [ ] **`@voila/content/server`:** the `voilaRpc` `RpcGroup` definition
+  (`@effect/rpc`); read procedures — `posts.list` (`?limit/cursor/orderBy`),
+  `posts.find`, `posts.findOne`. Cursor pagination. Error envelope via typed
+  `Rpc.Error` → envelope mapping. Mount at `/admin/api/rpc`.
+- [ ] **`@voila/content/server`:** **Rpc→HttpApi derivation spike.** Attempt
+  first-class derivation; if envelope / pagination / middleware semantics
+  don't carry, ship a thin parallel `HttpApi` reusing the same `Schema`s and
+  handler `Effect`s. Decision recorded as ADR.
+- [ ] **`@voila/content/client`:** Effect-native typed client derived via
+  `RpcClient.make`; `client.posts.find/findOne/list` return `Effect`/`Stream`.
+  Thin `createAsyncClient` sugar for non-atom call sites. Type tests.
 - [ ] **`@voila/content-auth`:** Better Auth bridged as a `Layer`; magic-link mailer
-  `Layer` (Resend→SMTP→console); session as `HttpApiMiddleware`.
+  `Layer` (Resend→SMTP→console); session as `Rpc.Middleware` (and on the
+  derived HttpApi).
 
 ### Head (registry items)
-- [ ] `collection-table` (TanStack Table, columns from `list.columns`),
-  `collection-detail` (read-only renderers), `singleton-view`, `sidebar`
-  (from registry), skeletons + empty states, `login`.
-- [ ] SSR read loaders forward the `Cookie` header.
+- [ ] `lib/voila-atoms` registry item — per-collection atom factory derived
+  from `@voila/content/client/atoms`. **Backend = RPC client (`@effect/rpc`)
+  in M1; swapped to `@effect-atom/atom-livestore` over the project LiveStore
+  in M3** with identical atom shape, so vended components don't change when
+  the sync engine lands.
+- [ ] `collection-table` (TanStack Table, columns from `list.columns`; rows
+  fed by an `Atom.pull` paginated atom), `collection-detail` (read-only
+  renderers driven by `useAtomValue`), `singleton-view`, `sidebar` (from
+  registry), skeletons + empty states, `login`.
+- [ ] SSR read loaders forward the `Cookie` header **and pre-populate
+  effect-atom via `Atom.set` so the client hydrates without a fetch waterfall.**
 
 ### Testing bar (M1)
 - [ ] **Unit:** schema→DDL generator — golden files per field type (ported).
-- [ ] **Integration:** read endpoints against real SQLite (per-test file) using
-  a test `Layer`.
-- [ ] **Integration (D1):** read endpoints against `wrangler dev`/Miniflare D1.
-- [ ] **Type:** client inference (`tsd`-style).
+- [ ] **Integration (RPC):** read procedures against real SQLite (per-test
+  file) using a test `Layer`; in-memory RPC transport.
+- [ ] **Integration (D1):** read procedures against `wrangler dev`/Miniflare D1.
+- [ ] **Type:** client inference (`tsd`-style) — both RPC client and
+  `createAsyncClient` sugar.
+- [ ] **Type / runtime (derivation):** Rpc→HttpApi derivation produces the
+  same envelope shape as the RPC client per procedure; OpenAPI export
+  round-trips.
+- [ ] **Unit (atom):** atom factory — `Atom.runtime`-backed test that a list
+  atom decodes envelope, surfaces typed errors, and invalidates on mutation
+  event via `Reactivity`.
 - [ ] **E2E:** magic-link login (console mailer) → browse list → open detail.
 - [ ] Coverage gate: `@voila/content-schema` ≥ 90%, engine core ≥ 70%.
 
@@ -130,22 +151,28 @@ branding; `voila add` produced real files; `bun run check` green. **✅ Achieved
 ## M2 — Write path (week 5–6)
 
 ### Engine
-- [ ] **`@voila/content/server`:** write endpoints — create (201), partial update
-  (PATCH semantics via `Schema` partial), soft delete (`?hard=true` purge),
-  restore. Unique violation → 409.
+- [ ] **`@voila/content/server`:** write **procedures** on `voilaRpc` —
+  `posts.create`, `posts.update` (partial via `Schema` partial),
+  `posts.delete` (`hard?: true` purge), `posts.restore`. Unique violation →
+  typed `ConflictError` mapped to envelope `code: "CONFLICT"`.
 - [ ] **Validation:** one `Schema` decode shared client+server; failure →
-  422 `VALIDATION` with `{ fields }`.
+  `ValidationError` envelope (`code: "VALIDATION"` + `{ fields }`).
 - [ ] **CSRF** (HMAC double-submit) + **session enforcement** as
-  `HttpApiMiddleware` on every data endpoint.
+  `Rpc.Middleware` on every mutation procedure (reads keep session-only).
 - [ ] **`@voila/content-sql/pg`:** Postgres `Layer`; migration parity; `voila migrate
   apply --target postgres --db <url>`.
 
 ### Head (registry items)
 - [ ] Field widgets: `string`, `number`, `boolean`, `date`/`datetime`,
-  `select`, `slug` (each a registry item under `field/*`).
-- [ ] `collection-form` (TanStack Form) + widget host (label/description/error/
-  aria); field- and form-level errors + retry.
-- [ ] Optimistic updates (TanStack DB) + toasts; last-write-wins on `updatedAt`.
+  `select`, `slug` (each a registry item under `field/*`, each driven by an
+  **`effect-form` field atom**).
+- [ ] `collection-form` (**`FormReact.make`** from `effect-form`) + widget
+  host (label/description/error/aria); field- and form-level errors + retry.
+  **Validation schema = the same `effect/Schema` the server runs in
+  `MutationService.validateWrite`.**
+- [ ] Optimistic updates via **`Reactivity` (effect-atom) invalidation** +
+  toasts; last-write-wins on `updatedAt`. (TanStack DB optional; revisit only
+  if `Reactivity` is insufficient.)
 
 ### Lifecycle
 - [ ] Collection hooks (`before/after` × create/update/delete) via `HookService`.
@@ -154,8 +181,12 @@ branding; `voila add` produced real files; `bun run check` green. **✅ Achieved
 ### Testing bar (M2)
 - [ ] **Unit:** each widget renders/accepts input/surfaces errors.
 - [ ] **Unit:** hook ordering + short-circuit (pure `Effect` specs).
+- [ ] **Unit (form parity):** property test that the same `Schema` produces
+  the same error shape on `effect-form` (client) and `HttpApiBuilder` (server).
 - [ ] **Integration:** CRUD against SQLite **and** Postgres (CI matrix).
-- [ ] **Integration:** optimistic rollback on server error.
+- [ ] **Integration:** optimistic rollback on server error (Reactivity-driven).
+- [ ] **Integration:** `effect-form` `.refineEffect` cross-field validator
+  hitting a server uniqueness check via the typed client.
 - [ ] **E2E:** create → edit → delete → restore → purge.
 - [ ] **Property (`fast-check`):** roundtrip arbitrary valid docs.
 - [ ] Coverage gate: engine core ≥ 80%.
@@ -165,8 +196,32 @@ optimistic UI; Postgres matrix green.
 
 ---
 
-## M3 — Rich content & media (week 7–8)
+## M3 — Local-first sync + rich content & media (week 7–8)
 
+### Sync engine
+- [ ] **`@voila/content-sync`** (new package, see Canon §10 +
+  [packages/content-sync.md](./packages/content-sync.md)): `Sync` Service tag;
+  default Layer `LiveStoreCfLive` wires `@livestore/sync-cf` (DO + D1 event log)
+  + `@livestore/adapter-web` (browser OPFS / WASM SQLite / Web Worker). Session
+  enforcement on WebSocket upgrade; CSRF token verified on first message.
+- [ ] **Event materializer:** DO `onPush` calls `MutationService.validateWrite`;
+  failures emit a typed `ValidationError` envelope back to the client (same
+  shape as REST 422). `RbacService` predicates run on the event author session.
+  D1 event log is canonical; query tables are projections.
+- [ ] **`@voila/content/client/atoms`** swap: list/detail atoms now dispatch
+  through **`@effect-atom/atom-livestore`** against the project's LiveStore
+  (reactive SQL view); mutation atoms commit LiveStore events instead of
+  invoking RPC mutation procedures. No change required in vended Head code —
+  atom shapes are identical to M1.
+- [ ] **Three-way convergence:** RPC mutation procedures and the derived
+  HttpApi handler keep working — both internally call `MutationService.validateWrite`
+  → `Sync.append`, so RPC, HttpApi (MCP HTTP transport / `--eject-server`),
+  and LiveStore commits all converge on a single event log + single projection.
+- [ ] **Vended `lib/livestore.ts`:** `admin-shell` now vends `app/lib/livestore.ts`
+  wiring the project schema + `makeCfSync({ url: "/admin/api/sync" })`; users
+  can swap the URL or add headers without ejecting the engine.
+
+### Rich content & media
 - [ ] **`@voila/content-storage`:** `Storage` `Service` + R2/S3 `Layer`s (S3 vs MinIO in
   CI); presigned uploads; public-URL strategy.
 - [ ] `field/media` registry item: drag-drop, multipart > 5 MB, client validate,
@@ -178,13 +233,26 @@ optimistic UI; Postgres matrix green.
   `field/code` (Shiki).
 
 ### Testing bar (M3)
+- [ ] **Integration (sync):** LiveStore round-trip — client commits event → DO
+  validates via `MutationService.validateWrite` → event appended → reactive
+  query updates client. Includes failure path (Schema reject → typed
+  `ValidationError` envelope).
+- [ ] **Integration (three-way convergence):** RPC `posts.create`, the
+  derived HttpApi `POST /admin/api/posts`, and a LiveStore
+  `commit(createPost)` all produce identical event log entries; consumer
+  projection converges.
+- [ ] **Chaos:** kill the DO mid-write → event re-delivered without duplicate
+  (idempotency key on event id).
+- [ ] **Security:** unauthenticated WS upgrade rejected with 4401; CSRF token
+  mismatch closes socket.
 - [ ] Unit: editor plugins → HTML/markdown; variant pipeline (golden image diff).
 - [ ] Integration: upload→variant→fetch via Miniflare R2 and via S3/MinIO.
 - [ ] E2E: drag image into rich text → publish → render on public site.
 - [ ] Perf: variant < 2s p95 for 2 MB JPEG.
 
-**Exit:** post with cover + rich body renders on the public playground; variants
-generate on demand, cache in R2.
+**Exit:** post with cover + rich body renders on the public playground;
+variants generate on demand and cache in R2; admin reads/writes go through
+LiveStore; REST endpoints converge on the same event log.
 
 ---
 
@@ -231,7 +299,9 @@ generate on demand, cache in R2.
 ## M6 — MCP & RBAC (week 13–14)
 
 - [ ] **`@voila/content-mcp`:** HTTP transport at `/admin/api/mcp` + stdio (`voila mcp`);
-  tools/resources generated from schema + `HttpApi`/OpenAPI; streaming.
+  tools/resources derived from `voilaRpc` (procedure metadata maps cleanly to
+  MCP tools; descriptions sourced from the derived OpenAPI annotations);
+  streaming via the same `Rpc` `Stream` surface.
 - [ ] MCP auth: bearer/API keys; OAuth 2.1 PKCE via Better Auth; scope DSL; token
   revocation UI.
 - [ ] RBAC: role model; doc- and field-level access folded into the SQL `WHERE`
@@ -292,6 +362,9 @@ mostly **rewrite-in-place**, not delete-and-replace:
 - [x] Delete the superseded code paths **only once the replacement reaches
   parity** — never before. (M0-surface parity confirmed: tree no longer
   contains `@voila/content-database` or `@voila/content-client`.)
+- [ ] Remove TanStack Query from registry items as M1 atoms land; remove
+  TanStack Form as M2 effect-form lands; retire REST polling patterns when M3
+  LiveStore lands. TanStack Router + TanStack Table remain.
 
 ## Cross-cutting (every week)
 

@@ -7,8 +7,8 @@
 The umbrella package owns three concerns in one version-locked unit:
 
 1. **Runtime core** — `defineContent/defineCollection/defineSingleton`; resolver `Service`s (`DocumentService`, `MutationService`, `RbacService`, `HookService`) + default `Layer`s; lifecycle hooks; RBAC predicate compiler; localized-field storage-shape handling (`localized: true`).
-2. **HTTP API** (via `/server` subpath) — the `HttpApi` definition, `HttpApiBuilder` handlers, CSRF + session middleware, error→envelope mapping, OpenAPI.
-3. **Typed client** (via `/client` subpath) — derived from the `HttpApi`; async/await surface; no Effect leaks to the Head.
+2. **RPC API** (via `/server` subpath) — the `voilaRpc` `RpcGroup` definition (`@effect/rpc`), `RpcServer.toLayer` handlers, CSRF + session `Rpc.Middleware`s, error→envelope mapping, **derived `HttpApi`** (used only for OpenAPI export + MCP HTTP transport, not exposed as a public REST surface).
+3. **Typed RPC client** (via `/client` subpath) — `RpcClient.make` over `voilaRpc`; Effect-native surface (`Atom.make(client.posts.list(...))`-friendly), thin async/await sugar for non-atom call sites; no React in the package.
 4. **Background tasks** (via `/queue/*` optional subpaths) — `defineTask` + `Queue` Service with `InlineLive` and `CloudflareQueuesLive` adapters.
 
 Does **not** own: SQL (`@voila/content-sql`), storage (`@voila/content-storage`), auth (`@voila/content-auth`), MCP (`@voila/content-mcp`), CLI (`@voila/content-cli`), or any React.
@@ -20,8 +20,9 @@ Does **not** own: SQL (`@voila/content-sql`), storage (`@voila/content-storage`)
 | Import | What it contains |
 |--------|-----------------|
 | `@voila/content` | Core: `defineContent`, `defineCollection`, `defineSingleton`, `Service` tags + `Layer`s, `defineTask`, `Queue`, `InlineLive`, `CloudflareQueuesLive`, re-exports from `@voila/content-schema` |
-| `@voila/content/server` | L4: `voilaApi`, `makeHandler`, `makeHandlerLayer`, `openApiSpec` |
-| `@voila/content/client` | L5: `createClient`, `ContentClient<C>`, `ContentClientError` |
+| `@voila/content/server` | L4: `voilaRpc` (RpcGroup), `makeRpcHandler`, `makeRpcHandlerLayer`, derived `httpApi`, `openApiSpec`, `Rpc.Middleware`s (CSRF + session) |
+| `@voila/content/client` | L5: `createClient` → `RpcClient<C>` (Effect-native); thin `asyncClient` for non-atom call sites; `ContentClientError` |
+| `@voila/content/client/atoms` | L5: `contentAtoms<C>(opts)` — reactive `effect-atom` bindings. Backend dispatches to the RPC client in M1–M2, to LiveStore via **`@effect-atom/atom-livestore`** in M3+. Identical atom shape across milestones. |
 | `@voila/content/queue/cloudflare` | Heavy adapter: `CloudflareQueuesLive` (CF-specific import; keeps `cloudflare:workers` out of the main bundle) |
 
 ---
@@ -109,133 +110,221 @@ export default defineContent({
 
 ---
 
-## HTTP API (`@voila/content/server`)
+## RPC API (`@voila/content/server`)
 
-**Layer:** L4. **Status:** M3 target.
+**Layer:** L4. **Status:** M1 (reads) → M2 (writes).
 
-One `HttpApi` definition; derives server handlers, OpenAPI spec, and the typed client from it.
+One **`RpcGroup` definition** (`voilaRpc`, built on `@effect/rpc`). Derives:
+the server handler `Layer`, the typed RPC client, **and** a derived `HttpApi`
+for OpenAPI export + MCP HTTP transport. There is no public REST API — the
+HttpApi exists only as a derivation target.
 
 ### Public API
 
 ```ts
-// The HttpApi definition — import to derive client or add endpoints
-export declare const voilaApi: HttpApi.HttpApi<...>
+// The RpcGroup definition — import to derive client or extend with custom procedures
+export declare const voilaRpc: Rpc.RpcGroup<...>
 
-// Build a live handler Layer from a content config
-export declare const makeHandlerLayer: (config: ContentConfig) => Layer.Layer<HttpApiBuilder.Router, ...>
+// Build a live RPC handler Layer from a content config
+export declare const makeRpcHandlerLayer: (config: ContentConfig) => Layer.Layer<RpcServer.HttpRouter, ...>
 
-// Convenience: Fetch-compatible handler for the vended mount file
-export declare const makeHandler: (config: ContentConfig) => (request: Request) => Promise<Response>
+// Convenience: Fetch-compatible RPC handler for the vended mount file
+export declare const makeRpcHandler: (config: ContentConfig) => (request: Request) => Promise<Response>
 
-// OpenAPI spec (JSON-serialisable) derived from voilaApi
+// Derived HttpApi (OpenAPI + MCP HTTP transport only — not exposed as public REST)
+export declare const httpApi: HttpApi.HttpApi<...>
+
+// OpenAPI spec
 export declare const openApiSpec: Effect.Effect<unknown, never, HttpApi.HttpApi<...>>
 ```
 
-**Middleware (applied via `HttpApiBuilder`):**
+**Middleware (`Rpc.Middleware`):**
 
-- `CsrfMiddleware` — issues and verifies the HMAC-signed double-submit token (`voila_csrf` cookie / `x-voila-csrf` header).
-- `SessionMiddleware` — requires a valid session on all `/admin/api/*` routes; yields the session as a typed `HttpApiMiddleware` service.
+- `CsrfMiddleware` — verifies the HMAC-signed double-submit token
+  (`voila_csrf` cookie / `x-voila-csrf` header) on every mutation procedure.
+- `SessionMiddleware` — requires a valid session on every procedure (read or
+  write); yields the session as a typed service available inside handlers.
 
-**Endpoint layout:**
+**Procedure layout (`voilaRpc`):**
 
 ```
-GET    /admin/api/:collection              list
-GET    /admin/api/:collection/:id          findById
-GET    /admin/api/:collection/by/:f/:v     findByField
-POST   /admin/api/:collection              create
-PATCH  /admin/api/:collection/:id          update
-DELETE /admin/api/:collection/:id          delete
-POST   /admin/api/:collection/:id/restore  restore
-GET    /admin/api/csrf                     csrfToken
-GET    /admin/api/health                   health
+posts.list      ({ limit?, cursor?, orderBy? })       Stream / paginated
+posts.find      ({ id })                              one
+posts.findOne   ({ field, value })                    one
+posts.create    (CreateInput)                         one + emits event
+posts.update    ({ id, patch: PatchInput })           one + emits event
+posts.delete    ({ id, hard? })                       void + emits event
+posts.restore   ({ id })                              one + emits event
+__system.csrf                                          { token }
+__system.health                                        { ok: true }
 ```
 
-**Error envelope:** `{ data, nextCursor? }` on success; `{ error: { code, ...fields } }` on failure — produced by mapping typed `HttpApiError` + domain errors to the envelope shape.
+**Error envelope:** `{ data, nextCursor? }` on success; `{ error: { code, ...fields } }` on failure — produced by mapping typed Effect errors (`Rpc.Error` + domain errors) to the envelope shape. The same envelope is emitted by the derived HttpApi handler.
 
-**Note on typed mutations / RPC:** the default is the `HttpApi` REST surface for all operations. `@effect/rpc` is available for a separate binary RPC channel — decision deferred, not assumed.
+**`Rpc → HttpApi` derivation:** attempted as a first-class derivation in M1.
+If derivation does not cover the error envelope, cursor pagination, or
+middleware semantics, fall back to a thin parallel `HttpApi` definition that
+reuses the same `Schema`s and calls the same handler `Effect`s — recorded as
+an ADR in M1.
 
 ### Usage
 
 ```ts
 // app/server/voila.ts — VENDED, ~3 lines you own
-import { makeHandler } from "@voila/content/server"
+import { makeRpcHandler } from "@voila/content/server"
 import config from "~/content.config"
 
-export const voilaHandler = makeHandler(config)
-// Optionally wrap with middleware:
-// export const voilaHandler = (req) => myRateLimiter(req) ?? makeHandler(config)(req)
+export const voilaHandler = makeRpcHandler(config)
+// Mounted at /admin/api/rpc by the vended route file.
+// Optionally wrap with extra middleware:
+// export const voilaHandler = (req) => myRateLimiter(req) ?? makeRpcHandler(config)(req)
 ```
 
-Power user — add endpoints to the same `HttpApi`:
+Power user — add procedures to the same `RpcGroup`:
 
 ```ts
-import { voilaApi } from "@voila/content/server"
-import { HttpApi, HttpApiGroup, HttpApiEndpoint } from "@effect/platform"
+import { voilaRpc } from "@voila/content/server"
+import { Rpc, RpcGroup } from "@effect/rpc"
+import { Schema } from "effect"
 
-const webhooksGroup = HttpApiGroup.make("webhooks")
-  .add(HttpApiEndpoint.get("list", "/admin/api/webhooks"))
+const webhooksGroup = RpcGroup.make(
+  Rpc.make("webhooks.list", { success: Schema.Array(Webhook) }),
+)
 
-const extendedApi = HttpApi.add(voilaApi, webhooksGroup)
+const extendedRpc = voilaRpc.merge(webhooksGroup)
 ```
 
 ### Extension points (A′)
 
-- `HttpApi.add(voilaApi, myGroup)` — custom groups are reflected in the derived client and OpenAPI spec automatically.
-- Replace `SessionMiddleware` by providing a different `Auth` `Layer` (see `@voila/content-auth`).
-- `--eject-server` flag on `voila add` vends the full `HttpApi` definition + handlers for teams that need to own them. Not the default.
+- `voilaRpc.merge(myGroup)` — custom groups are reflected in the derived
+  client, the derived HttpApi, and the OpenAPI spec automatically.
+- Replace `SessionMiddleware` by providing a different `Auth` `Layer` (see
+  `@voila/content-auth`).
+- `--eject-server` flag on `voila add` vends the full `RpcGroup` definition +
+  handler wiring for teams that need to own them. Not the default.
 
 ---
 
 ## Typed Client (`@voila/content/client`)
 
-**Layer:** L5. **Status:** M3 target (co-ships with `/server`).
+**Layer:** L5. **Status:** M1 target (co-ships with `/server`).
 
-Derived from `voilaApi` via `HttpApiClient.make`; never hand-written. Consumer-facing API is plain async/await — no Effect types leak to the Head.
+Derived from `voilaRpc` via `RpcClient.make`; never hand-written. The default
+surface is Effect-native (each procedure returns an `Effect` / `Stream`)
+because it composes directly with `effect-atom` and `effect/Schema`. A thin
+`asyncClient` wrapper is also exported for non-atom call sites that want
+async/await.
 
 ### Public API
 
 ```ts
 export declare const createClient: <C extends AnyContent>(
   options: CreateClientOptions,
-) => ContentClient<C>
+) => RpcClient<C>
+
+export declare const createAsyncClient: <C extends AnyContent>(
+  options: CreateClientOptions,
+) => AsyncContentClient<C>
 
 export interface CreateClientOptions {
-  baseUrl: string           // e.g. "/admin/api"
+  baseUrl: string           // e.g. "/admin/api/rpc"
   fetch?: typeof globalThis.fetch
   headers?: Record<string, string>
 }
 
-// ContentClient<C> — fully typed per-collection namespace
-// client.posts.list()             → Promise<{ data: Post[]; nextCursor: string | null }>
-// client.posts.find("id")         → Promise<Post>
-// client.posts.findOne({ slug })  → Promise<Post>
-// client.posts.create(doc)        → Promise<Post>
-// client.posts.update("id", patch)→ Promise<Post>
-// client.posts.delete("id")       → Promise<void>
-// client.posts.restore("id")      → Promise<Post>
+// RpcClient<C> — Effect-native typed namespace
+// client.posts.list({ limit: 20 })       → Effect<{ data: Post[]; nextCursor: string | null }, ContentClientError>
+// client.posts.find({ id })              → Effect<Post, ContentClientError>
+// client.posts.create(input)             → Effect<Post, ContentClientError>
+// client.posts.update({ id, patch })     → Effect<Post, ContentClientError>
+// client.posts.delete({ id })            → Effect<void, ContentClientError>
+
+// AsyncContentClient<C> — async/await sugar (rare; effect-atom is the default consumer)
+// asyncClient.posts.list({ limit: 20 })  → Promise<{ data: Post[]; nextCursor: string | null }>
 ```
 
-Non-2xx responses decode the error envelope and throw a typed `ContentClientError` carrying the `code` discriminator.
+Procedure errors decode the envelope and surface as typed
+`ContentClientError` instances carrying the `code` discriminator.
 
 ### Usage
 
 ```ts
-// In a TanStack Query loader — no Effect
-import type content from "~/content.config"
+// Effect-native — composes inside an atom
+import { Atom } from "@effect-atom/atom-react"
 import { createClient } from "@voila/content/client"
+import type content from "~/content.config"
 
-const client = createClient<typeof content>({ baseUrl: "/admin/api" })
-const { data: posts, nextCursor } = await client.posts.list({ limit: 20 })
+const client = createClient<typeof content>({ baseUrl: "/admin/api/rpc" })
+const postsAtom = Atom.make(client.posts.list({ limit: 20 }))
 ```
 
 SSR (forward session cookie):
 
 ```ts
 const client = createClient<typeof content>({
-  baseUrl: "/admin/api",
+  baseUrl: "/admin/api/rpc",
   headers: { cookie: request.headers.get("cookie") ?? "" },
 })
 ```
+
+---
+
+## Reactive bindings (`@voila/content/client/atoms`)
+
+**Layer:** L5. **Status:** M1 (REST-backed) → M3 (LiveStore-backed, same shape).
+
+A second entry point ships **`effect-atom`** factories derived from the typed
+client. Vended Head code prefers these over raw `client.posts.list(...)` so
+list/detail views auto-invalidate on mutations and survive milestone backend
+swaps without code changes.
+
+### Public API
+
+```ts
+export declare const contentAtoms: <C extends AnyContent>(
+  options: CreateClientOptions,
+) => ContentAtoms<C>
+
+// ContentAtoms<C> mirrors ContentClient<C> but each method returns an
+// Atom<Result<...>> (reads) or an Atom.Writable (mutations).
+// atoms.posts.list({ limit: 20 })   → Atom<Result<{ data; nextCursor }, ContentClientError>>
+// atoms.posts.find("id")            → Atom<Result<Post, ContentClientError>>
+// atoms.posts.create                → Atom.Writable<Post, CreateInput<Post>>
+// atoms.posts.update                → Atom.Writable<Post, [id: string, patch: PatchInput<Post>]>
+```
+
+Mutation atoms invalidate dependent read atoms via `Reactivity` from
+`@effect-atom/atom-react`. Atoms used in route components must wrap with
+`Atom.keepAlive` to survive remount (effect-atom default resets unused atoms).
+
+### Usage
+
+```ts
+// app/components/posts-list.tsx — vended; effect-atom for state
+import { Atom, useAtomValue } from "@effect-atom/atom-react"
+import { contentAtoms } from "@voila/content/client/atoms"
+import content from "~/content.config"
+
+const atoms = contentAtoms<typeof content>({ baseUrl: "/admin/api" })
+const postsAtom = Atom.keepAlive(atoms.posts.list({ limit: 20 }))
+
+export function PostsList() {
+  const posts = useAtomValue(postsAtom)
+  if (posts._tag !== "Success") return <Skeleton />
+  return <DataTable rows={posts.value.data} />
+}
+```
+
+### Backend dispatch
+
+| Milestone | Read backend | Write backend |
+| --- | --- | --- |
+| M1–M2 | `@voila/content/client` (`RpcClient`, `@effect/rpc`) | `@voila/content/client` (RPC mutation procedure) |
+| M3+ | `@effect-atom/atom-livestore` over the project's LiveStore (reactive SQL view) | LiveStore `commit(event)` via `@effect-atom/atom-livestore` → DO materializer → `MutationService.validateWrite` → D1 event log |
+
+Vended component code never touches the backend choice — it imports
+`contentAtoms` and consumes atoms. The atom shapes are identical across
+milestones so M3 swaps the backend without any vended-code changes.
 
 ---
 
@@ -311,28 +400,40 @@ Provide any `Layer.Layer<Queue>` to route to a different backend (BullMQ, Innges
 |-----------|-----|
 | `Effect`, `Layer`, `Context.Tag` | Service definitions + composition |
 | `ManagedRuntime` | `defineContent` produces a managed runtime |
-| `@effect/platform` `HttpApi*` | REST surface in `/server` |
-| `HttpApiClient` | Client derivation in `/client` |
+| `@effect/rpc` `RpcGroup` / `Rpc` | Procedure definition in `/server` (`voilaRpc`) |
+| `@effect/rpc` `RpcServer.toLayer` | Server handler derivation in `/server` |
+| `@effect/rpc` `RpcClient.make` | Typed client derivation in `/client` |
+| `@effect/rpc` `Rpc.Middleware` | CSRF + session enforcement in `/server` |
+| `@effect/platform` `HttpApi*` | Derived HttpApi for OpenAPI export + MCP HTTP transport (internal) |
 | `OpenApi.fromApi` | OpenAPI spec in `/server` |
-| `effect/Schema` | Request/response codecs; task payload schemas; localized field wrapping |
+| `effect/Schema` | Procedure request/response codecs; task payload schemas; localized field wrapping |
 | `Schedule` | Retry/backoff in task layer |
+| `@effect-atom/atom-react` | Atom factory in `/client/atoms` (peer dep on the Head) |
+| `@effect-atom/atom-react` `Reactivity` | Mutation → query invalidation across atoms (M1–M2) |
+| `@effect-atom/atom-livestore` | LiveStore↔atom bridge in `/client/atoms` (M3+) |
 
 ## Dependencies
 
 ```
-@voila/content-schema   # field schemas, InferDoc, Locale
-@voila/content-sql      # Database Service
-@voila/content-storage  # Storage Service
-@voila/content-auth     # Auth Service (session enforcement in /server)
-@effect/platform        # HttpApi*, HttpApiClient
+@voila/content-schema           # field schemas, InferDoc, Locale
+@voila/content-sql              # Database Service
+@voila/content-storage          # Storage Service
+@voila/content-auth             # Auth Service (session enforcement in /server)
+@effect/rpc                     # RpcGroup, RpcServer, RpcClient
+@effect/platform                # derived HttpApi (OpenAPI + MCP HTTP transport only)
 effect
+@effect-atom/atom-react         # peer; required for /client/atoms (Head)
+@effect-atom/atom-livestore     # peer; required for /client/atoms LiveStore dispatch (M3+)
+@livestore/client               # peer; underlies the LiveStore atom bridge (M3+)
 ```
 
 ## Testing
 
 - **Core:** each `Service` resolved against test-double `Layer`s (in-memory `Database`) via `Layer.toRuntime`; mutation validation asserts typed `ValidationError`; hook ordering verified.
-- **HTTP:** handler logic tested in-process via `HttpApiBuilder`; integration test spins a real `HttpServer`; asserts envelope shape, CSRF rejection, 401 on missing session.
-- **Client:** `createClient` against a test server; asserts typed responses and `ContentClientError` on non-2xx.
+- **RPC:** procedure logic tested in-process via `RpcServer.toLayer` against an in-memory transport; integration test mounts the RPC handler in a real `HttpServer`; asserts envelope shape, CSRF rejection, 401 on missing session.
+- **Derived HttpApi:** type test that the derivation produces the same envelope shape per procedure as the RPC client; runtime test that an OpenAPI export round-trips.
+- **Client:** `createClient` against a test RPC server; asserts typed responses and `ContentClientError` on procedure failure.
+- **Atoms:** `contentAtoms` against a test RPC client (M1) and against `@effect-atom/atom-livestore` over an in-memory LiveStore (M3); asserts identical atom shapes and that `Reactivity` invalidations propagate.
 - **Tasks:** `InlineLive` makes task handler tests deterministic without any external service.
 - **Wiring:** `defineContent` with minimal config produces a `ManagedRuntime` that resolves without errors using in-memory SQLite.
 

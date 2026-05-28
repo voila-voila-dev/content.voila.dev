@@ -1,12 +1,17 @@
 # @voila/content-mcp
 
-> MCP (Model Context Protocol) server over the `voilaApi` `HttpApi` definition and content schema; supports HTTP and stdio transports. **World:** Engine. **Layer:** —. **Status:** M6 target.
+> MCP (Model Context Protocol) server over the `voilaRpc` `RpcGroup` and content schema; supports HTTP and stdio transports. **World:** Engine. **Layer:** —. **Status:** M6 target.
 
 ## Responsibility
 
-Owns: the MCP server `Service`; tool definitions derived from the `voilaApi` endpoints and collection schemas; HTTP and stdio transport `Layer`s; the OpenAPI spec bridge (feeds tool descriptions from `OpenApi.fromApi`).
+Owns: the MCP server `Service`; tool definitions derived from `voilaRpc`
+procedures and collection schemas; HTTP and stdio transport `Layer`s; the
+OpenAPI spec bridge (feeds tool descriptions from `OpenApi.fromApi` over the
+derived HttpApi).
 
-Does not own: the `HttpApi` definition (`@voila/content/server`), the content resolvers (`@voila/content`), or the `voila mcp` CLI command that launches this server (`@voila/content-cli`).
+Does not own: the `RpcGroup` definition or the derived `HttpApi`
+(`@voila/content/server`), the content resolvers (`@voila/content`), or the
+`voila mcp` CLI command that launches this server (`@voila/content-cli`).
 
 ## Public API
 
@@ -31,34 +36,36 @@ export declare const makeMcpLayer: (config: ContentConfig) => Layer.Layer<McpSer
 export declare class McpError extends Data.TaggedError("McpError")<{ cause: unknown }> {}
 ```
 
-**Derived MCP tools (auto-generated from `voilaApi`):**
+**Derived MCP tools (auto-generated from `voilaRpc`):**
 
-Each `HttpApiGroup` (i.e. each collection) produces a set of tools:
+Each `RpcGroup` namespace (i.e. each collection) produces a set of tools:
 - `<collection>_list` — list documents with pagination
 - `<collection>_find` — find by id
 - `<collection>_findOne` — find by unique field
 - `<collection>_create` — create a document
-- `<collection>_update` — update a document (PATCH)
+- `<collection>_update` — update a document
 - `<collection>_delete` — soft-delete
 - `<collection>_restore` — restore
 
-Tool input schemas are derived from the same `effect/Schema` request schemas used in `voilaApi`; descriptions come from `OpenApi.fromApi` annotations.
+Tool input schemas are derived from the same `effect/Schema` request schemas used in `voilaRpc`; descriptions come from `OpenApi.fromApi` annotations on the derived HttpApi.
 
 ## Effect surface
 
-- `@effect/platform`: `HttpApi`, `HttpRouter`, `OpenApi.fromApi` — tools are derived from the same `HttpApi` definition as the REST surface; no separate schema authoring.
+- `@effect/rpc`: `RpcGroup` / `Rpc` — the source of truth for tools. Procedure metadata (name, input/output Schema, error channels) maps to MCP tool definitions without a separate schema authoring step.
+- `@effect/platform`: `HttpApi`, `HttpRouter`, `OpenApi.fromApi` — the derived HttpApi powers the HTTP transport and feeds OpenAPI annotations into tool descriptions.
 - `@effect/ai` — if/when the Effect AI package provides first-class MCP primitives, this package uses them; otherwise the MCP wire protocol is implemented directly over `@effect/platform`'s `HttpServer` (SSE) and `NodeStream` (stdio).
-- `Effect`, `Layer`, `Context`, `Stream` — stdio transport uses `Stream` for the message loop.
+- `Effect`, `Layer`, `Context`, `Stream` — stdio transport uses `Stream` for the message loop; streaming Rpc procedures pass through as MCP streams.
 
 ## Dependencies
 
 ```
-@voila/content/server    # voilaApi + makeHandlerLayer (to execute tools via the engine)
-@voila/content-schema          # collection schemas for tool input validation
-@voila/content-auth            # Auth Service (tools require a session; MCP auth via header/token)
+@voila/content/server    # voilaRpc + makeRpcHandlerLayer (to execute tools via the engine)
+@voila/content-schema    # collection schemas for tool input validation
+@voila/content-auth      # Auth Service (tools require a session; MCP auth via header/token)
+@effect/rpc
 @effect/platform
 effect
-(@effect/ai)           # optional, used if it provides MCP primitives
+(@effect/ai)             # optional, used if it provides MCP primitives
 ```
 
 ## Usage

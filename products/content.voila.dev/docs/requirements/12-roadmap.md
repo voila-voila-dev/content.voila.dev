@@ -1,5 +1,11 @@
 # 12 — Roadmap
 
+> **⚠️ Deprecated.** Superseded by
+> [pivot/roadmap-effect.md](../pivot/roadmap-effect.md). Milestones here
+> predate the M3 LiveStore/sync engine, the effect-atom Head-state shift, and
+> the effect-form replacement of TanStack Form. Kept for historical context
+> only. **Do not plan work from this file.**
+
 A milestone-based plan. Cut features before cutting quality.
 
 Each milestone ships with a **testing bar** that must pass before the milestone is marked done. All tests run on `bun test` (no Vitest, no Jest). E2E uses Playwright driven from `bun test`.

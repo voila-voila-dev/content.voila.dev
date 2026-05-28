@@ -18,12 +18,21 @@ content.voila.dev is split into **two worlds** with a hard contract between them
 | World | What it is | How it ships | Tech |
 | --- | --- | --- | --- |
 | **The Engine** | Headless CMS brain — schema, resolvers, SQL, HTTP API, auth, storage, tasks | **npm dependencies** (granular packages, semver) | **Effect only.** No React. |
-| **The Head** | The admin UI + its mount points | **vended into your repo** by the registry CLI (shadcn-style) | **TanStack + React.** You own it. |
+| **The Head** | The admin UI + its mount points | **vended into your repo** by the registry CLI (shadcn-style) | **TanStack Router + React + Effect-on-the-edges** (`effect-atom` state, `effect-form` forms, `effect/Schema` shared validation, **LiveStore** local cache + sync from M3). You own it. |
 
 A consumer **depends on** the Engine and **owns** the Head. The contract
-between them is the typed HTTP client (`@voila/content/client`) and the schema
-types (`@voila/content-schema`). Effect never leaks into the Head; React never leaks
-into the Engine.
+between them is the typed **RPC** client (`@voila/content/client`, built on
+`@effect/rpc`) + reactive atoms (`@voila/content/client/atoms`) and the schema
+types (`@voila/content-schema`). The Head is allowed to *consume* `effect`,
+`effect/Schema`, `@effect/rpc` client, `@effect-atom/atom-react`,
+`effect-form`, and `@livestore/*` for state, forms, validation, transport,
+and sync — but must **not import any `@voila/content/server` resolver/service
+(the RPC handler layer)**. React never leaks into the Engine.
+
+The Head additionally consumes **LiveStore** (`@livestore/client` +
+`@livestore/sync-cf`) as the reactive local cache + sync substrate from M3
+forward. Server-authoritative validation, RBAC, and auth still run inside the
+Engine — LiveStore is the *transport and cache*, not the source of truth.
 
 ### Extension model (A′)
 
@@ -51,6 +60,7 @@ each layer.
 | — | Auth Service | `@voila/content-auth` | Engine |
 | — | Background tasks / queue | `@voila/content` (+ `/queue/*` optional adapters) | Engine |
 | — | MCP server | `@voila/content-mcp` | Engine |
+| — | Sync — LiveStore + CF DO event log (M3+) | `@voila/content-sync` (+ `/livestore-cf` `/livestore-local`) | Engine |
 | — | i18n — localized fields | `@voila/content` | Engine |
 | — | i18n — message sync (`voila i18n`) | `@voila/content-cli` | Tooling |
 | — | `voila` CLI (incl. registry commands) | `@voila/content-cli` | Tooling |
@@ -75,6 +85,7 @@ Cross-product UI packages (`packages/` at repo root, not under the product):
 | `@voila/content-storage` | Storage `Service` + `/r2` `/s3` `Layer`s, presign, transforms | `@effect/platform` |
 | `@voila/content-auth` | Auth `Service` (session, identity, RBAC subject); Better Auth bridged as a `Layer` (isolatable so swapping to Clerk/Auth.js = a different `Layer`) | `Effect`, `Layer` |
 | `@voila/content-mcp` | MCP server over the `HttpApi`/schema; HTTP + stdio transports | `@effect/platform`, (`@effect/ai`) |
+| `@voila/content-sync` | `Sync` Service; LiveStore + Cloudflare DO transport (M3 default); event-schema derivation; REST↔LiveStore convergence. **Subpaths:** `/livestore-cf` (DO + D1), `/livestore-local` (in-memory tests) | `Effect`, `Layer`, `Context.Tag`, `@livestore/client`, `@livestore/sync-cf` |
 
 **Tooling:**
 
@@ -141,24 +152,73 @@ export const string = (opts?: StringOpts) =>
   field annotations. `voila migrate generate|apply` drives it.
 - **Drizzle is removed.** All golden-file migration tests port to the new generator.
 
+### Server as event materializer (M3+)
+
+From M3, LiveStore events synced from clients land in a Cloudflare Durable
+Object (`@livestore/sync-cf`) that calls into `MutationService.validateWrite`
+before appending to the D1 event log. Decode failure → event rejected, client
+sees a typed `ValidationError` envelope identical to the REST 422.
+`RbacService` predicates run on the event author's session. **The event log is
+the system of record for content** from M3 forward; the relational tables in
+`@voila/content-sql` are projected from events for query / MCP / public-API use.
+
 ---
 
 ## 6. The API model (`@voila/content/server` + `@voila/content/client`)
 
-- The REST surface is **one `HttpApi` definition** (`@effect/platform`):
-  `HttpApiGroup` per collection, `HttpApiEndpoint` per operation, request/response
-  `Schema`s reused from `@voila/content-schema`.
-- From that single definition we derive **three artifacts for free**:
-  1. **Server handlers** via `HttpApiBuilder` (mounted by a vended route file).
-  2. **Typed client** via `HttpApiClient` → `@voila/content/client`.
-  3. **OpenAPI** via `OpenApi.fromApi` (feeds docs + MCP).
+- The Engine surface is **one `RpcGroup` definition** per collection
+  (`@effect/rpc`): `Rpc.make` per operation, request/response/error
+  `Schema`s reused from `@voila/content-schema`. Collected into a single
+  `voilaRpc` `RpcGroup`.
+- From that single definition we derive **four artifacts**:
+  1. **Server handler `Layer`** via `RpcServer.toLayer`.
+  2. **Typed RPC client** via `RpcClient.make` → `@voila/content/client`.
+  3. **`HttpApi`** (for OpenAPI export + MCP HTTP transport) — attempted as a
+     Rpc→Http derivation in M1; if the derivation does not cover the error
+     envelope, cursor pagination, or middleware semantics, fall back to a
+     thin parallel `HttpApi` definition that reuses the same `Schema`s and
+     calls the same handler `Effect`s. Decision recorded as an ADR.
+  4. **OpenAPI** via `OpenApi.fromApi` over the derived/parallel HttpApi
+     (feeds docs + MCP HTTP transport).
+- **There is no public REST API.** External consumers use the RPC client (or
+  LiveStore, for content). `HttpApi` exists only as a derivation target for
+  OpenAPI export and the MCP HTTP transport.
 - **Error envelope** is unchanged in shape — `{ data, nextCursor? }` /
   `{ error: { code, ...fields } }` — produced by mapping typed Effect errors
-  (`HttpApiError` + domain errors) to the envelope. CSRF (HMAC double-submit) and
-  session enforcement become `HttpApiMiddleware`.
-- The typed-mutation path (today's TanStack `createServerFn`) is reconsidered:
-  default to the `HttpApi` client everywhere; `@effect/rpc` is available if a
-  separate RPC channel is wanted (decision deferred — note it, don't assume it).
+  to the envelope. CSRF (HMAC double-submit) and session enforcement become
+  `Rpc.Middleware`s.
+
+### Transport matrix
+
+| Transport | Audience | Owner | Source of truth |
+| --- | --- | --- | --- |
+| **`@effect/rpc`** | Admin Head ↔ Engine; external programmatic consumers; non-synced ops | `@voila/content/server` (handler `Layer`), `@voila/content/client` (typed client) | M1+ |
+| **LiveStore** | Admin Head content reads/writes — reactive cache + sync | `@voila/content-sync` | M3+ |
+| **`HttpApi`** (derived) | MCP HTTP transport, OpenAPI export, `--eject-server` | `@voila/content/server` (internal) | Derived from RpcGroup |
+
+All three surfaces share **one `effect/Schema` per operation** and **one
+`MutationService.validateWrite`**. A REST PATCH (when the derived HttpApi is
+hit), an RPC mutation, and a LiveStore commit produce **identical event-log
+entries** and converge on a single projection.
+
+### Reactive client state and forms
+
+- **`effect-atom`** (`@effect-atom/atom-react`) is the admin Head's reactive
+  state primitive. The atom factory ships at `@voila/content/client/atoms` and
+  wraps the RPC client; mutations invalidate via `Reactivity`. `Atom.keepAlive`
+  is required on list/detail atoms.
+- **`@effect-atom/atom-livestore`** is the official bridge from
+  `@effect-atom/atom-react` to a LiveStore store. From M3 the
+  `/client/atoms` factory dispatches its list/detail/mutation atoms through
+  `@effect-atom/atom-livestore` against the project's LiveStore instance — no
+  hand-rolled bridge. Pre-M3 the same factory dispatches against the RPC
+  client.
+- **`effect-form`** is the form primitive. The form's validation schema is the
+  **same `effect/Schema`** used by the RPC mutation procedure and by
+  `MutationService.validateWrite`. One schema, four call sites (server decode,
+  RPC client decode, client form validation, client error rendering).
+(Reactive state, forms, LiveStore — covered above in the transport matrix
+and bullets.)
 
 ---
 
@@ -233,3 +293,61 @@ defineContent({
   not `requirements/12-deprecated-roadmap.md` (superseded).
 - Keep the existing doc voice: terse, opinionated, example-first, `Continue →`
   footer links preserved.
+- **Transport primitive (admin Head):** `@effect/rpc` `RpcClient` derived
+  from `voilaRpc`. Vended code imports the client from
+  `@voila/content/client`; **no fetch/REST calls in vended admin code from M1
+  forward.**
+- **Head state primitives:** `Atom.make` / `useAtomValue` / `useAtomSet`
+  (`@effect-atom/atom-react`). Never hand-roll `useEffect`+RPC calls; never
+  import TanStack Query in vended items from M1 forward.
+- **LiveStore↔atom bridge:** **`@effect-atom/atom-livestore`** (official
+  Effect ecosystem package — `tim-smart/effect-atom`'s `atom-livestore`
+  subpackage). From M3 the `/client/atoms` factory uses this package to
+  derive atoms from LiveStore reactive queries; do **not** roll a custom
+  bridge.
+- **Form primitive:** `FormReact.make` (`effect-form`). Replaces TanStack Form.
+  TanStack Router still drives navigation; TanStack Table still drives the
+  data grid (effect-atom feeds it rows).
+- **Sync primitive (M3+):** `@livestore/client` + `@livestore/sync-cf`. The
+  vended `lib/livestore.ts` wires the project schema + `makeCfSync({ url:
+  "/admin/api/sync" })`.
+
+---
+
+## 10. Local-first sync (LiveStore) — M3 default
+
+LiveStore is the M3 default Head data layer. Adapter packages:
+
+- `@livestore/sync-cf` — Durable Object + D1 event log transport.
+- `@livestore/adapter-web` — browser OPFS + WASM SQLite + Web Worker persistence.
+
+**Auth / CSRF.** The DO sync endpoint requires a Better Auth session cookie on
+connect (HMAC double-submit token verified on WebSocket upgrade).
+Unauthenticated sockets close with 4401.
+
+**Validation seam.** The DO's `onPush` calls
+`MutationService.validateWrite(event)` before appending to the log. The
+`Schema` is the same one used by the RPC mutation procedure and the derived
+HttpApi — single source of truth preserved.
+
+**Convergence.** Three write paths converge on a single event log + single
+projection:
+1. RPC mutation procedure (admin Head, external programmatic clients) →
+   `validateWrite` → `Sync.append`.
+2. Derived HttpApi REST handler (MCP HTTP transport, `--eject-server`) → same
+   `validateWrite` → same `Sync.append`.
+3. LiveStore `commit(event)` (admin Head via `@effect-atom/atom-livestore`)
+   → DO materializer → `validateWrite` → `Sync.append`.
+
+**Atom bridge.** The admin Head reads through `@effect-atom/atom-livestore` —
+the official `effect-atom` ⇄ LiveStore package. The `/client/atoms` factory
+swaps from RPC-backed atoms (M1–M2) to `atom-livestore`-backed atoms (M3+)
+with identical atom shapes, so vended components don't change.
+
+**Status:** LiveStore is beta v0.3.x. Pinned version + adapter test suite in
+M3; minor-version upgrades treated as breaking until LiveStore reaches 1.0.
+
+**Open question carried into M6.** MCP (M6) currently writes via REST. With
+M3 LiveStore-default, MCP either (a) keeps using REST → both paths must
+converge to the same event log (extra invariant to test), or (b) becomes a
+LiveStore peer node. Resolve in M6 design.

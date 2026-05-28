@@ -16,6 +16,7 @@ These docs describe the FINAL package set after the Effect pivot. Every package 
 | [content-storage.md](./content-storage.md) | `@voila/content-storage` + `/r2` `/s3` | `Storage` Service, presigned URLs, transforms; R2 and S3 Layer subpaths. |
 | [content-auth.md](./content-auth.md) | `@voila/content-auth` | `Auth` Service (session, identity, RBAC subject); Better Auth as the default Layer (swappable). |
 | [content-mcp.md](./content-mcp.md) | `@voila/content-mcp` | MCP server over `voilaApi`; HTTP and stdio transport Layers; tools auto-derived from `HttpApi` + collection schemas. |
+| [content-sync.md](./content-sync.md) | `@voila/content-sync` + `/livestore-cf` `/livestore-local` | `Sync` Service; LiveStore + Cloudflare Durable Object event-log transport (M3 default); event-schema derivation; REST↔LiveStore convergence. |
 
 ---
 

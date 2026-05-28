@@ -12,8 +12,15 @@ component; references `@voila/ui` primitives and `@voila/rich-text-editor` as
 dev dependencies so its components compile during authoring.
 
 Does **not** ship as a runtime npm dependency in consumer apps. It is consumed
-only by the `@voila/content-cli` registry commands at "vend time." Effect must not
-appear in any vended file — the consumer's codebase stays pure TanStack + React.
+only by the `@voila/content-cli` registry commands at "vend time." **Vended
+files may import `effect`, `effect/Schema`, `@effect/rpc` (client only),
+`@effect-atom/atom-react`, `effect-form`, and (from M3) `@livestore/client`
+/ `@livestore/react` / `@livestore/sync-cf` / `@effect-atom/atom-livestore`**
+— these are the Head's transport, state, form, validation, and sync
+primitives (Canon §1 + §6 + §10). Vended files must **not** import
+`@voila/content/server` (the RPC handler/RpcGroup definition) or any other
+Engine package; the Engine surface remains `@voila/content/client` (+
+`/client/atoms`), `@voila/content-schema`, and (M3+) `@voila/content-sync`.
 
 ## Public API / Commands
 
@@ -46,7 +53,27 @@ imports an internal `RegistryService` for resolution logic.
         { "path": "app/routes/admin/collections.posts.index.tsx", "target": "..." }
       ],
       "deps": [],
-      "registryDeps": ["admin-shell", "data-table"]
+      "registryDeps": ["admin-shell", "data-table", "lib/voila-atoms"]
+    },
+    {
+      "name": "lib/voila-atoms",
+      "type": "registry:lib",
+      "description": "Per-collection effect-atom factory (read/write atoms derived from @voila/content/client/atoms). M1 backend = RPC client; M3 backend = @effect-atom/atom-livestore.",
+      "files": [
+        { "path": "app/lib/voila-atoms.ts", "target": "app/lib/voila-atoms.ts" }
+      ],
+      "deps": ["@effect-atom/atom-react", "@effect/rpc", "effect"],
+      "registryDeps": []
+    },
+    {
+      "name": "field/string",
+      "type": "registry:component",
+      "description": "String field widget (effect-form field atom)",
+      "files": [
+        { "path": "app/components/admin/fields/string.tsx", "target": "..." }
+      ],
+      "deps": ["effect", "effect-form", "@effect-atom/atom-react"],
+      "registryDeps": ["lib/voila-atoms"]
     },
     {
       "name": "theme",
@@ -102,18 +129,47 @@ behavior for audit or compliance. Not the default; explicitly opt-in only.
 
 ### How vended source is authored
 
-Source lives under `packages/registry/src/items/`. Files are written as plain
-TanStack + React — no Effect imports. They import from `@voila/content/client`
-(typed HTTP client, Engine dep) for data fetching, and from `@voila/ui` for
-primitives. The registry build step copies them into `dist/registry/` alongside
+Source lives under `packages/registry/src/items/`. Files are written as
+**TanStack Router + React + `@effect/rpc` (client) + `effect-atom` +
+`effect-form`** (M1+) and **`@livestore/react` + `@effect-atom/atom-livestore`**
+(M3+). They import:
+
+- `@voila/content/client` — typed RPC client (Effect-native + thin async
+  sugar; used by SSR loaders and non-atom call sites).
+- `@voila/content/client/atoms` — reactive `effect-atom` bindings (default for
+  list/detail/widget components; backend swaps from RPC → atom-livestore at M3).
+- `@voila/content-schema` — field schemas reused for form validation.
+- `@voila/ui` — primitives.
+- `effect`, `effect-form`, `@effect-atom/atom-react`, `@effect/rpc` (client),
+  `@effect-atom/atom-livestore` + `@livestore/*` (M3+) — transport, state,
+  form, sync primitives.
+
+No imports from `@voila/content/server`, `@voila/content-sql`,
+`@voila/content-storage`, `@voila/content-auth`, or any other Engine package.
+The registry build step copies items into `dist/registry/` alongside
 `registry.json`.
+
+### `admin-shell` vending (M3+)
+
+Starting M3, the `admin-shell` item also vends `app/lib/livestore.ts` — the
+`LiveStore.Provider` wired with the project's schema + `makeCfSync({ url:
+"/admin/api/sync" })`. The vended file imports `@livestore/react` and
+`@livestore/sync-cf`; consumers can swap the sync URL or layer their own auth
+headers without ejecting the engine.
 
 ## Dependencies
 
 **Dev (authoring) only:**
 - `@voila/ui` — Button, Table, Sidebar, etc. (source-of-truth for UI items)
 - `@voila/rich-text-editor` — `RichTextEditor` (sourced into the `field/rich-text` item)
-- `@voila/content/client` — typed client used in vended route files
+- `@voila/content/client` + `@voila/content/client/atoms` — typed RPC client
+  and reactive atom factory used in vended route/component files
+- `@effect/rpc`, `@effect-atom/atom-react`, `effect-form`, `effect` — peer
+  deps declared on individual items; `voila add` installs them per the item
+  manifest
+- `@livestore/client`, `@livestore/react`, `@livestore/sync-cf`,
+  `@effect-atom/atom-livestore` — peer deps declared on `admin-shell` from M3
+  onward
 
 **Internal (consumed by `@voila/content-cli`):**
 - `effect` — `RegistryService` Effect program (resolution logic only, not vended)
@@ -144,7 +200,8 @@ voila list
 // Vended table route — what the user owns after `voila add posts-table`
 // app/routes/admin/collections.posts.index.tsx
 import { createFileRoute } from "@tanstack/react-router"
-import { useContentClient } from "@voila/content/client/react"
+import { Atom, useAtomValue } from "@effect-atom/atom-react"
+import { postsListAtom } from "~/lib/voila-atoms"
 import { DataTable } from "~/components/admin/data-table"
 
 export const Route = createFileRoute("/admin/collections/posts/")({
@@ -152,8 +209,10 @@ export const Route = createFileRoute("/admin/collections/posts/")({
 })
 
 function PostsListPage() {
-  const client = useContentClient()
-  // ... TanStack Query + TanStack Table — no Effect in sight
+  const posts = useAtomValue(postsListAtom)
+  if (posts._tag !== "Success") return <Skeleton />
+  return <DataTable rows={posts.value.data} />
+  // In M3+, postsListAtom dispatches to a LiveStore reactive query — same atom shape.
 }
 ```
 
