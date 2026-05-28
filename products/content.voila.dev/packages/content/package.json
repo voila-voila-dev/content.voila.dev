@@ -3,11 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./server": "./src/server/index.ts",
-    "./client": "./src/client/index.ts",
-    "./queue/inline": "./src/queue/inline.ts",
-    "./queue/cloudflare": "./src/queue/cloudflare.ts"
+    ".": "./src/define.ts"
   },
   "publishConfig": {
     "access": "public"
@@ -16,10 +12,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "effect": "^3.21.2",
-    "@effect/platform": "^0.96.1",
-    "@voila/content-schema": "workspace:*",
-    "@voila/content-sql": "workspace:*"
+    "effect": "^3.21.2"
   },
   "devDependencies": {
     "@voila/typescript-config": "workspace:*"
