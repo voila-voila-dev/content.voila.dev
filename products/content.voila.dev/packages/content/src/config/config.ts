@@ -1,13 +1,13 @@
 import { Schema } from "effect";
 import type { Branding } from "./branding";
-import type { Collection } from "./collection";
-import type { FieldMeta } from "./fields/_annotation";
-import { VoilaField, VoilaInner } from "./fields/_annotation";
-import type { Locale } from "./fields/_locale";
-import type { NarrowFields } from "./fields/_localized";
-import type { FieldsMap } from "./fields/_map";
 import type { I18nConfig } from "./i18n";
-import type { Singleton } from "./singleton";
+import type { Collection } from "./schema/collection";
+import type { FieldMeta } from "./schema/fields/_annotation";
+import { VoilaField, VoilaInner } from "./schema/fields/_annotation";
+import type { Locale } from "./schema/fields/_locale";
+import type { NarrowFields } from "./schema/fields/_localized";
+import type { FieldsMap } from "./schema/fields/_map";
+import type { Singleton } from "./schema/singleton";
 
 export type CollectionMap = Readonly<Record<string, Collection>>;
 export type SingletonMap = Readonly<Record<string, Singleton>>;

@@ -1,4 +1,4 @@
-import type { Locale } from "./fields/_locale";
+import type { Locale } from "./schema/fields/_locale";
 
 /**
  * i18n selection. `locales` is a tuple of BCP 47 tags from the canonical

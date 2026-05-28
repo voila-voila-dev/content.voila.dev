@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { Schema } from "effect";
-import { defineCollection } from "./collection";
 import { defineConfig } from "./config";
-import * as fields from "./fields";
-import { defineSingleton } from "./singleton";
+import { defineCollection } from "./schema/collection";
+import * as fields from "./schema/fields";
+import { defineSingleton } from "./schema/singleton";
 
 describe("defineConfig", () => {
   const posts = defineCollection({

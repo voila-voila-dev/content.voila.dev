@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { defineConfig } from "../config";
 import { defineCollection } from "./collection";
-import { defineConfig } from "./config";
 import * as fields from "./fields";
 import type { InferDoc, InferSingleton } from "./infer";
 import { defineSingleton } from "./singleton";

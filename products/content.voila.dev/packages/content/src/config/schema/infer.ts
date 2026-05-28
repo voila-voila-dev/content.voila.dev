@@ -3,8 +3,8 @@
 // these types instead of re-deriving the shape of a collection ad hoc.
 
 import type { Schema } from "effect";
+import type { NormalizedConfig } from "../config";
 import type { Collection } from "./collection";
-import type { NormalizedConfig } from "./config";
 import type { FieldsMap } from "./fields/_map";
 import type { Singleton } from "./singleton";
 
