@@ -347,6 +347,49 @@ safety; RBAC denies visible in audit log.
 
 ---
 
+## M8 — WordPress import (week 17–18)
+
+Goal: `voila import wordpress --url <site>` ingests a live WordPress site and
+migrates it into Voila — inferring a schema, mapping content, and landing
+typed documents with media — in one command (no plugin install on the source).
+
+### `@voila/content-wordpress` (importer)
+- [ ] Source adapter: discover + read via the WP REST API (`/wp-json/wp/v2/*`,
+  cursor/`X-WP-Total` pagination, ETag caching); fall back to a WXR (`wp.xml`)
+  export upload when REST is disabled or auth-gated.
+- [ ] Schema inference: derive `defineCollection`s from WP post types (`posts`,
+  `pages`, CPTs) + taxonomies (categories, tags) → `relation` fields; map ACF /
+  registered meta to typed fields (sniff `string`/`number`/`boolean`/`date`/
+  `select`); emit a reviewable schema diff before write (`--dry-run`).
+- [ ] Content mapping: Gutenberg blocks + classic HTML → the `@voila/rich-text`
+  AST (one converter per core block; unknown blocks preserved as raw-HTML
+  nodes, logged); shortcodes flagged; `slug`/`status`/`date`/author/excerpt/
+  featured-image carried over.
+- [ ] Media: stream the media library to the configured store; rewrite in-body
+  URLs to the new asset paths; dedupe by content hash.
+- [ ] Idempotent + resumable: WP IDs recorded in an import manifest so re-runs
+  upsert (not duplicate); `--since` for incremental syncs; redirect map
+  (old permalink → new slug) emitted for the host.
+- [ ] CLI: `voila import wordpress --url <site> [--wxr <file>] [--dry-run]
+  [--collection-map <file>]`; progress + a final report (counts, skipped,
+  warnings, unmapped blocks/meta).
+
+### Testing bar (M8)
+- [ ] Block-converter goldens (fixture WXR + REST captures → expected docs);
+  schema-inference snapshots across post types/taxonomies/ACF; pagination +
+  resume + idempotent re-run tests; media rewrite + dedupe; permalink
+  redirect-map correctness; E2E: import a seeded WP instance, assert typed docs
+  render in the admin and via `client.posts`.
+
+**Exit:** a real WordPress blog (posts, pages, ≥1 CPT, media, taxonomies)
+imports clean; re-run is a no-op; content renders with no data loss beyond
+logged unmapped blocks.
+
+> Scope note: this is a **single-source** WordPress importer, not the
+> general "multi-CMS migrators" excluded in the non-goals below.
+
+---
+
 ## Decommission track (runs M0–M2)
 
 Because the new names reuse most existing ones (Canon §3 migration note), this is
