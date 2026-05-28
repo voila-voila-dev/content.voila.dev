@@ -12,7 +12,6 @@ export const Default: StoryObj = {
     <Carousel.Root className="w-72">
       <Carousel.Content>
         {Array.from({ length: 5 }).map((_, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: stable demo slides
           <Carousel.Item key={i}>
             <Card.Root className="flex aspect-square items-center justify-center text-4xl font-semibold">
               {i + 1}
