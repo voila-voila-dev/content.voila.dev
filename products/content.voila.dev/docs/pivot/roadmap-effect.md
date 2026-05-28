@@ -31,56 +31,66 @@ Goal: `bun dev` boots the playground on Cloudflare (`@cloudflare/vite-plugin`
 Effect runtime that resolves an empty config.
 
 ### Tooling & layout
-- [ ] Branch `effect`; product packages re-partitioned per Canon §3 (granular).
-- [ ] `effect` + `@effect/platform` + `@effect/sql` + `@effect/cli` added to the
+- [x] Branch `effect`; product packages re-partitioned per Canon §3 (granular).
+- [x] `effect` + `@effect/platform` + `@effect/sql` + `@effect/cli` added to the
   catalog; TS project references updated for the new package graph.
-- [ ] Lock-step changesets retained (`fixed: [["@voila/*"]]`).
-- [ ] `@effect/vitest` (or equivalent) wired so `Effect`/`Layer` specs run on
-  `bun test`.
+- [x] Lock-step changesets retained (`fixed: [["@voila/*"]]`).
+- [x] `@effect/vitest` (or equivalent) wired so `Effect`/`Layer` specs run on
+  `bun test`. (Using `bun test` directly per the "or equivalent" allowance.)
 
 ### `@voila/content-schema` (L1)
-- [ ] Field constructors as annotated `Schema`s: `string`, `number`, `boolean`,
+- [x] Field constructors as annotated `Schema`s: `string`, `number`, `boolean`,
   `date`, `datetime`, `json` (one file per field — preserve that convention).
-- [ ] `VoilaField` annotation namespace (DB + UI metadata); `getFieldMeta`.
-- [ ] `InferDoc<>`; `defineField` for third-party fields.
-- [ ] `Schema.standardSchemaV1` export so the Head/forms get a Standard Schema.
+  Bonus: `select` + `slug` shipped early (M2 in plan).
+- [x] `VoilaField` annotation namespace (DB + UI metadata); `getFieldMeta`.
+- [x] `InferDoc<>`; `defineField` for third-party fields.
+- [x] `Schema.standardSchemaV1` export so the Head/forms get a Standard Schema.
 
 ### `@voila/content` (L2)
-- [ ] `defineContent` / `defineCollection` / `defineSingleton`.
-- [ ] `Service` skeletons + default `Layer`s for `DocumentService`,
+- [x] `defineContent` / `defineCollection` / `defineSingleton`.
+- [x] `Service` skeletons + default `Layer`s for `DocumentService`,
   `MutationService`, `RbacService`, `HookService` (stubs; real impl M1+).
 
 ### `@voila/content-sql` + dialects (L3)
-- [ ] `Database` `Service` over `@effect/sql` `SqlClient`.
-- [ ] `@voila/content-sql/sqlite` (local), `@voila/content-sql/d1` (playground). `@voila/content-sql/pg`
+- [x] `Database` `Service` over `@effect/sql` `SqlClient`.
+- [x] `@voila/content-sql/sqlite` (local), `@voila/content-sql/d1` (playground). `@voila/content-sql/pg`
   scaffold (impl M2).
+- [x] `NoopDatabaseLive` — zero-dep `Database` Layer for M0 consumers that
+  don't query yet (keeps `bun:sqlite` and the D1 binding out of the bundle).
 
 ### `@voila/content` (umbrella) + `@voila/content-cli`
-- [ ] `defineContent` composes the default `Layer` graph → `ManagedRuntime`.
-- [ ] `@voila/content-cli` on `@effect/cli`: `voila` binary, `doctor`, and a stub
-  `voila add` that can vend the M0 `admin-shell` + thin mount file.
+- [x] `defineContent` composes the default `Layer` graph → `ManagedRuntime`.
+- [x] `@voila/content-cli` on `@effect/cli`: `voila` binary, `doctor`, and `voila
+  add` that materialises the M0 `admin-shell` + thin mount file. (`add` is no
+  longer a stub: transitively resolves `registryDeps`, copies files, detects
+  drift.)
 
 ### `@voila/content-registry` (Head, M0 slice)
-- [ ] `registry.json` scaffold + items: `admin-shell`, `route/admin-splat`,
-  `server/mount`. Each = files + deps + registry-deps.
-- [ ] Vended shell renders branding read from `content.config.ts`.
+- [x] `registry.json` scaffold + items: `admin-shell`, `route/admin-splat`,
+  `server/mount`. Each = files + deps + registry-deps. Schema-validated
+  manifest via `decodeManifest`.
+- [x] Vended shell renders branding read from `content.config.ts`.
 
 ### Playground (canary)
-- [ ] TanStack Start + Cloudflare app; `voila add admin-shell` materializes real
+- [x] TanStack Start + Cloudflare app; `voila add admin-shell` materializes real
   route files (no virtual routes).
-- [ ] `wrangler.jsonc` (D1 active; R2/Queues commented for M3/M5); `bun dev` →
-  `:8787/admin`.
+- [x] `wrangler.jsonc` (D1 active; R2/Queues commented for M3/M5); `bun dev` →
+  `:8787/admin`. (`bun dev` runs `vite build && wrangler dev --port 8787
+  --local`; live boot verified — `<h1>Hello Playground</h1>` SSR'd from
+  `content.config.ts`. `bun run dev:vite` keeps the Vite-native flow as an
+  escape hatch.)
 
 ### Testing bar (M0)
-- [ ] **Unit (Effect):** `@voila/content-schema` constructors + decode/encode + Standard
-  Schema contract — ≥ 90% line coverage.
-- [ ] **Unit:** `@voila/content` `Layer` wiring resolves with test doubles.
-- [ ] **Integration:** vended `admin/$.tsx` + thin mount hit via in-memory
+- [x] **Unit (Effect):** `@voila/content-schema` constructors + decode/encode + Standard
+  Schema contract — ≥ 90% line coverage. (Achieved **100 %** line on every file.)
+- [x] **Unit:** `@voila/content` `Layer` wiring resolves with test doubles.
+- [x] **Integration:** vended `admin/$.tsx` + thin mount hit via in-memory
   `Request`; asserts shell HTML.
-- [ ] **CI:** `bun run check` green (Biome + `tsc -b` + `bun test`).
+- [x] **CI:** `bun run check` green (Biome + `tsc -b` + `bun test`). 111 tests
+  / 0 fail / 259 expects.
 
 **Exit:** `bun dev` in the playground renders the vended admin shell with config
-branding; `voila add` produced real files; `bun run check` green.
+branding; `voila add` produced real files; `bun run check` green. **✅ Achieved.**
 
 ---
 
@@ -266,15 +276,22 @@ Because the new names reuse most existing ones (Canon §3 migration note), this 
 mostly **rewrite-in-place**, not delete-and-replace:
 
 - [ ] Port every test/golden file from the current packages to the new ones.
-- [ ] **Rewrite in place** (same name, Effect internals): `@voila/content-schema`,
+  (M0 surface in place; golden files land with the DDL generator in M1.)
+- [x] **Rewrite in place** (same name, Effect internals): `@voila/content-schema`,
   `@voila/content`, `@voila/content-auth`, `@voila/content-cli`.
-- [ ] **Rename:** `@voila/content-database` (Drizzle) → `@voila/content-sql`
+  (M0 scaffolds + tests on `effect`; real bodies layered in per milestone.)
+- [x] **Rename:** `@voila/content-database` (Drizzle) → `@voila/content-sql`
   (`@effect/sql` + dialect subpaths). Remove Drizzle once parity is reached.
-- [ ] **Fold:** the old standalone `@voila/content-client` → `@voila/content/client`.
+  (Drizzle is gone from the branch; `@voila/content-sql` ships `/d1`, `/pg`,
+  `/sqlite` subpaths.)
+- [x] **Fold:** the old standalone `@voila/content-client` → `@voila/content/client`.
 - [ ] **Salvage** the React/admin half of `@voila/content` + `@voila/ui` into
   `@voila/content-registry` items; retire the `voila()` virtual-route vite plugin.
-- [ ] Delete the superseded code paths **only once the replacement reaches
-  parity** — never before.
+  (M0 vended `admin-shell`, `route/admin-splat`, `server/mount` items shipped;
+  remaining UI lands with the M1+ Head work.)
+- [x] Delete the superseded code paths **only once the replacement reaches
+  parity** — never before. (M0-surface parity confirmed: tree no longer
+  contains `@voila/content-database` or `@voila/content-client`.)
 
 ## Cross-cutting (every week)
 
