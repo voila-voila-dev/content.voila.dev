@@ -11,7 +11,7 @@ CREATE TABLE "everything" (
   "published_date" DATE,
   "published_at" TIMESTAMPTZ NOT NULL,
   "schedule" TIME,
-  "runtime" TEXT,
+  "runtime" BIGINT,
   "slug" TEXT,
   "status" TEXT NOT NULL,
   "tags" JSONB,

@@ -66,8 +66,9 @@ const columnTypeFor = (meta: FieldMetaLite): ColumnSchema["type"] => {
     case "time":
       return TIME_ONLY;
     case "duration":
-      // Stored as an ISO-8601 duration string (`P1DT2H`).
-      return TEXT;
+      // Stored as a non-negative integer number of seconds (matches the
+      // `Schema.Int` field type); rendered to an ISO-8601 string at the edge.
+      return INTEGER;
     case "position":
       return REAL;
     case "relation":

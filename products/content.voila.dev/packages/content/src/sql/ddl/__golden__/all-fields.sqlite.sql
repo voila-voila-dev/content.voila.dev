@@ -11,7 +11,7 @@ CREATE TABLE "everything" (
   "published_date" TEXT,
   "published_at" INTEGER NOT NULL,
   "schedule" TEXT,
-  "runtime" TEXT,
+  "runtime" INTEGER,
   "slug" TEXT,
   "status" TEXT NOT NULL,
   "tags" TEXT,

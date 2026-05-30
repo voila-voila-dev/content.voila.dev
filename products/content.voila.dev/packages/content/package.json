@@ -2,9 +2,17 @@
   "name": "@voila/content",
   "version": "0.1.0",
   "type": "module",
+  "bin": {
+    "voila": "./src/cli/bin.ts"
+  },
   "exports": {
     ".": "./src/index.ts",
-    "./sql": "./src/sql/index.ts"
+    "./sql": "./src/sql/index.ts",
+    "./server": "./src/server/index.ts",
+    "./client": "./src/client/index.ts",
+    "./client/atoms": "./src/client/atoms.ts",
+    "./auth": "./src/auth/index.ts",
+    "./cli": "./src/cli/index.ts"
   },
   "publishConfig": {
     "access": "public"
@@ -13,9 +21,19 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@effect-atom/atom": "^0.5.3",
+    "@effect/cli": "^0.75.1",
+    "@effect/platform": "^0.96.1",
+    "@effect/platform-bun": "^0.89.0",
+    "@effect/rpc": "^0.75.1",
+    "@effect/sql": "^0.51.1",
+    "@effect/sql-d1": "^0.49.0",
+    "@effect/sql-sqlite-bun": "^0.52.0",
+    "better-auth": "^1.6.11",
     "effect": "^3.21.2"
   },
   "devDependencies": {
-    "@voila/typescript-config": "workspace:*"
+    "@voila/typescript-config": "workspace:*",
+    "miniflare": "^4.20260526.0"
   }
 }

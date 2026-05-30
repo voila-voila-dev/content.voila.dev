@@ -9,48 +9,116 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AdminSplatRouteImport } from './routes/admin/$'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminCollectionIndexRouteImport } from './routes/admin/$collection/index'
+import { Route as AdminCollectionIdRouteImport } from './routes/admin/$collection/$id'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminSplatRoute = AdminSplatRouteImport.update({
-  id: '/admin/$',
-  path: '/admin/$',
-  getParentRoute: () => rootRouteImport,
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCollectionIndexRoute = AdminCollectionIndexRouteImport.update({
+  id: '/$collection/',
+  path: '/$collection/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCollectionIdRoute = AdminCollectionIdRouteImport.update({
+  id: '/$collection/$id',
+  path: '/$collection/$id',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin/$': typeof AdminSplatRoute
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/login': typeof LoginRoute
+  '/admin/': typeof AdminIndexRoute
+  '/admin/$collection/$id': typeof AdminCollectionIdRoute
+  '/admin/$collection/': typeof AdminCollectionIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin/$': typeof AdminSplatRoute
+  '/login': typeof LoginRoute
+  '/admin': typeof AdminIndexRoute
+  '/admin/$collection/$id': typeof AdminCollectionIdRoute
+  '/admin/$collection': typeof AdminCollectionIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin/$': typeof AdminSplatRoute
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/login': typeof LoginRoute
+  '/admin/': typeof AdminIndexRoute
+  '/admin/$collection/$id': typeof AdminCollectionIdRoute
+  '/admin/$collection/': typeof AdminCollectionIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin/$'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/admin/'
+    | '/admin/$collection/$id'
+    | '/admin/$collection/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin/$'
-  id: '__root__' | '/' | '/admin/$'
+  to:
+    | '/'
+    | '/login'
+    | '/admin'
+    | '/admin/$collection/$id'
+    | '/admin/$collection'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/admin/'
+    | '/admin/$collection/$id'
+    | '/admin/$collection/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminSplatRoute: typeof AdminSplatRoute
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -58,19 +126,50 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/$': {
-      id: '/admin/$'
-      path: '/admin/$'
-      fullPath: '/admin/$'
-      preLoaderRoute: typeof AdminSplatRouteImport
-      parentRoute: typeof rootRouteImport
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/$collection/': {
+      id: '/admin/$collection/'
+      path: '/$collection'
+      fullPath: '/admin/$collection/'
+      preLoaderRoute: typeof AdminCollectionIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/$collection/$id': {
+      id: '/admin/$collection/$id'
+      path: '/$collection/$id'
+      fullPath: '/admin/$collection/$id'
+      preLoaderRoute: typeof AdminCollectionIdRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
   }
 }
 
+interface AdminRouteRouteChildren {
+  AdminIndexRoute: typeof AdminIndexRoute
+  AdminCollectionIdRoute: typeof AdminCollectionIdRoute
+  AdminCollectionIndexRoute: typeof AdminCollectionIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminIndexRoute: AdminIndexRoute,
+  AdminCollectionIdRoute: AdminCollectionIdRoute,
+  AdminCollectionIndexRoute: AdminCollectionIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminSplatRoute: AdminSplatRoute,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -30,3 +30,5 @@ export * as rt from "./config/schema/fields/rich-text";
 export type { InferDoc, InferFields, InferSingleton } from "./config/schema/infer";
 export type { Singleton, SingletonDef } from "./config/schema/singleton";
 export { defineSingleton } from "./config/schema/singleton";
+export type { Content, ContentDefinition } from "./content";
+export { defineContent } from "./content";

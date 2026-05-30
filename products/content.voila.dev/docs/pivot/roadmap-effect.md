@@ -103,55 +103,202 @@ branding; `voila add` produced real files; `bun run check` green. **✅ Achieved
   postgres `CREATE TABLE` / `CREATE INDEX`. ULIDs minted by
   `Database.insert` (no DB default on `id`); `createdAt`/`updatedAt` keep
   DB-side defaults so raw INSERTs stay sane.
-- [ ] **`@voila/content-sql`:** `voila migrate generate|apply` (sqlite +
-  `--target d1-local|d1-remote`) via `@effect/sql/Migrator`.
-- [ ] **`@voila/content/server`:** the `voilaRpc` `RpcGroup` definition
+- [x] **`@voila/content-sql`:** `voila migrate generate|apply` (sqlite +
+  `--target d1-local|d1-remote`) via `@effect/sql/Migrator`. `generate` derives
+  the full DDL (no diffing yet — M4+) into `migrations/NNNN_name.sql`; `apply`
+  runs them through a custom `.sql` loader (journal = `effect_sql_migrations`).
+  D1 can't bind a `SqlClient` from a CLI, so `d1-local|d1-remote` shell out to
+  `wrangler d1 migrations apply --local|--remote` over the same files
+  (tracked in D1's `d1_migrations`). CLI on `@effect/cli` under the Bun platform
+  layer. Lives in `@voila/content` subpaths (`/sql`, `/cli`), not split-out
+  packages yet.
+- [x] **`@voila/content/server`:** the `voilaRpc` `RpcGroup` definition
   (`@effect/rpc`); read procedures — `posts.list` (`?limit/cursor/orderBy`),
   `posts.find`, `posts.findOne`. Cursor pagination. Error envelope via typed
-  `Rpc.Error` → envelope mapping. Mount at `/admin/api/rpc`.
-- [ ] **`@voila/content/server`:** **Rpc→HttpApi derivation spike.** Attempt
+  `Rpc.Error` → envelope mapping. Mount at `/admin/api/rpc`. (Group generated
+  per-collection (`<slug>.list|find|findOne`); **typed from the config** — the
+  runtime builds the group dynamically but its type is derived via
+  `VoilaRpcs<typeof config>` (mapped type reusing each collection's field schemas
+  through `InferFields`), so `RpcClient`/`RpcTest` nest dotted tags into a fully
+  typed `client.posts.find({id}): Effect<Post, NotFound>` — no codegen, no facade.
+  Procedures carry the real per-collection document `Schema` (`systemColumns` +
+  fields); handlers decode rows through it. `find`=by-id → `NotFound`,
+  `findOne`=by-field → nullable. Added a `Database.findOne(field)` primitive.
+  Typed errors `NotFound`/`BadRequest`/`InternalError` (`Schema.TaggedError`) +
+  `toErrorEnvelope` → `{ error: { code, ... } }`. Mount is an `HttpApp` via
+  `RpcServer.toHttpApp` (`toVoilaRpcHttpApp`, JSON serialization) so the platform
+  runtime stays in the host. Lives in the `@voila/content` `/server` subpath.)
+- [x] **`@voila/content/server`:** **Rpc→HttpApi derivation spike.** Attempt
   first-class derivation; if envelope / pagination / middleware semantics
   don't carry, ship a thin parallel `HttpApi` reusing the same `Schema`s and
-  handler `Effect`s. Decision recorded as ADR.
-- [ ] **`@voila/content/client`:** Effect-native typed client derived via
+  handler `Effect`s. Decision recorded as ADR. (No derivation exists in
+  `@effect/rpc@0.75.1` → shipped a **thin parallel `HttpApi`** (`server/httpapi.ts`)
+  sharing a new `server/read-core.ts` (`makeReadCore`) + the same document/payload/
+  error schemas with the RPC group. Per-collection GET endpoints; envelope errors
+  with stable status (404/400/500/401); `HttpSessionMiddleware` reuses
+  `Auth.requireSession`; `voilaOpenApi` via `OpenApi.fromApi`. ADR
+  `docs/pivot/adr/0001-rpc-to-httpapi.md`.)
+- [x] **`@voila/content/client`:** Effect-native typed client derived via
   `RpcClient.make`; `client.posts.find/findOne/list` return `Effect`/`Stream`.
-  Thin `createAsyncClient` sugar for non-atom call sites. Type tests.
-- [ ] **`@voila/content-auth`:** Better Auth bridged as a `Layer`; magic-link mailer
+  Thin `createAsyncClient` sugar for non-atom call sites. Type tests. (`/client`
+  subpath: `makeVoilaClient(config, {url})` = the typed nested `RpcClient` over an
+  HTTP protocol (`Effect<VoilaClient<C>, never, Scope>`, run inside a scope);
+  `createAsyncClient(config, {url})` = Promise sugar holding a long-lived scope,
+  rejecting with the typed error via `Cause.squash`, `.dispose()` to tear down.
+  Both fully typed from the config — no codegen. `list` returns an `Effect` of a
+  cursor page (not a `Stream` yet — revisit if streaming pagination is needed).
+  Type assertions inline. E2E over **real HTTP** (loopback `Bun.serve`) in
+  `client/client.test.ts`.)
+- [x] **`@voila/content-auth`:** Better Auth bridged as a `Layer`; magic-link mailer
   `Layer` (Resend→SMTP→console); session as `Rpc.Middleware` (and on the
-  derived HttpApi).
+  derived HttpApi). (Lives in the `@voila/content` `/auth` subpath, not a
+  split-out package yet. `Auth` `Service` tag (`getSession`/`requireSession`/
+  `handler`) — the engine depends on the tag, never on Better Auth, so
+  `BetterAuthLive` is swappable for Clerk/custom JWT. **Better Auth bridged over
+  the engine's `@effect/sql` `SqlClient`** via a custom `createAdapter`
+  (single shared connection — no second driver/pool); the adapter converts
+  date↔epoch-ms and boolean↔0/1 at the SQL boundary using Better Auth's
+  authoritative per-column schema, and implements atomic `consumeOne`
+  (`DELETE … RETURNING *`) for one-time magic-link tokens. Auth-table DDL
+  (`authTableStatements`/`authTablesSql`) is **wired into the Migrator**: `voila
+  migrate generate` appends the four Better Auth tables by default (`--no-auth`
+  to omit; sqlite/d1 only — pg auth DDL is M2), so one `apply` provisions auth +
+  collections. `Mailer` is a `Context.Tag`
+  with `ConsoleMailerLive`/`ResendMailerLive`/`SmtpMailerLive` + env-driven
+  `resolveMailerLayer`; the magic-link callback runs the resolved `Mailer` effect
+  through the layer's captured `Runtime`. `SessionMiddleware` (`RpcMiddleware.Tag`)
+  provides `CurrentSession` / fails typed `Unauthorized` (envelope
+  `code: "UNAUTHORIZED"`). **Enforced on the mount** via `toVoilaRpcHttpApp(config,
+  { …, auth })` — passing an `Auth` layer wraps the read group with
+  `SessionMiddleware` and builds the middleware into the host scope; omit `auth`
+  to serve unauthenticated (reads are session-only — CSRF lands on mutations in
+  M2). The HttpApi half reuses `Auth.requireSession` once the Rpc→HttpApi
+  derivation spike above lands — not built yet. Tested end to end: E2E magic-link
+  flow (sign-in → verify → session) over the real Better Auth instance, plus a
+  **real-HTTP enforcement** test (loopback `Bun.serve` + `RpcClient`) asserting
+  no-cookie → typed `Unauthorized` off the wire and a minted session cookie →
+  read succeeds; 19 specs.)
+- [x] **Umbrella auto-wiring (`defineContent` + `makeHandler`).** `defineContent({
+  branding, collections, database, auth?, secret?, env? })` composes the runtime
+  `Layer` graph: the `Database` service over the given `SqlClient` connection
+  and, when `auth` is set, `BetterAuthLive` with the `Mailer` **resolved from
+  `env`** (Resend→SMTP→console) — both sharing that one connection. `secret` is
+  required when `auth` is set (throws otherwise). `makeHandler(content)`
+  (`@voila/content/server`) mounts the RPC app from the composed `Content`,
+  enforcing the session automatically when auth is present. So a project gets
+  auth + an enforced API from `content.config.ts` alone — no hand-wired layers.
+  Playground realigned to this API. Tested: config normalization, auth
+  presence/absence + secret-required throw, and an end-to-end pass where a
+  magic-link session minted through `content.auth` (console mailer recovered via
+  a `console.log` spy) is accepted by the `makeHandler` app while an
+  unauthenticated read is rejected.)
 
 ### Head (registry items)
-- [ ] `lib/voila-atoms` registry item — per-collection atom factory derived
+- [x] `lib/voila-atoms` registry item — per-collection atom factory derived
   from `@voila/content/client/atoms`. **Backend = RPC client (`@effect/rpc`)
   in M1; swapped to `@effect-atom/atom-livestore` over the project LiveStore
   in M3** with identical atom shape, so vended components don't change when
-  the sync engine lands.
-- [ ] `collection-table` (TanStack Table, columns from `list.columns`; rows
-  fed by an `Atom.pull` paginated atom), `collection-detail` (read-only
-  renderers driven by `useAtomValue`), `singleton-view`, `sidebar` (from
-  registry), skeletons + empty states, `login`.
+  the sync engine lands. (Engine half shipped: `@voila/content/client/atoms`
+  exports `makeVoilaAtoms(config, { url })` → `{ runtime, collections }`, where
+  `collections.<slug>.{list,find,findOne}` are `Atom.family`-memoized atoms
+  yielding `Result<Doc, …>` over the typed `makeVoilaClient` (`@effect-atom/atom`
+  `Atom.runtime` owning the RPC client; structural `Data.struct` keys dedupe by
+  input). Typed from the config — no codegen. Tested in `client/atoms.test.ts`
+  against a real loopback `Bun.serve` RPC app (list/find/findOne + typed
+  `NotFound`, nullable `findOne`, structural memoization). **Vended file shipped:**
+  `apps/playground/src/lib/voila-atoms.ts` = `makeVoilaAtoms(config, { url:
+  "/admin/api/rpc" })`. Vended **directly into the playground** (no
+  `@voila/content-registry` package this milestone — see decision below); the
+  files carry the `// VENDED by @voila/content-registry` marker for when the
+  registry packaging lands.)
+- [x] `collection-table` (TanStack Table, columns from collection fields; rows
+  from the `list` atom via `useAtomValue`), `collection-detail` (read-only field
+  renderers), `sidebar` (collections from config), skeletons + empty + error
+  states, `login` (magic-link). Vended into `apps/playground/src/{components,routes}`
+  with Tailwind v4 + a small shadcn-style primitive set (`components/ui/*`). Routes
+  are per-collection (`/admin/$collection`, `/admin/$collection/$id`) per the
+  per-endpoint-route convention, not a splat. `singleton-view` **deferred** — the
+  playground config has no singleton yet; it mirrors `collection-detail` over a
+  `findOne`-style atom. **Decision:** vend directly (not via a registry package)
+  for M1; build the `@voila/content-registry` packaging (`registry.json`, manifest,
+  `voila add`) in a later milestone.
 - [ ] SSR read loaders forward the `Cookie` header **and pre-populate
-  effect-atom via `Atom.set` so the client hydrates without a fetch waterfall.**
+  effect-atom so the client hydrates without a fetch waterfall.** **Deferred
+  (documented):** the functional flow works via client-side atom fetching (the
+  browser sends the HttpOnly session cookie same-origin), and the M1 exit E2E
+  passes that way. True no-waterfall hydration needs `makeVoilaAtoms` to set
+  **stable atom keys** so a server-dehydrated `Registry` matches the client atoms
+  (auto-keys differ across instances); `@tanstack/react-start`'s
+  `getRequestHeaders` is available to forward the cookie once that engine support
+  lands. Tracked as the one remaining M1 Head item.
 
 ### Testing bar (M1)
 - [x] **Unit:** schema→DDL generator — golden files per field type. Goldens
   committed under `src/ddl/__golden__/all-fields.{sqlite,postgres}.sql`;
   `UPDATE_GOLDENS=1 bun test` regenerates. 123/0 fail at commit.
-- [ ] **Integration (RPC):** read procedures against real SQLite (per-test
-  file) using a test `Layer`; in-memory RPC transport.
-- [ ] **Integration (D1):** read procedures against `wrangler dev`/Miniflare D1.
-- [ ] **Type:** client inference (`tsd`-style) — both RPC client and
-  `createAsyncClient` sugar.
-- [ ] **Type / runtime (derivation):** Rpc→HttpApi derivation produces the
+- [x] **Integration (RPC):** read procedures against real SQLite (per-test
+  file) using a test `Layer`; in-memory RPC transport. (`src/server/rpc.test.ts`
+  via `RpcTest.makeClient` — the **typed** nested client (`client.posts.list/find/findOne`),
+  which also proves config→client type flow: explicit field annotations fail `tsc`
+  if mistyped. Covers list pagination, `find` NotFound, `findOne` nullable,
+  `BadRequest` mapping; `:memory:` SQLite seeded per spec.)
+- [x] **Integration (HTTP mount):** `toVoilaRpcHttpApp` served on a loopback
+  `Bun.serve`, read by a real `RpcClient` over `FetchHttpClient` + JSON
+  serialization (`src/server/mount.test.ts`) — exercises real wire framing, not
+  just the in-memory `RpcTest` transport. (Surfaced + fixed a connection-lifetime
+  bug: the mount now builds its layer into the ambient scope via `Layer.build`.)
+- [x] **Unit (field round-trip + dialect):** `Type ≠ Encoded` fields
+  (datetime/date/localized/boolean/duration) round-trip through the typed client
+  (`src/server/rpc-fields.test.ts`); the `Database` read layer's `mapRow`
+  normalizes both SQLite- and Postgres-shaped raw rows to one canonical document
+  (`src/sql/database/maprow.test.ts`). **Live Postgres is NOT covered here** — the
+  read-mapping *logic* is verified for pg-shaped values, but the pg client `Layer`
+  + an against-real-Postgres test are M2 (see `@voila/content-sql/pg`), not claimed
+  done in M1.
+- [x] **Integration (D1):** read procedures against `wrangler dev`/Miniflare D1.
+  (`sql/client/d1.test.ts` — **in-process Miniflare** (`miniflare@4`) D1 binding →
+  `D1Live` (`@effect/sql-d1`) → the real `makeVoilaRpcHandlers` stack via `RpcTest`;
+  opt-in `D1=1`. Chose in-process Miniflare over a spawned `wrangler dev` — same
+  driver, faster, less flaky. The playground worker serving the endpoint over D1
+  lands with the Head slice.)
+- [x] **Type:** client inference (`tsd`-style) — both RPC client and
+  `createAsyncClient` sugar. (Done as inline `tsc`-checked annotations in the e2e
+  tests — `server/rpc.test.ts` (Effect client) + `client/client.test.ts` (async
+  sugar): each asserts `doc.title: string` etc., failing the build if inference
+  drifts. No separate `tsd` runner.)
+- [x] **Type / runtime (derivation):** Rpc→HttpApi derivation produces the
   same envelope shape as the RPC client per procedure; OpenAPI export
-  round-trips.
-- [ ] **Unit (atom):** atom factory — `Atom.runtime`-backed test that a list
-  atom decodes envelope, surfaces typed errors, and invalidates on mutation
-  event via `Reactivity`.
-- [ ] **E2E:** magic-link login (console mailer) → browse list → open detail.
-- [ ] Coverage gate: `@voila/content-schema` ≥ 90%, engine core ≥ 70%.
+  round-trips. (`server/httpapi.test.ts` — REST + RPC served over the same
+  SQLite file on two loopback `Bun.serve`s; asserts equal documents per
+  procedure, the 404 body `== toErrorEnvelope(rpcError)`, and
+  `OpenApi.fromApi` paths/JSON round-trip. `server/httpapi.auth.test.ts` adds
+  the 401 envelope/cookie case.)
+- [x] **Unit (atom):** atom factory — `Atom.runtime`-backed test that a list
+  atom decodes envelope and surfaces typed errors. (`client/atoms.test.ts` — real
+  loopback `Bun.serve` RPC app driven through a `Registry`; list page / find doc /
+  typed `NotFound` / nullable `findOne` / structural memoization. The
+  **invalidate-on-mutation-event via `Reactivity`** leg is M2 — mutations don't
+  exist on the read path yet.)
+- [x] **E2E:** magic-link login (console mailer) → browse list → open detail.
+  (`apps/playground/test/e2e/login-and-browse.test.ts` — Playwright Chromium
+  against `wrangler dev --local` over local D1: `/admin` redirects to `/login`,
+  submit email, grep the console-logged magic link from the worker stdout, follow
+  it (session cookie set), click into `posts`, assert the seeded row renders, open
+  its detail. Opt-in `E2E=1`; the `playwright` library inside `bun:test`, asserting
+  via `Locator.waitFor` (no Playwright `expect` matchers). The earlier
+  `auth/better-auth.test.ts` covers the auth leg at the unit level.)
+- [x] Coverage gate: `@voila/content-schema` ≥ 90%, engine core ≥ 70%.
+  (Root `test:cov:gates` runs `scripts/coverage-gate` twice over the single
+  `@voila/content` package: engine core ≥ 70% (at ~94%) and the `config/schema`
+  sub-tree ≥ 90% (at ~99%, via the gate's new path-filter arg). `content/bunfig.toml`
+  emits the scoped lcov.)
 
 **Exit:** 20-min test #1 passes; `bun test` (unit+integration+E2E) < 8 min in CI.
+**✅ Achieved** — the login→browse→detail E2E passes against `wrangler dev` over
+D1; `bun run check` green (181 pass / 0 fail; engine core 94% & schema 99%
+coverage gates pass). One documented follow-up remains (SSR no-waterfall
+hydration, above), which needs engine-side stable atom keys; it does not block the
+functional read path.
 
 ---
 
@@ -168,6 +315,15 @@ branding; `voila add` produced real files; `bun run check` green. **✅ Achieved
   `Rpc.Middleware` on every mutation procedure (reads keep session-only).
 - [ ] **`@voila/content-sql/pg`:** Postgres `Layer`; migration parity; `voila migrate
   apply --target postgres --db <url>`.
+  > **From M1 (read path):** the dialect-neutral pieces are already done and unit-tested
+  > — the `Database` read layer (`mapRow`/`normalize`) coerces Postgres-shaped raw
+  > values (Date→epoch-ms, real boolean, `bigint`→number, parsed JSONB) into the same
+  > canonical document SQLite produces (`sql/database/maprow.test.ts`, both dialect
+  > shapes asserted), and the per-collection schemas decode that canonical form. What
+  > remains for M2 is genuinely the **live** path: the pg client `Layer` (driver +
+  > connection) and an actual against-real-Postgres integration test. M1 verified the
+  > read-mapping *logic* for pg-shaped rows but did **not** run a live Postgres — that
+  > is correctly M2 scope, not something claimed done in M1.
 
 ### Head (registry items)
 - [ ] Field widgets: `string`, `number`, `boolean`, `date`/`datetime`,

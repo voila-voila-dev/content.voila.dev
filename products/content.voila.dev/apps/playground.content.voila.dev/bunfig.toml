@@ -1,0 +1,4 @@
+# Empty [test] block — shadows the repo-root bunfig so the playground's tests do
+# NOT preload happy-dom. The E2E drives a real Chromium (Playwright) against the
+# worker; the test process only needs native fetch (readiness probe), not a DOM.
+[test]
