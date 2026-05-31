@@ -55,6 +55,8 @@ export interface Content<
   readonly database: Layer.Layer<Database, DE, never>;
   /** The resolved `Auth` layer — present only when `auth` was configured. */
   readonly auth?: Layer.Layer<Auth, DE, never>;
+  /** The CSRF/session signing secret — present only when `auth` was configured. */
+  readonly secret?: string;
 }
 
 /**
@@ -93,5 +95,5 @@ export const defineContent = <
     );
   }
 
-  return { config, database, auth };
+  return { config, database, auth, secret: definition.secret };
 };

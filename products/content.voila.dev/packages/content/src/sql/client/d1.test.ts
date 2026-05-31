@@ -15,6 +15,7 @@ import { Miniflare } from "miniflare";
 import { defineConfig } from "../../config/config";
 import { defineCollection } from "../../config/schema/collection";
 import * as fields from "../../config/schema/fields";
+import { CsrfMiddlewareTestLive } from "../../server/csrf";
 import { makeVoilaRpcHandlers } from "../../server/handlers";
 import { makeVoilaRpc } from "../../server/rpc";
 import { makeDatabaseLayer } from "../database/database";
@@ -47,6 +48,7 @@ suite("D1Live — read procedures against Miniflare D1", () => {
       // read through the in-memory RpcTest transport (same as the SQLite suite).
       const layer = makeVoilaRpcHandlers(config).pipe(
         Layer.provideMerge(makeDatabaseLayer(config).pipe(Layer.provideMerge(D1Live({ binding })))),
+        Layer.merge(CsrfMiddlewareTestLive), // writes declare CsrfMiddleware
       );
       const clientEffect = RpcTest.makeClient(group);
 

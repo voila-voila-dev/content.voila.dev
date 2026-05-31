@@ -10,7 +10,7 @@
 import { HttpApp } from "@effect/platform";
 import { defineContent } from "@voila/content";
 import { Auth, type MailerEnv } from "@voila/content/auth";
-import { makeHandler } from "@voila/content/server";
+import { CSRF_COOKIE, makeHandler, mintCsrfToken } from "@voila/content/server";
 // D1 only — the worker always runs on Cloudflare (workerd), where `bun:sqlite`
 // isn't available, so we must not pull `SqliteLive` into this bundle.
 import { type D1Binding, D1Live } from "@voila/content/sql";
@@ -68,17 +68,31 @@ const build = (env: VoilaEnv | undefined, baseUrl: string) => {
 let built: ReturnType<typeof build> | undefined;
 
 /**
- * The `/admin/api/*` request handler. Routes Better Auth (`/admin/api/auth/*`)
- * and the typed RPC read app (`/admin/api/rpc`); everything else 404s (the host
- * router serves the UI). Bound per `env`; memoized across requests.
+ * The `/admin/api/*` request handler. Routes Better Auth (`/admin/api/auth/*`), the
+ * typed RPC app (`/admin/api/rpc`, reads + CSRF-guarded writes), and the CSRF token
+ * mint (`/admin/api/csrf`); everything else 404s (the host router serves the UI).
+ * Bound per `env`; memoized across requests.
  */
 export const makeVoilaFetch =
   (env: VoilaEnv | undefined) =>
   async (request: Request): Promise<Response> => {
     if (!built) built = build(env, new URL(request.url).origin);
     const { rpc, auth } = await built;
-    const { pathname } = new URL(request.url);
+    const url = new URL(request.url);
+    const { pathname } = url;
     if (pathname.startsWith("/admin/api/auth/")) return Effect.runPromise(auth.handler(request));
     if (pathname === "/admin/api/rpc") return rpc(request);
+    if (pathname === "/admin/api/csrf") {
+      // Mint a double-submit token: set the JS-readable cookie + return the value
+      // the write client echoes in `x-voila-csrf`. Same secret the mount enforces.
+      const token = await mintCsrfToken(env?.VOILA_SECRET ?? DEV_SECRET);
+      const secure = url.protocol === "https:" ? "; Secure" : "";
+      return new Response(JSON.stringify({ token }), {
+        headers: {
+          "content-type": "application/json",
+          "set-cookie": `${CSRF_COOKIE}=${token}; Path=/; SameSite=Strict${secure}`,
+        },
+      });
+    }
     return new Response("Not Found", { status: 404 });
   };

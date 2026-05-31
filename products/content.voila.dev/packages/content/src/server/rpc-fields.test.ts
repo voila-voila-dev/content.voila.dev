@@ -17,6 +17,7 @@ import { makeDatabaseLayer } from "../sql/database/database";
 import { deriveSchema } from "../sql/ddl/derive-schema";
 import { generateDDL } from "../sql/ddl/generate-ddl";
 import { splitStatements } from "../sql/migrator/loader";
+import { CsrfMiddlewareTestLive } from "./csrf";
 import { makeVoilaRpcHandlers } from "./handlers";
 import { makeVoilaRpc } from "./rpc";
 
@@ -63,6 +64,7 @@ const layer = makeVoilaRpcHandlers(config).pipe(
   Layer.provideMerge(
     makeDatabaseLayer(config).pipe(Layer.provideMerge(SqliteLive({ url: ":memory:" }))),
   ),
+  Layer.merge(CsrfMiddlewareTestLive), // writes declare CsrfMiddleware; permissive here
 );
 const clientEffect = RpcTest.makeClient(group);
 

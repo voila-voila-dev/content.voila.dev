@@ -14,7 +14,9 @@ import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminCollectionIndexRouteImport } from './routes/admin/$collection/index'
+import { Route as AdminCollectionNewRouteImport } from './routes/admin/$collection/new'
 import { Route as AdminCollectionIdRouteImport } from './routes/admin/$collection/$id'
+import { Route as AdminCollectionIdEditRouteImport } from './routes/admin/$collection/$id.edit'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -41,10 +43,20 @@ const AdminCollectionIndexRoute = AdminCollectionIndexRouteImport.update({
   path: '/$collection/',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminCollectionNewRoute = AdminCollectionNewRouteImport.update({
+  id: '/$collection/new',
+  path: '/$collection/new',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminCollectionIdRoute = AdminCollectionIdRouteImport.update({
   id: '/$collection/$id',
   path: '/$collection/$id',
   getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCollectionIdEditRoute = AdminCollectionIdEditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
+  getParentRoute: () => AdminCollectionIdRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -52,15 +64,19 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/admin/': typeof AdminIndexRoute
-  '/admin/$collection/$id': typeof AdminCollectionIdRoute
+  '/admin/$collection/$id': typeof AdminCollectionIdRouteWithChildren
+  '/admin/$collection/new': typeof AdminCollectionNewRoute
   '/admin/$collection/': typeof AdminCollectionIndexRoute
+  '/admin/$collection/$id/edit': typeof AdminCollectionIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/admin': typeof AdminIndexRoute
-  '/admin/$collection/$id': typeof AdminCollectionIdRoute
+  '/admin/$collection/$id': typeof AdminCollectionIdRouteWithChildren
+  '/admin/$collection/new': typeof AdminCollectionNewRoute
   '/admin/$collection': typeof AdminCollectionIndexRoute
+  '/admin/$collection/$id/edit': typeof AdminCollectionIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,8 +84,10 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/admin/': typeof AdminIndexRoute
-  '/admin/$collection/$id': typeof AdminCollectionIdRoute
+  '/admin/$collection/$id': typeof AdminCollectionIdRouteWithChildren
+  '/admin/$collection/new': typeof AdminCollectionNewRoute
   '/admin/$collection/': typeof AdminCollectionIndexRoute
+  '/admin/$collection/$id/edit': typeof AdminCollectionIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -79,14 +97,18 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin/'
     | '/admin/$collection/$id'
+    | '/admin/$collection/new'
     | '/admin/$collection/'
+    | '/admin/$collection/$id/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/admin'
     | '/admin/$collection/$id'
+    | '/admin/$collection/new'
     | '/admin/$collection'
+    | '/admin/$collection/$id/edit'
   id:
     | '__root__'
     | '/'
@@ -94,7 +116,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin/'
     | '/admin/$collection/$id'
+    | '/admin/$collection/new'
     | '/admin/$collection/'
+    | '/admin/$collection/$id/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -140,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCollectionIndexRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/$collection/new': {
+      id: '/admin/$collection/new'
+      path: '/$collection/new'
+      fullPath: '/admin/$collection/new'
+      preLoaderRoute: typeof AdminCollectionNewRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/$collection/$id': {
       id: '/admin/$collection/$id'
       path: '/$collection/$id'
@@ -147,18 +178,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminCollectionIdRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/$collection/$id/edit': {
+      id: '/admin/$collection/$id/edit'
+      path: '/edit'
+      fullPath: '/admin/$collection/$id/edit'
+      preLoaderRoute: typeof AdminCollectionIdEditRouteImport
+      parentRoute: typeof AdminCollectionIdRoute
+    }
   }
 }
 
+interface AdminCollectionIdRouteChildren {
+  AdminCollectionIdEditRoute: typeof AdminCollectionIdEditRoute
+}
+
+const AdminCollectionIdRouteChildren: AdminCollectionIdRouteChildren = {
+  AdminCollectionIdEditRoute: AdminCollectionIdEditRoute,
+}
+
+const AdminCollectionIdRouteWithChildren =
+  AdminCollectionIdRoute._addFileChildren(AdminCollectionIdRouteChildren)
+
 interface AdminRouteRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
-  AdminCollectionIdRoute: typeof AdminCollectionIdRoute
+  AdminCollectionIdRoute: typeof AdminCollectionIdRouteWithChildren
+  AdminCollectionNewRoute: typeof AdminCollectionNewRoute
   AdminCollectionIndexRoute: typeof AdminCollectionIndexRoute
 }
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
-  AdminCollectionIdRoute: AdminCollectionIdRoute,
+  AdminCollectionIdRoute: AdminCollectionIdRouteWithChildren,
+  AdminCollectionNewRoute: AdminCollectionNewRoute,
   AdminCollectionIndexRoute: AdminCollectionIndexRoute,
 }
 

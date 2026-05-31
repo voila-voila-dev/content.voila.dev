@@ -14,11 +14,18 @@ export interface HandlerInput<DE> {
   readonly config: NormalizedConfig;
   readonly database: import("effect").Layer.Layer<Database, DE, never>;
   readonly auth?: import("effect").Layer.Layer<Auth, DE, never>;
+  /** CSRF signing secret (present whenever `auth` is). Enables mutation CSRF. */
+  readonly secret?: string;
 }
 
 /**
  * Build the engine `HttpApp` from a composed `Content`. When `content.auth` is
- * present, every read requires a valid session; otherwise reads are public.
+ * present, every read requires a valid session; otherwise reads are public. A
+ * `secret` enables HMAC double-submit CSRF on every mutation.
  */
 export const makeHandler = <DE>(content: HandlerInput<DE>) =>
-  toVoilaRpcHttpApp(content.config, { database: content.database, auth: content.auth });
+  toVoilaRpcHttpApp(content.config, {
+    database: content.database,
+    auth: content.auth,
+    secret: content.secret,
+  });

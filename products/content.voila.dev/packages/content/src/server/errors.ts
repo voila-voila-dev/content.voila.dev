@@ -21,5 +21,28 @@ export class InternalError extends Schema.TaggedError<InternalError>()("Internal
   message: Schema.String,
 }) {}
 
+/** Write input failed schema validation. Envelope `code: "VALIDATION"`; `fields`
+ *  maps each rejected field name to its messages (mirrors the shared client decode). */
+export class ValidationError extends Schema.TaggedError<ValidationError>()("ValidationError", {
+  collection: Schema.String,
+  fields: Schema.Record({ key: Schema.String, value: Schema.Array(Schema.String) }),
+}) {}
+
+/** A unique constraint was violated. Envelope `code: "CONFLICT"`. */
+export class ConflictError extends Schema.TaggedError<ConflictError>()("ConflictError", {
+  collection: Schema.String,
+  field: Schema.NullOr(Schema.String),
+  message: Schema.String,
+}) {}
+
+/** The request failed CSRF verification. Envelope `code: "FORBIDDEN"`. */
+export class Forbidden extends Schema.TaggedError<Forbidden>()("Forbidden", {
+  message: Schema.String,
+}) {}
+
 /** The closed union of errors any read procedure can fail with. */
 export type VoilaRpcError = NotFound | BadRequest | InternalError;
+
+/** Errors a write procedure can fail with (beyond the middleware's `Unauthorized`
+ *  / `Forbidden`). `NotFound` only applies to update/delete/restore. */
+export type VoilaWriteError = ValidationError | ConflictError | NotFound | InternalError;

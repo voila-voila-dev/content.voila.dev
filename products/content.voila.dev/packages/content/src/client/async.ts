@@ -58,6 +58,10 @@ export const createAsyncClient = <C extends NormalizedConfig>(
       list: call(slug, "list"),
       find: call(slug, "find"),
       findOne: call(slug, "findOne"),
+      create: call(slug, "create"),
+      update: call(slug, "update"),
+      delete: call(slug, "delete"),
+      restore: call(slug, "restore"),
     };
   }
   return api as VoilaAsyncClient<C> & { readonly dispose: () => Promise<void> };

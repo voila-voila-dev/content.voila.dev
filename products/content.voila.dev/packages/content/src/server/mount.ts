@@ -17,6 +17,7 @@ import type { Auth } from "../auth/auth";
 import { SessionMiddleware, SessionMiddlewareLive } from "../auth/middleware";
 import type { NormalizedConfig } from "../config/config";
 import type { Database } from "../sql/database";
+import { CsrfMiddlewareLive, CsrfMiddlewareTestLive } from "./csrf";
 import { makeVoilaRpcHandlers } from "./handlers";
 import { makeVoilaRpc } from "./rpc";
 
@@ -33,6 +34,13 @@ export interface VoilaRpcMountOptions<LE, AE = never> {
    * session; omit it to serve the read path unauthenticated (tests, public reads).
    */
   readonly auth?: Layer.Layer<Auth, AE, never>;
+  /**
+   * The HMAC signing secret for CSRF. When set, mutation procedures enforce the
+   * double-submit token; omit it (tests, read-only mounts) to accept writes without
+   * a CSRF check. Write procedures always *declare* the middleware, so a permissive
+   * layer is provided when no secret is given.
+   */
+  readonly secret?: string;
 }
 
 /**
@@ -52,18 +60,19 @@ export const toVoilaRpcHttpApp = <LE, AE = never>(
   const handlers = makeVoilaRpcHandlers(config).pipe(Layer.provide(options.database));
   const serialization = options.serialization ?? RpcSerialization.layerJson;
 
-  // With `auth`, wrap the group so the server requires `SessionMiddleware`, and
+  // Write procedures always declare `CsrfMiddleware`, so the server context must
+  // provide it — the enforcing layer when a `secret` is given, else a permissive one.
+  const csrf = options.secret ? CsrfMiddlewareLive(options.secret) : CsrfMiddlewareTestLive;
+
+  // With `auth`, wrap the group so the server also requires `SessionMiddleware`, and
   // provide that middleware (built over the resolved `Auth` layer) into the scope.
   const group = options.auth
     ? makeVoilaRpc(config).middleware(SessionMiddleware)
     : makeVoilaRpc(config);
+  const base = Layer.mergeAll(handlers, serialization, csrf);
   const context = options.auth
-    ? Layer.mergeAll(
-        handlers,
-        serialization,
-        SessionMiddlewareLive.pipe(Layer.provide(options.auth)),
-      )
-    : Layer.mergeAll(handlers, serialization);
+    ? Layer.merge(base, SessionMiddlewareLive.pipe(Layer.provide(options.auth)))
+    : base;
 
   return Layer.build(context).pipe(
     // `group` is a union (authed vs not) of structurally-distinct `RpcGroup`s;

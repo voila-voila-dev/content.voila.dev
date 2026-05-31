@@ -11,10 +11,11 @@
 // the surface free of RPC specifics (no `.query`/`.mutation` tags leaking out) is
 // what makes that swap invisible.
 
-import { Atom, type Result } from "@effect-atom/atom";
-import { Context, Data, Effect, Layer } from "effect";
+import { Atom, Result } from "@effect-atom/atom";
+import { Context, Data, Effect, Layer, Schema } from "effect";
 import type { NormalizedConfig } from "../config/config";
-import type { BadRequest, InternalError, NotFound } from "../server/errors";
+import { collectionDocumentSchema } from "../server/document";
+import { BadRequest, InternalError, NotFound } from "../server/errors";
 import type { VoilaDocFor } from "../server/types";
 import { makeVoilaClient } from "./client";
 import type { FindOneInput, ListInput, ListPage, VoilaClient, VoilaClientOptions } from "./types";
@@ -85,6 +86,33 @@ const canonicalList = (input: ListInput): ListInput =>
 const canonicalFindOne = (input: FindOneInput): FindOneInput =>
   Data.struct({ field: input.field, value: input.value });
 
+// Deterministic string keys for `Atom.serializable`. Two separate `makeVoilaAtoms`
+// instances (a server one that prefetches, the browser one that renders) produce
+// the *same* key for the same read, so a server-dehydrated `Registry` hydrates the
+// client atom by key — no SSR fetch waterfall. The keys mirror the canonical inputs
+// above so equal reads collapse to one entry.
+const listKey = (slug: string, input: ListInput): string =>
+  `@voila/${slug}/list/${JSON.stringify([
+    input.limit ?? null,
+    input.cursor ?? null,
+    input.orderBy ?? null,
+    input.direction ?? null,
+  ])}`;
+
+const findKey = (slug: string, id: string): string => `@voila/${slug}/find/${id}`;
+
+const findOneKey = (slug: string, input: FindOneInput): string =>
+  `@voila/${slug}/findOne/${input.field}=${JSON.stringify(input.value)}`;
+
+// `call` produces atoms typed loosely as `Result<unknown, unknown>` (the dynamic
+// client shape), while `Result.Schema(...)` is precisely typed. `Schema` is
+// invariant in its decoded type, so widen the precise schema to the loose atom
+// type for `Atom.serializable` — runtime encode/decode still uses the real schema.
+const looseResultSchema = (
+  schema: Schema.Schema.Any,
+): Schema.Schema<Result.Result<unknown, unknown>> =>
+  schema as unknown as Schema.Schema<Result.Result<unknown, unknown>>;
+
 /**
  * Build the atom set for a config. The RPC client is created once into the
  * runtime's scoped layer and shared across every atom; the runtime tears it down
@@ -102,10 +130,42 @@ export const makeVoilaAtoms = <C extends NormalizedConfig>(
     runtime.atom(Effect.flatMap(ClientTag, (client) => invoke(client, slug, method, input)));
 
   const collections: Record<string, CollectionAtoms<unknown>> = {};
-  for (const slug of Object.keys(config.collections)) {
-    const listFamily = Atom.family((key: ListInput) => call(slug, "list", key));
-    const findFamily = Atom.family((id: string) => call(slug, "find", { id }));
-    const findOneFamily = Atom.family((key: FindOneInput) => call(slug, "findOne", key));
+  for (const [slug, collection] of Object.entries(config.collections)) {
+    // The same document/error schemas the RPC procedures use, so the dehydrated
+    // wire shape matches what the client decodes. Built once per collection and
+    // shared across every member of its atom families.
+    const doc = collectionDocumentSchema(collection);
+    const listResult = Result.Schema({
+      success: Schema.Struct({
+        documents: Schema.Array(doc),
+        nextCursor: Schema.NullOr(Schema.String),
+      }),
+      error: Schema.Union(BadRequest, InternalError),
+    });
+    const findResult = Result.Schema({
+      success: doc,
+      error: Schema.Union(NotFound, InternalError),
+    });
+    const findOneResult = Result.Schema({
+      success: Schema.NullOr(doc),
+      error: Schema.Union(BadRequest, InternalError),
+    });
+
+    const listFamily = Atom.family((key: ListInput) =>
+      call(slug, "list", key).pipe(
+        Atom.serializable({ key: listKey(slug, key), schema: looseResultSchema(listResult) }),
+      ),
+    );
+    const findFamily = Atom.family((id: string) =>
+      call(slug, "find", { id }).pipe(
+        Atom.serializable({ key: findKey(slug, id), schema: looseResultSchema(findResult) }),
+      ),
+    );
+    const findOneFamily = Atom.family((key: FindOneInput) =>
+      call(slug, "findOne", key).pipe(
+        Atom.serializable({ key: findOneKey(slug, key), schema: looseResultSchema(findOneResult) }),
+      ),
+    );
     collections[slug] = {
       list: (input = {}) => listFamily(canonicalList(input)),
       find: (id) => findFamily(id),

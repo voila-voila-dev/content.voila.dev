@@ -119,4 +119,48 @@ suite("admin: magic-link login → browse → detail", () => {
     await page.getByText("Hello world").first().waitFor({ state: "visible", timeout: 20_000 });
     expect(page.url()).toContain("/admin/posts/post_seed_1");
   }, 120_000);
+
+  // Reuses the session established above (`page` stays authenticated). Exercises the
+  // full write path through the form + the CSRF-armed write client (mint → header →
+  // mutation). Verification points use full reloads because mutations don't yet
+  // invalidate the cached read atoms (optimistic updates are a later M2 item).
+  it("creates, edits, and deletes a post through the form", async () => {
+    const title = `E2E Post ${Date.now()}`;
+    const edited = `${title} (edited)`;
+
+    // Create.
+    await page.goto(`${BASE}/admin/posts/new`, { waitUntil: "domcontentloaded" });
+    await page.locator("#field-title").waitFor({ state: "visible", timeout: 20_000 });
+    await page.locator("#field-title").fill(title);
+    await page.getByRole("button", { name: /^create$/i }).click();
+
+    // Lands on the new document's detail (a generated id, not "new").
+    await page.waitForURL(/\/admin\/posts\/(?!new$)[^/]+$/, { timeout: 20_000 });
+    const detailUrl = page.url();
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByText(title).first().waitFor({ state: "visible", timeout: 20_000 });
+
+    // Edit.
+    await page.goto(`${detailUrl}/edit`, { waitUntil: "domcontentloaded" });
+    await page.locator("#field-title").waitFor({ state: "visible", timeout: 20_000 });
+    await page.locator("#field-title").fill(edited);
+    await page.getByRole("button", { name: /save changes/i }).click();
+    await page.waitForURL((url) => url.pathname === new URL(detailUrl).pathname, {
+      timeout: 20_000,
+    });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByText(edited).first().waitFor({ state: "visible", timeout: 20_000 });
+
+    // Delete (accept the confirm dialog), returning to the list.
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByTestId("delete-button").click();
+    await page.waitForURL(/\/admin\/posts\/?$/, { timeout: 20_000 });
+
+    // The document is gone: reloading its detail shows the not-found state.
+    await page.goto(detailUrl, { waitUntil: "domcontentloaded" });
+    await page
+      .getByText(/not found/i)
+      .first()
+      .waitFor({ state: "visible", timeout: 20_000 });
+  }, 120_000);
 });

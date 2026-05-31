@@ -2,6 +2,8 @@
 // Small runtime helpers bridging the dynamic route param (a `string` slug) to the
 // statically-typed atom set, plus failure formatting for the views.
 import type { Atom, Result } from "@effect-atom/atom";
+import { type FieldMeta, VoilaField } from "@voila/content";
+import { ParseResult, Schema } from "effect";
 import config from "~/content.config";
 import { collections } from "~/lib/voila-atoms";
 
@@ -32,6 +34,51 @@ export const atomsFor = (slug: string): AnyCollectionAtoms | undefined =>
 export const fieldKeysFor = (slug: string): ReadonlyArray<string> => {
   const collection = config.collections[slug as keyof typeof config.collections];
   return collection ? Object.keys(collection.fields) : [];
+};
+
+/** A field's `@voila/content` metadata (`kind`, `widget`, `options`, …) — what the
+ *  form's `FieldInput` switches on to pick a control. */
+export const fieldMetaFor = (slug: string, name: string): FieldMeta | undefined => {
+  const collection = config.collections[slug as keyof typeof config.collections];
+  const field = collection?.fields[name as keyof typeof collection.fields] as
+    | Schema.Schema.Any
+    | undefined;
+  if (field === undefined) return undefined;
+  return (field.ast.annotations as Record<symbol, unknown>)[VoilaField] as FieldMeta | undefined;
+};
+
+/** Per-field validation result: `ok`, or a `fields` map of error messages. */
+export type ValidationResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly fields: Record<string, ReadonlyArray<string>> };
+
+/**
+ * Validate write `data` against the collection's field schema — **the same
+ * `effect/Schema` the server runs in `write-core`** — so the form surfaces the same
+ * per-field errors before a request is sent. `partial` skips required-field checks
+ * (used for edit/PATCH).
+ */
+export const validateWrite = (
+  slug: string,
+  data: Record<string, unknown>,
+  partial = false,
+): ValidationResult => {
+  const collection = config.collections[slug as keyof typeof config.collections];
+  if (!collection) return { ok: true };
+  const struct = Schema.Struct(collection.fields) as unknown as Schema.Schema<
+    Record<string, unknown>
+  >;
+  const schema = partial ? Schema.partial(struct) : struct;
+  const result = Schema.decodeUnknownEither(schema, { errors: "all" })(data);
+  if (result._tag === "Right") return { ok: true };
+  const fields: Record<string, Array<string>> = {};
+  for (const issue of ParseResult.ArrayFormatter.formatErrorSync(result.left)) {
+    const key = issue.path.length > 0 ? String(issue.path[0]) : "_";
+    const messages = fields[key] ?? [];
+    messages.push(issue.message);
+    fields[key] = messages;
+  }
+  return { ok: false, fields };
 };
 
 /** Turn a read failure into a user-facing message + whether it's an auth issue. */

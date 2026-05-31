@@ -222,15 +222,30 @@ branding; `voila add` produced real files; `bun run check` green. **✅ Achieved
   `findOne`-style atom. **Decision:** vend directly (not via a registry package)
   for M1; build the `@voila/content-registry` packaging (`registry.json`, manifest,
   `voila add`) in a later milestone.
-- [ ] SSR read loaders forward the `Cookie` header **and pre-populate
-  effect-atom so the client hydrates without a fetch waterfall.** **Deferred
-  (documented):** the functional flow works via client-side atom fetching (the
-  browser sends the HttpOnly session cookie same-origin), and the M1 exit E2E
-  passes that way. True no-waterfall hydration needs `makeVoilaAtoms` to set
-  **stable atom keys** so a server-dehydrated `Registry` matches the client atoms
-  (auto-keys differ across instances); `@tanstack/react-start`'s
-  `getRequestHeaders` is available to forward the cookie once that engine support
-  lands. Tracked as the one remaining M1 Head item.
+- [x] SSR read loaders forward the `Cookie` header **and pre-populate
+  effect-atom so the client hydrates without a fetch waterfall.** Engine half:
+  `makeVoilaAtoms` now wraps every `list`/`find`/`findOne` family member with
+  `Atom.serializable({ key, schema })` under **deterministic keys**
+  (`@voila/<slug>/<method>/<canonical-input>`) and a `Result.Schema` built from the
+  same per-collection doc + error schemas the RPC procedures use — so a
+  server-dehydrated `Registry` lines up with the browser atoms by key (auto-keys
+  used to differ across instances). Proven by a round-trip unit test
+  (`client/atoms.test.ts`): resolve a read in a "server" registry,
+  `Hydration.dehydrate` it, then `Hydration.hydrate` a **fresh** registry whose
+  atoms point at a *dead* URL and read them synchronously — they return `Success`
+  (`waiting === false`) with the decoded document, i.e. the effect never ran (no
+  fetch). Vended half (playground): `src/lib/voila-ssr.ts` exposes two
+  `createServerFn` prefetchers that, during SSR only, re-issue the read in-worker
+  with the visitor's `Cookie` forwarded (`getRequestHeader` + a cookie-injecting
+  `FetchHttpClient` layer), settle the atom, and return the dehydrated payload as
+  JSON; the `/admin/$collection` and `/admin/$collection/$id` loaders call them and
+  wrap their views in `<HydrationBoundary>` (inside the admin `RegistryProvider`),
+  so the list/detail atoms hydrate from the SSR payload and never fetch on mount.
+  Server-only code is stripped from the client bundle (verified in `vite build`).
+  Client-side navigation hydrates nothing and the atoms fetch themselves as before.
+  (The admin layout's session **gate** is still a client-side check — a separate,
+  intentional choice — so the shell briefly shows "Loading…" before the hydrated
+  content paints; the read **data** no longer waterfalls.)
 
 ### Testing bar (M1)
 - [x] **Unit:** schema→DDL generator — golden files per field type. Goldens
@@ -295,24 +310,58 @@ branding; `voila add` produced real files; `bun run check` green. **✅ Achieved
 
 **Exit:** 20-min test #1 passes; `bun test` (unit+integration+E2E) < 8 min in CI.
 **✅ Achieved** — the login→browse→detail E2E passes against `wrangler dev` over
-D1; `bun run check` green (181 pass / 0 fail; engine core 94% & schema 99%
-coverage gates pass). One documented follow-up remains (SSR no-waterfall
-hydration, above), which needs engine-side stable atom keys; it does not block the
-functional read path.
+D1; `bun run check` green (engine core 94% & schema 99% coverage gates pass). The
+previously-deferred SSR no-waterfall hydration item is now **done** (engine-side
+stable atom keys + cookie-forwarding SSR prefetch + `HydrationBoundary`, above),
+closing the last M1 Head item.
 
 ---
 
 ## M2 — Write path (week 5–6)
 
+> **Status (2026-05-31): write-path vertical slice DONE on `effect`** — the engine
+> write procedures, the CSRF/validation/conflict layer, and a working admin
+> create/edit/delete UI are built natively in the Effect architecture (checked
+> below). Still open: the live Postgres `Layer`, lifecycle (hooks/audit/Trash),
+> `Reactivity`-driven optimistic updates, and the broader M2 test matrix
+> (Postgres CRUD, fast-check, the form-parity property test, the write E2E).
+>
+> A *separate*, full M2 write path also exists on the **pre-pivot `main` branch**
+> (Zod/drizzle/TanStack Form) — `main` was only a port reference; the effect
+> implementation shares none of its code and differs in architecture (`effect/Schema`
+> + `@effect/rpc` + `@effect/sql`). Notable effect-side divergences from the
+> roadmap-as-written: there is **no `effect-form`/`MutationService`** — the form is
+> plain controlled React validating against `Schema.Struct(fields)` directly (the
+> same schema `write-core` runs), and write payloads are `{ data }`-permissive on the
+> wire with handler-side validation (so the `VALIDATION` envelope carries `{ fields }`
+> while the typed client return stays the document).
+
 ### Engine
-- [ ] **`@voila/content/server`:** write **procedures** on `voilaRpc` —
-  `posts.create`, `posts.update` (partial via `Schema` partial),
-  `posts.delete` (`hard?: true` purge), `posts.restore`. Unique violation →
-  typed `ConflictError` mapped to envelope `code: "CONFLICT"`.
-- [ ] **Validation:** one `Schema` decode shared client+server; failure →
-  `ValidationError` envelope (`code: "VALIDATION"` + `{ fields }`).
-- [ ] **CSRF** (HMAC double-submit) + **session enforcement** as
+- [x] **`@voila/content/server`:** write **procedures** on `voilaRpc` —
+  `<slug>.create`, `<slug>.update` (partial via `Schema.partial`),
+  `<slug>.delete` (`hard?: true` purge), `<slug>.restore`. Unique violation →
+  typed `ConflictError` (with the offending `field`) mapped to envelope
+  `code: "CONFLICT"`. (Built per-collection at runtime but **typed from the config**
+  like the reads — `VoilaRpcs<C>` gained the write quartet, so `client.posts.create(…)`
+  exists with no codegen. `Database` gained `create/update/softDelete/hardDelete/
+  restore` (+ `encodeRow`, the inverse of `mapRow`; ids = `crypto.randomUUID()`,
+  timestamps via `Clock`); `write-core.ts` mirrors `read-core.ts`. Tested in
+  `server/rpc-write.test.ts` via the typed `RpcTest` client + `sql/database/write.test.ts`.)
+- [x] **Validation:** one `Schema` decode shared client+server; failure →
+  `ValidationError` envelope (`code: "VALIDATION"` + `{ fields }`). (The handler
+  validates `data` against `Schema.Struct(collection.fields)` with `errors: "all"`,
+  formatting the `ParseError` via `ParseResult.ArrayFormatter` into a per-field map;
+  the vended form runs the **same** schema client-side (`lib/admin.ts validateWrite`)
+  before submit. No `effect-form` / `MutationService` — see status note above.)
+- [x] **CSRF** (HMAC double-submit) + **session enforcement** as
   `Rpc.Middleware` on every mutation procedure (reads keep session-only).
+  (`server/csrf.ts`: `CsrfMiddleware` attached per write-`Rpc` via `Rpc.middleware`,
+  enforcing a `nonce.HMAC-SHA256(secret, nonce)` token — Web Crypto, workerd+Bun —
+  where the `x-voila-csrf` header must equal the `voila_csrf` cookie. `secret`
+  threads `defineContent → Content → makeHandler → mount`; the playground mints at
+  `GET /admin/api/csrf`. Session enforcement is the existing group-level
+  `SessionMiddleware`. Tested: `server/csrf.test.ts` + a real-HTTP `server/mount-write.test.ts`
+  — missing token → `Forbidden`, valid token → success.)
 - [ ] **`@voila/content-sql/pg`:** Postgres `Layer`; migration parity; `voila migrate
   apply --target postgres --db <url>`.
   > **From M1 (read path):** the dialect-neutral pieces are already done and unit-tested
@@ -326,36 +375,53 @@ functional read path.
   > is correctly M2 scope, not something claimed done in M1.
 
 ### Head (registry items)
-- [ ] Field widgets: `string`, `number`, `boolean`, `date`/`datetime`,
-  `select`, `slug` (each a registry item under `field/*`, each driven by an
-  **`effect-form` field atom**).
-- [ ] `collection-form` (**`FormReact.make`** from `effect-form`) + widget
-  host (label/description/error/aria); field- and form-level errors + retry.
-  **Validation schema = the same `effect/Schema` the server runs in
-  `MutationService.validateWrite`.**
+- [x] Field widgets: `string`, `number`, `boolean`, `date`/`datetime`,
+  `select`, `slug`. (Vended as one `FieldInput` (`components/admin/field-input.tsx`)
+  that switches on the field's `@voila/content` metadata (`VoilaField` annotation →
+  `kind`/`widget`/`options`) — the write-side inverse of `field-value.tsx` — over a
+  small shadcn primitive set (`ui/{label,checkbox,select,textarea}`). **Not** an
+  `effect-form` field-atom-per-widget registry: plain controlled inputs holding the
+  encoded wire value, which is simpler and matches the M1 read UI's style.)
+- [x] `collection-form` + widget host (label/description/error/aria); field- and
+  form-level errors + retry. **Validation schema = the same `effect/Schema` the
+  server runs** (`validateWrite` → `Schema.Struct(collection.fields)`).
+  (`components/admin/collection-form.tsx`; submits via a CSRF-armed
+  `createAsyncClient` (`lib/voila-write.ts` + `lib/csrf.ts`). Routed at
+  `/admin/$collection/new` + `/admin/$collection/$id/edit`, with New/Edit/Delete
+  actions on the list + detail. `FormReact.make`/`effect-form` not used — see status
+  note.)
 - [ ] Optimistic updates via **`Reactivity` (effect-atom) invalidation** +
-  toasts; last-write-wins on `updatedAt`. (TanStack DB optional; revisit only
-  if `Reactivity` is insufficient.)
+  toasts; last-write-wins on `updatedAt`. (Writes currently land via a plain refetch
+  / navigation, not optimistic `Reactivity` invalidation — still open.)
 
 ### Lifecycle
 - [ ] Collection hooks (`before/after` × create/update/delete) via `HookService`.
 - [ ] Audit log (`_voila_audit`); Trash page (restore + purge).
 
 ### Testing bar (M2)
-- [ ] **Unit:** each widget renders/accepts input/surfaces errors.
-- [ ] **Unit:** hook ordering + short-circuit (pure `Effect` specs).
-- [ ] **Unit (form parity):** property test that the same `Schema` produces
-  the same error shape on `effect-form` (client) and `HttpApiBuilder` (server).
-- [ ] **Integration:** CRUD against SQLite **and** Postgres (CI matrix).
+- [ ] **Unit:** each widget renders/accepts input/surfaces errors. (The `FieldInput`
+  isn't unit-tested yet; its behaviour is exercised indirectly by the form.)
+- [ ] **Unit:** hook ordering + short-circuit (pure `Effect` specs). (No hooks yet.)
+- [ ] **Unit (form parity):** property test that the same `Schema` produces the same
+  error shape client + server. (The form *does* run the same `Schema.Struct(fields)`
+  as `write-core`, but the dedicated property test isn't written.)
+- [~] **Integration:** CRUD against SQLite **and** Postgres (CI matrix). (SQLite **done**
+  — `server/rpc-write.test.ts` (typed `RpcTest`) + `server/mount-write.test.ts` (real
+  HTTP + CSRF) + `sql/database/write.test.ts`. Postgres awaits the live pg `Layer`.)
 - [ ] **Integration:** optimistic rollback on server error (Reactivity-driven).
-- [ ] **Integration:** `effect-form` `.refineEffect` cross-field validator
-  hitting a server uniqueness check via the typed client.
-- [ ] **E2E:** create → edit → delete → restore → purge.
+- [~] **Integration:** cross-field/uniqueness validator via the typed client.
+  (Unique-violation → `ConflictError` is covered in `rpc-write.test.ts`; an
+  `effect-form` `.refineEffect` cross-field check is not — no `effect-form`.)
+- [ ] **E2E:** create → edit → delete → restore → purge. (The write UI builds +
+  typechecks and the client bundle is verified server-code-free; the Playwright
+  write-flow E2E — extending `login-and-browse` — is the remaining manual-verify gap.)
 - [ ] **Property (`fast-check`):** roundtrip arbitrary valid docs.
-- [ ] Coverage gate: engine core ≥ 80%.
+- [x] Coverage gate: engine core ≥ 80%. (`test:cov:gates` bumped 70→80; engine at ~94%.)
 
 **Exit:** full CRUD on `posts` from the vended admin with validation +
-optimistic UI; Postgres matrix green.
+optimistic UI; Postgres matrix green. **Partially met** — CRUD + validation +
+CSRF work end-to-end on SQLite/D1 from the vended admin; optimistic UI and the
+Postgres matrix remain.
 
 ---
 

@@ -6,7 +6,7 @@
 import { SqlClient } from "@effect/sql/SqlClient";
 import type { SqlError } from "@effect/sql/SqlError";
 import type { Fragment } from "@effect/sql/Statement";
-import { Effect, Layer, Option } from "effect";
+import { Clock, Effect, Layer, Option } from "effect";
 import type { NormalizedConfig } from "../../config/config";
 import { deriveSchema } from "../ddl/derive-schema";
 import type { ColumnSchema, TableSchema } from "../ddl/types";
@@ -110,6 +110,63 @@ export const mapRow = (table: TableInfo, row: Record<string, unknown>): Document
   return doc;
 };
 
+// Inverse of `normalize`: take a canonical (decoded-then-re-encoded) field value and
+// render the storage form each driver expects. SQLite/D1 store booleans as 0/1 and
+// JSON as text; timestamps are epoch-ms integers. (Postgres takes native booleans —
+// handled when the live pg `Layer` lands; only SQLite/D1 run today.)
+const encodeValue = (info: ColumnInfo | undefined, value: unknown): unknown => {
+  if (value === null || value === undefined) return null;
+  if (info?.isJson) return typeof value === "string" ? value : JSON.stringify(value);
+  if (info?.isBoolean) return value ? 1 : 0;
+  if (info?.isTimestamp) return value instanceof Date ? value.getTime() : value;
+  return value;
+};
+
+// Canonical camelCase document → snake_case storage columns (the inverse of `mapRow`).
+// Unknown fields pass through under their own name so a misconfigured write surfaces
+// as a SQL error rather than being silently dropped.
+export const encodeRow = (table: TableInfo, doc: Document): Record<string, unknown> => {
+  const row: Record<string, unknown> = {};
+  for (const [field, value] of Object.entries(doc)) {
+    const info = table.byField.get(field);
+    row[info?.name ?? field] = encodeValue(info, value);
+  }
+  return row;
+};
+
+// The driver's real message lives on the nested `cause` (the `SqlError` itself just
+// says "Failed to execute statement"), so flatten the whole chain before matching.
+const errorText = (error: SqlError): string => {
+  const parts: Array<string> = [error.message];
+  let cause: unknown = (error as { readonly cause?: unknown }).cause;
+  for (let depth = 0; cause != null && depth < 5; depth++) {
+    if (typeof cause === "object" && "message" in cause) {
+      parts.push(String((cause as { readonly message: unknown }).message));
+    }
+    cause = (cause as { readonly cause?: unknown }).cause;
+  }
+  return parts.join(" | ");
+};
+
+// SQLite/D1: `UNIQUE constraint failed: <table>.<column>`. Postgres: SQLSTATE 23505.
+const UNIQUE_SQLITE = /UNIQUE constraint failed:\s*\w+\.(\w+)/i;
+
+// Classify a driver error: a unique violation (with the offending field, when the
+// driver names the column) or `null` for any other failure.
+const detectConflict = (
+  table: TableInfo,
+  message: string,
+): { readonly field: string | null } | null => {
+  const matched = UNIQUE_SQLITE.exec(message);
+  if (matched?.[1] !== undefined) {
+    return { field: table.byColumn.get(matched[1])?.fieldName ?? matched[1] };
+  }
+  if (/duplicate key value|sqlite_constraint_unique|\b23505\b/i.test(message)) {
+    return { field: null };
+  }
+  return null;
+};
+
 export const makeDatabaseLayer = (
   config: NormalizedConfig,
 ): Layer.Layer<Database, never, SqlClient> =>
@@ -123,6 +180,39 @@ export const makeDatabaseLayer = (
 
       const toError = (message: string) => (cause: SqlError) =>
         new DatabaseError({ message, cause });
+
+      // Like `toError`, but classifies unique-constraint violations so the write
+      // core can surface a typed `ConflictError` instead of a generic failure.
+      const toWriteError = (table: TableInfo, message: string) => (cause: SqlError) => {
+        const conflict = detectConflict(table, errorText(cause));
+        return conflict === null
+          ? new DatabaseError({ message, cause })
+          : new DatabaseError({
+              message,
+              cause,
+              conflict: true,
+              field: conflict.field ?? undefined,
+            });
+      };
+
+      // Re-read a row by id (ignoring soft-delete state) — the canonical row the
+      // write methods echo back to the caller after a mutation.
+      const reread = (table: TableInfo, id: string) =>
+        sql<Record<string, unknown>>`
+          SELECT * FROM ${sql(table.name)} WHERE ${sql("id")} = ${id} LIMIT 1
+        `.pipe(
+          Effect.mapError(toError(`Failed to read "${table.name}/${id}".`)),
+          Effect.map((rows) => (rows[0] === undefined ? null : mapRow(table, rows[0]))),
+        );
+
+      const requireTable = (collection: string) =>
+        Effect.gen(function* () {
+          const table = tables.get(collection);
+          if (table === undefined) {
+            return yield* new DatabaseError({ message: `Unknown collection "${collection}".` });
+          }
+          return table;
+        });
 
       const list = (collection: string, opts: ListOpts = {}) =>
         Effect.gen(function* () {
@@ -253,6 +343,92 @@ export const makeDatabaseLayer = (
           return row === undefined ? null : mapRow(table, row);
         });
 
-      return Database.of({ list, get, findOne });
+      const create = (collection: string, values: Document) =>
+        Effect.gen(function* () {
+          const table = yield* requireTable(collection);
+          const now = yield* Clock.currentTimeMillis;
+          const id = crypto.randomUUID();
+          const row = encodeRow(table, {
+            ...values,
+            id,
+            createdAt: now,
+            updatedAt: now,
+            deletedAt: null,
+          });
+          yield* sql`INSERT INTO ${sql(table.name)} ${sql.insert(row)}`.pipe(
+            Effect.mapError(toWriteError(table, `Failed to create "${collection}".`)),
+          );
+          const stored = yield* reread(table, id);
+          return stored === undefined || stored === null
+            ? yield* new DatabaseError({
+                message: `Created "${collection}/${id}" vanished on read.`,
+              })
+            : stored;
+        });
+
+      const update = (collection: string, id: string, values: Document) =>
+        Effect.gen(function* () {
+          const table = yield* requireTable(collection);
+          // Only touch a live row; a missing/soft-deleted target updates nothing.
+          const live = yield* get(collection, id);
+          if (live === null) return null;
+          const now = yield* Clock.currentTimeMillis;
+          const row = encodeRow(table, { ...values, updatedAt: now });
+          yield* sql`
+            UPDATE ${sql(table.name)} SET ${sql.update(row)}
+            WHERE ${sql("id")} = ${id} AND ${sql("deleted_at")} IS NULL
+          `.pipe(Effect.mapError(toWriteError(table, `Failed to update "${collection}/${id}".`)));
+          return yield* reread(table, id);
+        });
+
+      const softDelete = (collection: string, id: string) =>
+        Effect.gen(function* () {
+          const table = yield* requireTable(collection);
+          const live = yield* get(collection, id);
+          if (live === null) return false;
+          const now = yield* Clock.currentTimeMillis;
+          yield* sql`
+            UPDATE ${sql(table.name)} SET ${sql("deleted_at")} = ${now}
+            WHERE ${sql("id")} = ${id} AND ${sql("deleted_at")} IS NULL
+          `.pipe(Effect.mapError(toError(`Failed to delete "${collection}/${id}".`)));
+          return true;
+        });
+
+      const hardDelete = (collection: string, id: string) =>
+        Effect.gen(function* () {
+          const table = yield* requireTable(collection);
+          const existing = yield* reread(table, id);
+          if (existing === null) return false;
+          yield* sql`DELETE FROM ${sql(table.name)} WHERE ${sql("id")} = ${id}`.pipe(
+            Effect.mapError(toError(`Failed to purge "${collection}/${id}".`)),
+          );
+          return true;
+        });
+
+      const restore = (collection: string, id: string) =>
+        Effect.gen(function* () {
+          const table = yield* requireTable(collection);
+          const existing = yield* reread(table, id);
+          // Only a soft-deleted row can be restored; live or missing → no-op.
+          if (existing === null || existing.deletedAt === null) return null;
+          const now = yield* Clock.currentTimeMillis;
+          yield* sql`
+            UPDATE ${sql(table.name)}
+            SET ${sql("deleted_at")} = ${null}, ${sql("updated_at")} = ${now}
+            WHERE ${sql("id")} = ${id}
+          `.pipe(Effect.mapError(toError(`Failed to restore "${collection}/${id}".`)));
+          return yield* reread(table, id);
+        });
+
+      return Database.of({
+        list,
+        get,
+        findOne,
+        create,
+        update,
+        softDelete,
+        hardDelete,
+        restore,
+      });
     }),
   );
