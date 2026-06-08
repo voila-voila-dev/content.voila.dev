@@ -55,7 +55,11 @@ seam was co-designed with the server/client that consumes them.
       validation (422 `VALIDATION` envelope carrying `{ path, message }` issues)
       and unique-violation → 409 `CONFLICT`. Routed through the same
       `createRestHandler` dispatcher (`POST`/`PATCH`/`DELETE` + `POST …/restore`).
-- [ ] Typed client inferred from config (`client.posts.findOne(...)`)
+- [x] Typed client inferred from config (`@voila/content/client`): `makeClient(config,
+      { baseUrl })` → one accessor per collection with `list` / `find` / `findBy` /
+      `create` / `update` / `delete` / `restore`, argument + result types resolved from
+      the fields via `InferDoc` (no codegen). Thin `fetch` over the REST routes; error
+      envelopes become a typed `ContentClientError` (`err.failure.code`).
 - [ ] Auth: Better Auth bridge, email magic-link, session middleware
 - [ ] CSRF (double-submit) on writes; per-collection RBAC hook
 
