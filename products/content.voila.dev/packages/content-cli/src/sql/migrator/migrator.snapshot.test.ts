@@ -15,7 +15,9 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { allFieldsConfig } from "../ddl/all-fields.fixture";
+// The all-fields fixture lives in `@voila/content` (shared schema-descriptor
+// core); reached by its workspace path so there's a single "every field kind" config.
+import { allFieldsConfig } from "../../../../content/src/sql/all-fields.fixture";
 import { applySqlite } from "./apply";
 import { generateMigration } from "./generate";
 

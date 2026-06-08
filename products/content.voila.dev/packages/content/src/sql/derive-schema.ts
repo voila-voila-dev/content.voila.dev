@@ -9,7 +9,8 @@
 // `CREATE UNIQUE INDEX` so partial-index semantics (e.g. `WHERE deleted_at
 // IS NULL`) can be added later without rewriting the table.
 
-import type { FieldsMap, NormalizedConfig } from "@voila/content";
+import type { NormalizedConfig } from "../config/config";
+import type { FieldsMap } from "../config/schema/fields";
 import { toColumnName } from "./to-column-name";
 import type { ColumnSchema, IndexSchema, TableSchema } from "./types";
 
