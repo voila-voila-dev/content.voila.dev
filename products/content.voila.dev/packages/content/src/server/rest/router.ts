@@ -12,15 +12,35 @@
 //   DELETE /:collection/:id                → soft-delete
 //   POST   /:collection/:id/restore        → restore
 //
-// The handler returns `null` for anything it doesn't own (an unmatched method or
-// path) so the host can fall through to its own routes.
+// Each request is matched to a route descriptor (operation + collection +
+// optional document id) and a handler thunk. The guard (`authorizeRequest`) runs
+// between match and invoke: an unmatched route returns `null` *before* the guard,
+// so the host can fall through to its own routes without tripping auth; a matched
+// route that fails auth/CSRF/RBAC returns the typed error envelope.
 
+import { authorizeRequest, type GuardOptions, type RouteDescriptor } from "../auth/guard";
+import type { Operation } from "../auth/principal";
 import { handleFindByField, handleFindById, handleList, type RestContext } from "./handlers";
 import { handleCreate, handleDelete, handleRestore, handleUpdate } from "./write";
 
-export interface RestHandlerOptions {
+export interface RestHandlerOptions extends GuardOptions {
   /** Path prefix the routes mount under (e.g. `/admin/api`). Defaults to none. */
   readonly basePath?: string;
+}
+
+// A matched route: what to authorize against, and how to run it.
+interface MatchedRoute {
+  readonly route: RouteDescriptor;
+  readonly run: () => Promise<Response>;
+}
+
+function route(
+  operation: Operation,
+  collection: string,
+  documentId: string | undefined,
+  run: () => Promise<Response>,
+): MatchedRoute {
+  return { route: { operation, collection, documentId }, run };
 }
 
 // Trim a trailing slash so `"/admin/api/"` and `"/admin/api"` behave the same;
@@ -30,9 +50,69 @@ function normalizeBase(basePath: string | undefined): string {
   return basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
 }
 
+// Resolve a request to the route it hits, or `null` when this dispatcher doesn't
+// own it (wrong base, unknown method/shape). Pure routing — no I/O — so the guard
+// can run against the descriptor before any handler executes.
+function matchRoute(ctx: RestContext, request: Request, basePath: string): MatchedRoute | null {
+  const url = new URL(request.url);
+  if (basePath && !url.pathname.startsWith(basePath)) return null;
+
+  // Split first, then decode each segment — so a `%2F` inside a value can't
+  // forge an extra path segment.
+  const segments = url.pathname
+    .slice(basePath.length)
+    .split("/")
+    .filter((s) => s.length > 0)
+    .map(decodeURIComponent);
+
+  // Explicit `!== undefined` guards (not just length checks) so the segment
+  // reads narrow under `noUncheckedIndexedAccess`.
+  const [collection, second, third, fourth] = segments;
+  if (collection === undefined) return null;
+  const { method } = request;
+
+  if (method === "GET") {
+    if (segments.length === 1) {
+      return route("list", collection, undefined, () => handleList(ctx, collection, url));
+    }
+    if (segments.length === 2 && second !== undefined) {
+      return route("read", collection, second, () => handleFindById(ctx, collection, second));
+    }
+    if (segments.length === 4 && second === "by" && third !== undefined && fourth !== undefined) {
+      return route("read", collection, undefined, () =>
+        handleFindByField(ctx, collection, third, fourth),
+      );
+    }
+    return null;
+  }
+
+  if (method === "POST") {
+    if (segments.length === 1) {
+      return route("create", collection, undefined, () => handleCreate(ctx, collection, request));
+    }
+    if (segments.length === 3 && second !== undefined && third === "restore") {
+      return route("restore", collection, second, () => handleRestore(ctx, collection, second));
+    }
+    return null;
+  }
+
+  if (method === "PATCH" && segments.length === 2 && second !== undefined) {
+    return route("update", collection, second, () =>
+      handleUpdate(ctx, collection, second, request),
+    );
+  }
+
+  if (method === "DELETE" && segments.length === 2 && second !== undefined) {
+    return route("delete", collection, second, () => handleDelete(ctx, collection, second));
+  }
+
+  return null;
+}
+
 /**
- * Build a `(request) => Promise<Response | null>` that serves the read routes.
- * Returns `null` when the request isn't a read route this handler owns.
+ * Build a `(request) => Promise<Response | null>` that serves the REST routes.
+ * Returns `null` when the request isn't a route this dispatcher owns; otherwise
+ * runs the auth/CSRF/RBAC guard, then the matched handler.
  */
 export function createRestHandler(
   ctx: RestContext,
@@ -40,50 +120,10 @@ export function createRestHandler(
 ): (request: Request) => Promise<Response | null> {
   const basePath = normalizeBase(options.basePath);
   return async (request: Request): Promise<Response | null> => {
-    const url = new URL(request.url);
-    if (basePath && !url.pathname.startsWith(basePath)) return null;
-
-    // Split first, then decode each segment — so a `%2F` inside a value can't
-    // forge an extra path segment.
-    const segments = url.pathname
-      .slice(basePath.length)
-      .split("/")
-      .filter((s) => s.length > 0)
-      .map(decodeURIComponent);
-
-    // Explicit `!== undefined` guards (not just length checks) so the segment
-    // reads narrow under `noUncheckedIndexedAccess`.
-    const [collection, second, third, fourth] = segments;
-    if (collection === undefined) return null;
-    const { method } = request;
-
-    if (method === "GET") {
-      if (segments.length === 1) return handleList(ctx, collection, url);
-      if (segments.length === 2 && second !== undefined) {
-        return handleFindById(ctx, collection, second);
-      }
-      if (segments.length === 4 && second === "by" && third !== undefined && fourth !== undefined) {
-        return handleFindByField(ctx, collection, third, fourth);
-      }
-      return null;
-    }
-
-    if (method === "POST") {
-      if (segments.length === 1) return handleCreate(ctx, collection, request);
-      if (segments.length === 3 && second !== undefined && third === "restore") {
-        return handleRestore(ctx, collection, second);
-      }
-      return null;
-    }
-
-    if (method === "PATCH" && segments.length === 2 && second !== undefined) {
-      return handleUpdate(ctx, collection, second, request);
-    }
-
-    if (method === "DELETE" && segments.length === 2 && second !== undefined) {
-      return handleDelete(ctx, collection, second);
-    }
-
-    return null;
+    const matched = matchRoute(ctx, request, basePath);
+    if (matched === null) return null;
+    const denied = await authorizeRequest(request, matched.route, options);
+    if (denied !== null) return denied;
+    return matched.run();
   };
 }

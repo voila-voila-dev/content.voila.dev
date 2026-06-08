@@ -5,9 +5,10 @@
 // `{ error }`; `ApiError` wraps one so a handler can `throw` and a single
 // boundary (`runHandler`) maps it to a `Response`.
 //
-// Read- and write-path codes live here. CSRF and auth (UNAUTHORIZED) add their
-// own codes when those slices land, so every constructor below is exercised by a
-// real request — no dead vocabulary.
+// Read-, write-, and auth-path codes live here: UNAUTHORIZED (no/!invalid
+// session), FORBIDDEN (authenticated but the RBAC hook denied the operation),
+// and CSRF (double-submit token missing/mismatched/unsigned). Every constructor
+// below is exercised by a real request — no dead vocabulary.
 
 /** Base shape every failure extends: a string-literal discriminator. */
 export interface BaseError {
@@ -55,6 +56,21 @@ export interface InternalError extends BaseError {
   readonly code: "INTERNAL";
 }
 
+export interface UnauthorizedError extends BaseError {
+  readonly code: "UNAUTHORIZED";
+}
+
+export interface ForbiddenError extends BaseError {
+  readonly code: "FORBIDDEN";
+  /** The collection and operation the principal was denied, when known. */
+  readonly collectionSlug?: string;
+  readonly operation?: string;
+}
+
+export interface CsrfError extends BaseError {
+  readonly code: "CSRF";
+}
+
 /** One field-level validation failure: where it occurred and what was wrong. */
 export interface ValidationIssue {
   /** Path to the offending value, field name first (e.g. `["title"]`, `["tags", 0]`). */
@@ -86,7 +102,10 @@ export type ApiFailure =
   | NotFoundError
   | ValidationError
   | ConflictError
-  | InternalError;
+  | InternalError
+  | UnauthorizedError
+  | ForbiddenError
+  | CsrfError;
 
 export type ApiErrorCode = ApiFailure["code"];
 
@@ -101,6 +120,9 @@ const STATUS: Record<ApiErrorCode, number> = {
   VALIDATION: 422,
   CONFLICT: 409,
   INTERNAL: 500,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  CSRF: 403,
 };
 
 // ---------- typed constructors ----------
@@ -152,6 +174,24 @@ export function conflict(collectionSlug: string, field?: string): ConflictError 
  */
 export function internalFailure(_cause: unknown): InternalError {
   return { code: "INTERNAL" };
+}
+
+/** No session, or the `Authenticator` rejected the credentials. */
+export function unauthorized(): UnauthorizedError {
+  return { code: "UNAUTHORIZED" };
+}
+
+/** Authenticated, but the RBAC hook denied this operation on this collection. */
+export function forbidden(collectionSlug?: string, operation?: string): ForbiddenError {
+  const error: ForbiddenError = { code: "FORBIDDEN" };
+  return collectionSlug === undefined
+    ? error
+    : { ...error, collectionSlug, ...(operation === undefined ? {} : { operation }) };
+}
+
+/** A mutating request whose CSRF double-submit token was missing or invalid. */
+export function csrfFailure(): CsrfError {
+  return { code: "CSRF" };
 }
 
 // ---------- throwable wrapper ----------

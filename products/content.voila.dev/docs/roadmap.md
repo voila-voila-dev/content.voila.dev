@@ -60,8 +60,16 @@ seam was co-designed with the server/client that consumes them.
       `create` / `update` / `delete` / `restore`, argument + result types resolved from
       the fields via `InferDoc` (no codegen). Thin `fetch` over the REST routes; error
       envelopes become a typed `ContentClientError` (`err.failure.code`).
-- [ ] Auth: Better Auth bridge, email magic-link, session middleware
-- [ ] CSRF (double-submit) on writes; per-collection RBAC hook
+- [x] Auth seam + request guard (`@voila/content/server` `auth/`): a pluggable
+      `Authenticator` (`Request → Principal | null`) and `AccessControl` RBAC hook,
+      run by `createRestHandler` before any handler — auth → CSRF → RBAC, with
+      typed `UNAUTHORIZED` (401) / `FORBIDDEN` (403) envelopes. Mirrors the
+      `SqlDriver` seam: the engine ships the seam, concrete backends plug in.
+- [x] CSRF (signed double-submit) on writes; per-collection RBAC hook. Mutating
+      routes require a matching, HMAC-signed cookie/header token pair (`CSRF` 403,
+      Web Crypto, edge-safe); reads are exempt.
+- [ ] Better Auth bridge + email magic-link: a concrete `Authenticator` over the
+      `SqlDriver` seam, auth-tables migration, and mailer (console/resend/smtp).
 
 **Exit:** log in → browse → edit a document over HTTP, end to end.
 
