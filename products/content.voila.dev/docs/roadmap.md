@@ -46,7 +46,10 @@ seam was co-designed with the server/client that consumes them.
       `SqlDriver` seam, with SQLite (`bun:sqlite`) and D1 adapters. The
       schema-descriptor core (`deriveSchema`) moved to `@voila/content/sql` so
       the Database and the CLI's DDL renderer share one column-mapping source.
-- [ ] REST read endpoints (list + cursor pagination, find, find-by-field)
+- [x] REST read endpoints (`@voila/content/server`): list (cursor pagination),
+      find-by-id, find-by-unique-field over the runtime `Database`, with a typed
+      error envelope (`{ data, nextCursor }` / `{ error: { code, … } }`) and a
+      `createRestHandler` dispatcher.
 - [ ] Write path: create / update / delete / restore, validation envelopes
 - [ ] Typed client inferred from config (`client.posts.findOne(...)`)
 - [ ] Auth: Better Auth bridge, email magic-link, session middleware

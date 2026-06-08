@@ -3,3 +3,4 @@
 // adapters. The REST endpoints, typed client, and auth build on top of this seam.
 
 export * from "./database";
+export * from "./rest";
