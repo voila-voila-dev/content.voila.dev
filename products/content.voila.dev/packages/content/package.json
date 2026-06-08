@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./sql": "./src/sql/index.ts",
+    "./server": "./src/server/index.ts"
   },
   "publishConfig": {
     "access": "public"

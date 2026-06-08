@@ -3,7 +3,7 @@
 // and wires them to those functions.
 
 import { parseArgs } from "node:util";
-import type { Dialect } from "../sql/ddl/types";
+import type { Dialect } from "@voila/content/sql";
 import { type ApplyTarget, applyD1, applySqlite } from "../sql/migrator/apply";
 import { generateMigration } from "../sql/migrator/generate";
 import { loadConfig } from "./config";

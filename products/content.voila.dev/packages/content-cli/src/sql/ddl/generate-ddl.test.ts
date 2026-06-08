@@ -4,10 +4,13 @@
 import { describe, expect, it } from "bun:test";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { allFieldsConfig } from "./all-fields.fixture";
-import { deriveSchema } from "./derive-schema";
+// The all-fields fixture and `deriveSchema` now live in `@voila/content` (the
+// schema-descriptor core, shared with the runtime `Database`). This goldens test
+// owns DDL *rendering* (`generateDDL`) and reaches the single shared fixture by
+// its workspace path so there's no duplicate "every field kind" config to drift.
+import { type Dialect, deriveSchema } from "@voila/content/sql";
+import { allFieldsConfig } from "../../../../content/src/sql/all-fields.fixture";
 import { generateDDL } from "./generate-ddl";
-import type { Dialect } from "./types";
 
 const GOLDEN_DIR = join(import.meta.dir, "__golden__");
 const SHOULD_UPDATE = process.env.UPDATE_GOLDENS === "1";

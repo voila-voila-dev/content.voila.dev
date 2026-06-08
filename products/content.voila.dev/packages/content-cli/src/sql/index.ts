@@ -1,13 +1,20 @@
-// `@voila/content-cli` SQL surface — Phase 1. DDL derivation (`deriveSchema`,
-// `generateDDL`, `toColumnName`) and the migration generate/apply machinery.
+// `@voila/content-cli` SQL surface — Phase 1. DDL rendering (`generateDDL`) and
+// the migration generate/apply machinery.
 //
-// The runtime `Database` service (list/get/create/update CRUD) and the
-// `SqliteLive`/`D1Live` client layers ship with the Phase 2 server/client.
+// The dialect-neutral schema descriptor core (`deriveSchema`, `toColumnName`,
+// `TableSchema`, …) moved to `@voila/content/sql` so the runtime `Database`
+// (`@voila/content/server`) and this CLI share one column-mapping source. It's
+// re-exported here to keep the historical `@voila/content-cli/sql` surface stable.
 
-export { deriveSchema } from "./ddl/derive-schema";
+export {
+  type ColumnSchema,
+  type Dialect,
+  deriveSchema,
+  type IndexSchema,
+  type TableSchema,
+  toColumnName,
+} from "@voila/content/sql";
 export { generateDDL } from "./ddl/generate-ddl";
-export { toColumnName } from "./ddl/to-column-name";
-export type { ColumnSchema, Dialect, IndexSchema, TableSchema } from "./ddl/types";
 export type {
   ApplyD1Opts,
   ApplySqliteOpts,

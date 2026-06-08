@@ -3,7 +3,7 @@
 // the order they appear in the schema, indexes follow each table, tables
 // are separated by a blank line, and the script ends with a single newline.
 
-import type { ColumnSchema, Dialect, IndexSchema, TableSchema } from "./types";
+import type { ColumnSchema, Dialect, IndexSchema, TableSchema } from "@voila/content/sql";
 
 const quote = (ident: string): string => `"${ident}"`;
 

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "bun:test";
 import { defineCollection, defineConfig, fields } from "@voila/content";
-import { deriveSchema } from "./derive-schema";
+import { deriveSchema } from "@voila/content/sql";
 import { generateDDL } from "./generate-ddl";
 
 const buildConfig = () =>

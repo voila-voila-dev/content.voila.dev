@@ -7,9 +7,8 @@
 
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import type { NormalizedConfig } from "@voila/content";
-import { deriveSchema } from "../ddl/derive-schema";
+import { type Dialect, deriveSchema } from "@voila/content/sql";
 import { generateDDL } from "../ddl/generate-ddl";
-import type { Dialect } from "../ddl/types";
 import { formatMigrationId, nextMigrationId } from "./loader";
 
 export interface GenerateMigrationOpts {

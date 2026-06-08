@@ -33,14 +33,19 @@ ships with tests green (`bun test`) before it's marked done.
 - [x] `voila` binary on `node:util` `parseArgs` (`migrate generate`/`apply`)
 - [ ] `seed` / `doctor` subcommands
 
-Pure TypeScript, zero Effect. The runtime `Database` CRUD service + `SqliteLive`/
-`D1Live` client layers were deferred to Phase 2, where their driver seam is
-co-designed with the server/client that consumes them.
+Pure TypeScript, zero Effect. The runtime `Database` CRUD service + SQLite/D1
+driver layers were deferred to Phase 2 (now done — see below), where their driver
+seam was co-designed with the server/client that consumes them.
 
 **Exit:** `voila migrate generate && apply` builds a real schema from a config. ✅
 
 ## Phase 2 — Server & typed client (`@voila/content/server`, `/client`)
 
+- [x] Runtime `Database` (`@voila/content/server`): CRUD + keyset pagination
+      (soft-delete scoped, unique-conflict classification) over a pure-TS
+      `SqlDriver` seam, with SQLite (`bun:sqlite`) and D1 adapters. The
+      schema-descriptor core (`deriveSchema`) moved to `@voila/content/sql` so
+      the Database and the CLI's DDL renderer share one column-mapping source.
 - [ ] REST read endpoints (list + cursor pagination, find, find-by-field)
 - [ ] Write path: create / update / delete / restore, validation envelopes
 - [ ] Typed client inferred from config (`client.posts.findOne(...)`)
