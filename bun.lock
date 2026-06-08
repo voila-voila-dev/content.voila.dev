@@ -123,6 +123,19 @@
         "@voila/typescript-config": "workspace:*",
       },
     },
+    "products/content.voila.dev/packages/content-cli": {
+      "name": "@voila/content-cli",
+      "version": "0.0.0",
+      "bin": {
+        "voila": "./src/cli/bin.ts",
+      },
+      "dependencies": {
+        "@voila/content": "workspace:*",
+      },
+      "devDependencies": {
+        "@voila/typescript-config": "workspace:*",
+      },
+    },
     "scripts/coverage-gate": {
       "name": "@voila/coverage-gate",
       "version": "0.1.0",
@@ -805,6 +818,8 @@
     "@vitest/utils": ["@vitest/utils@4.1.7", "", { "dependencies": { "@vitest/pretty-format": "4.1.7", "convert-source-map": "^2.0.0", "tinyrainbow": "^3.1.0" } }, "sha512-T532WBu791cBxJlCl6SO+J14l81DQx6uQHm1bQbmCDY7nqlEIgkza/UFnSBNaUtSf41unldDFjdOBYEQC4b5Hw=="],
 
     "@voila/content": ["@voila/content@workspace:products/content.voila.dev/packages/content"],
+
+    "@voila/content-cli": ["@voila/content-cli@workspace:products/content.voila.dev/packages/content-cli"],
 
     "@voila/coverage-gate": ["@voila/coverage-gate@workspace:scripts/coverage-gate"],
 
