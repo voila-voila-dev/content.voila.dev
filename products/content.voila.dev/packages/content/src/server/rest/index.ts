@@ -1,7 +1,7 @@
-// Public surface of the REST read layer: the host-facing handlers + dispatcher
-// and the on-the-wire envelope vocabulary. Internal helpers (query parsing,
-// value coercion, collection resolution) are reachable from their own files for
-// tests but kept off the package surface.
+// Public surface of the REST layer: the host-facing read + write handlers,
+// dispatcher, and on-the-wire envelope vocabulary. Internal helpers (query
+// parsing, value coercion, collection resolution) are reachable from their own
+// files for tests but kept off the package surface.
 
 export {
   type ApiErrorCode,
@@ -9,6 +9,7 @@ export {
   type BaseError,
   type ErrorEnvelope,
   errorResponse,
+  type ValidationIssue,
 } from "./errors";
 export {
   handleFindByField,
@@ -17,3 +18,10 @@ export {
   type RestContext,
 } from "./handlers";
 export { createRestHandler, type RestHandlerOptions } from "./router";
+export {
+  handleCreate,
+  handleDelete,
+  handleRestore,
+  handleUpdate,
+  validateWrite,
+} from "./write";

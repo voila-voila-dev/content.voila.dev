@@ -50,7 +50,11 @@ seam was co-designed with the server/client that consumes them.
       find-by-id, find-by-unique-field over the runtime `Database`, with a typed
       error envelope (`{ data, nextCursor }` / `{ error: { code, … } }`) and a
       `createRestHandler` dispatcher.
-- [ ] Write path: create / update / delete / restore, validation envelopes
+- [x] Write path (`@voila/content/server`): create / update / soft-delete /
+      restore over the runtime `Database`, with field-by-field Standard Schema
+      validation (422 `VALIDATION` envelope carrying `{ path, message }` issues)
+      and unique-violation → 409 `CONFLICT`. Routed through the same
+      `createRestHandler` dispatcher (`POST`/`PATCH`/`DELETE` + `POST …/restore`).
 - [ ] Typed client inferred from config (`client.posts.findOne(...)`)
 - [ ] Auth: Better Auth bridge, email magic-link, session middleware
 - [ ] CSRF (double-submit) on writes; per-collection RBAC hook

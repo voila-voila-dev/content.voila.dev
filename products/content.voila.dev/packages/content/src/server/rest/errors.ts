@@ -5,9 +5,9 @@
 // `{ error }`; `ApiError` wraps one so a handler can `throw` and a single
 // boundary (`runHandler`) maps it to a `Response`.
 //
-// Only the read path's codes live here. Writes (CONFLICT/VALIDATION/CSRF) and
-// auth (UNAUTHORIZED) add their own codes when those slices land, so every
-// constructor below is exercised by a real request — no dead vocabulary.
+// Read- and write-path codes live here. CSRF and auth (UNAUTHORIZED) add their
+// own codes when those slices land, so every constructor below is exercised by a
+// real request — no dead vocabulary.
 
 /** Base shape every failure extends: a string-literal discriminator. */
 export interface BaseError {
@@ -55,7 +55,27 @@ export interface InternalError extends BaseError {
   readonly code: "INTERNAL";
 }
 
-/** Every failure the read layer can produce. */
+/** One field-level validation failure: where it occurred and what was wrong. */
+export interface ValidationIssue {
+  /** Path to the offending value, field name first (e.g. `["title"]`, `["tags", 0]`). */
+  readonly path: ReadonlyArray<string | number>;
+  readonly message: string;
+}
+
+export interface ValidationError extends BaseError {
+  readonly code: "VALIDATION";
+  readonly collectionSlug: string;
+  readonly issues: ReadonlyArray<ValidationIssue>;
+}
+
+export interface ConflictError extends BaseError {
+  readonly code: "CONFLICT";
+  readonly collectionSlug: string;
+  /** The unique field that collided, when the driver names the column. */
+  readonly field?: string;
+}
+
+/** Every failure the read or write layer can produce. */
 export type ApiFailure =
   | BadRequestError
   | UnknownCollectionError
@@ -64,6 +84,8 @@ export type ApiFailure =
   | InvalidOrderError
   | InvalidCursorError
   | NotFoundError
+  | ValidationError
+  | ConflictError
   | InternalError;
 
 export type ApiErrorCode = ApiFailure["code"];
@@ -76,6 +98,8 @@ const STATUS: Record<ApiErrorCode, number> = {
   INVALID_ORDER: 400,
   INVALID_CURSOR: 400,
   NOT_FOUND: 404,
+  VALIDATION: 422,
+  CONFLICT: 409,
   INTERNAL: 500,
 };
 
@@ -107,6 +131,19 @@ export function invalidCursor(): InvalidCursorError {
 
 export function notFound(collectionSlug: string): NotFoundError {
   return { code: "NOT_FOUND", collectionSlug };
+}
+
+export function validation(
+  collectionSlug: string,
+  issues: ReadonlyArray<ValidationIssue>,
+): ValidationError {
+  return { code: "VALIDATION", collectionSlug, issues };
+}
+
+export function conflict(collectionSlug: string, field?: string): ConflictError {
+  return field === undefined
+    ? { code: "CONFLICT", collectionSlug }
+    : { code: "CONFLICT", collectionSlug, field };
 }
 
 /**

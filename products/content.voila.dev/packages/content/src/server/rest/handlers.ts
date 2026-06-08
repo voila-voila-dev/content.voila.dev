@@ -55,7 +55,7 @@ export function requireCollection(config: NormalizedConfig, slug: string): Colle
  * `ApiError` carries a typed `ApiFailure`; any other throw (driver bug,
  * programming error) folds to a generic `INTERNAL` 500 so internals never leak.
  */
-async function runHandler(body: () => Promise<Response>): Promise<Response> {
+export async function runHandler(body: () => Promise<Response>): Promise<Response> {
   try {
     return await body();
   } catch (error) {

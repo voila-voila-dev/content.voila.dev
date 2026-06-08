@@ -295,8 +295,8 @@ describe("find by field — GET /:collection/by/:field/:value", () => {
 });
 
 describe("router", () => {
-  it("returns null for a non-GET request", async () => {
-    expect(await handle(new Request("https://x/admin/api/posts", { method: "POST" }))).toBeNull();
+  it("returns null for an unsupported method", async () => {
+    expect(await handle(new Request("https://x/admin/api/posts", { method: "PUT" }))).toBeNull();
   });
 
   it("returns null for a path outside the base", async () => {
