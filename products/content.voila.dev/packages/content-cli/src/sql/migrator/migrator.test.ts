@@ -95,4 +95,47 @@ describe("migrator: generate → apply", () => {
     await generateMigration({ config, dir: nested, name: "init", dialect: "sqlite" });
     expect(readdirSync(nested)).toEqual(["0001_init.sql"]);
   });
+
+  it("generate --auth appends the Better Auth tables, which then apply", async () => {
+    const migrationsDir = join(dir, "with-auth", "migrations");
+    const path = await generateMigration({
+      config,
+      dir: migrationsDir,
+      name: "init",
+      dialect: "sqlite",
+      auth: true,
+    });
+    const ddl = readFileSync(path, "utf8");
+    expect(ddl).toContain('CREATE TABLE "posts"');
+    expect(ddl).toContain('CREATE TABLE IF NOT EXISTS "user"');
+    expect(ddl).toContain('CREATE TABLE IF NOT EXISTS "session"');
+
+    const dbPath = join(dir, "with-auth", "auth.db");
+    await applySqlite({ dir: migrationsDir, url: `file:${dbPath}` });
+    const db = new Database(dbPath);
+    try {
+      const tables = db
+        .query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        .all()
+        .map((r) => (r as { name: string }).name);
+      expect(tables).toContain("posts");
+      expect(tables).toEqual(
+        expect.arrayContaining(["user", "session", "account", "verification"]),
+      );
+    } finally {
+      db.close();
+    }
+  });
+
+  it("generate --auth rejects a non-sqlite dialect", async () => {
+    await expect(
+      generateMigration({
+        config,
+        dir: join(dir, "pg"),
+        name: "init",
+        dialect: "postgres",
+        auth: true,
+      }),
+    ).rejects.toThrow(/only supported with --dialect sqlite/);
+  });
 });

@@ -3,6 +3,9 @@
 // implement `Authenticator`/`AccessControl`, mint tokens with `issueCsrfToken`,
 // and pass the seams to `createRestHandler`.
 
+// Auth-table DDL lives in `@voila/content/sql` (the dependency-free schema home);
+// re-exported here so it sits alongside the rest of the server auth surface.
+export { authTableStatements, authTablesSql } from "../../sql";
 export type { AccessControl, AccessRequest } from "./access";
 export type { Authenticator } from "./authenticator";
 export { readCookie } from "./cookies";

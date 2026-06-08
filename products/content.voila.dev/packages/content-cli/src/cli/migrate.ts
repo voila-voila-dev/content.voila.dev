@@ -34,6 +34,7 @@ async function runGenerate(args: ReadonlyArray<string>): Promise<void> {
       dir: { type: "string", default: "migrations" },
       name: { type: "string", default: "migration" },
       dialect: { type: "string", default: "sqlite" },
+      auth: { type: "boolean", default: false },
     },
     strict: true,
   });
@@ -42,6 +43,12 @@ async function runGenerate(args: ReadonlyArray<string>): Promise<void> {
   if (!DIALECTS.includes(dialect as Dialect)) {
     throw new CliError(`Invalid --dialect "${dialect}". Expected one of: ${DIALECTS.join(", ")}.`);
   }
+  const auth = values.auth as boolean;
+  if (auth && dialect !== "sqlite") {
+    throw new CliError(
+      "--auth is only supported with --dialect sqlite; the Postgres auth schema lands with the pg client.",
+    );
+  }
 
   const config = await loadConfig(values.config as string);
   const path = await generateMigration({
@@ -49,6 +56,7 @@ async function runGenerate(args: ReadonlyArray<string>): Promise<void> {
     dir: values.dir as string,
     name: values.name as string,
     dialect: dialect as Dialect,
+    auth,
   });
   console.log(`Created ${path}`);
 }

@@ -6,7 +6,8 @@
     ".": "./src/index.ts",
     "./sql": "./src/sql/index.ts",
     "./server": "./src/server/index.ts",
-    "./client": "./src/client/index.ts"
+    "./client": "./src/client/index.ts",
+    "./better-auth": "./src/server/auth/better-auth/index.ts"
   },
   "publishConfig": {
     "access": "public"
@@ -17,7 +18,16 @@
   "dependencies": {
     "@standard-schema/spec": "^1.1.0"
   },
+  "peerDependencies": {
+    "better-auth": "^1.6.0"
+  },
+  "peerDependenciesMeta": {
+    "better-auth": {
+      "optional": true
+    }
+  },
   "devDependencies": {
-    "@voila/typescript-config": "workspace:*"
+    "@voila/typescript-config": "workspace:*",
+    "better-auth": "^1.6.12"
   }
 }

@@ -4,6 +4,7 @@
 // (row mapping, `@voila/content/server`) and the CLI's DDL/migration renderer
 // (`@voila/content-cli`) read column shape from a single source of truth.
 
+export { authTableStatements, authTablesSql } from "./auth-schema";
 export { deriveSchema } from "./derive-schema";
 export { toColumnName } from "./to-column-name";
 export type { ColumnSchema, Dialect, IndexSchema, TableSchema } from "./types";

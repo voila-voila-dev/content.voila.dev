@@ -68,10 +68,18 @@ seam was co-designed with the server/client that consumes them.
 - [x] CSRF (signed double-submit) on writes; per-collection RBAC hook. Mutating
       routes require a matching, HMAC-signed cookie/header token pair (`CSRF` 403,
       Web Crypto, edge-safe); reads are exempt.
-- [ ] Better Auth bridge + email magic-link: a concrete `Authenticator` over the
-      `SqlDriver` seam, auth-tables migration, and mailer (console/resend/smtp).
+- [x] Better Auth bridge + email magic-link (`@voila/content/better-auth`):
+      `makeBetterAuth` returns a concrete `Authenticator` (session cookie →
+      `Principal`) over a Better Auth SQL adapter on the `SqlDriver` seam, plus a
+      `handler` for the auth routes. Magic-link sign-in over a `Mailer` seam
+      (console default + Resend over HTTP; SMTP is node-only, deferred). Better
+      Auth is an *optional peer dep* on its own subpath — the core stays light.
+      Auth-table DDL ships from `@voila/content/sql`; `voila migrate generate
+      --auth` folds it into a migration.
 
-**Exit:** log in → browse → edit a document over HTTP, end to end.
+**Exit:** log in → browse → edit a document over HTTP, end to end — the engine
+pieces are in place (auth bridge + REST write path + typed client); the wired
+admin UI lands in Phase 3.
 
 ## Phase 3 — UI: primitives + blocks (`@voila/ui`, `@voila/content-ui`)
 

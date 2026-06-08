@@ -7,7 +7,7 @@
 
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import type { NormalizedConfig } from "@voila/content";
-import { type Dialect, deriveSchema } from "@voila/content/sql";
+import { authTablesSql, type Dialect, deriveSchema } from "@voila/content/sql";
 import { generateDDL } from "../ddl/generate-ddl";
 import { formatMigrationId, nextMigrationId } from "./loader";
 
@@ -20,6 +20,8 @@ export interface GenerateMigrationOpts {
   readonly name: string;
   /** SQL dialect to render. D1 uses `sqlite`. */
   readonly dialect: Dialect;
+  /** Append the Better Auth core-table DDL (`user`/`session`/`account`/`verification`). */
+  readonly auth?: boolean;
 }
 
 function slugify(name: string): string {
@@ -35,9 +37,17 @@ function slugify(name: string): string {
 /**
  * Writes the next migration file and returns its full path. The DDL is rendered
  * for `dialect`; the file is named `NNNN_<slug>.sql` where `NNNN` is one past
- * the highest existing id in `dir`.
+ * the highest existing id in `dir`. With `opts.auth`, the Better Auth core-table
+ * DDL is appended (SQLite only — its `INTEGER`-epoch/`0/1`-boolean shape is what
+ * the SQL adapter expects).
  */
 export async function generateMigration(opts: GenerateMigrationOpts): Promise<string> {
+  if (opts.auth && opts.dialect !== "sqlite") {
+    throw new Error(
+      `--auth is only supported with --dialect sqlite (got "${opts.dialect}"); the Postgres auth schema lands with the pg client.`,
+    );
+  }
+
   await mkdir(opts.dir, { recursive: true });
 
   const existing = await readdir(opts.dir);
@@ -45,7 +55,8 @@ export async function generateMigration(opts: GenerateMigrationOpts): Promise<st
   const filename = `${id}_${slugify(opts.name)}.sql`;
   const path = `${opts.dir}/${filename}`;
 
-  const ddl = generateDDL(deriveSchema(opts.config), opts.dialect);
+  const collectionsDdl = generateDDL(deriveSchema(opts.config), opts.dialect);
+  const ddl = opts.auth ? `${collectionsDdl}\n${authTablesSql}` : collectionsDdl;
   await writeFile(path, ddl);
 
   return path;
