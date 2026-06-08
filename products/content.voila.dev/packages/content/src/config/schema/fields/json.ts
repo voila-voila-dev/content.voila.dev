@@ -1,7 +1,9 @@
-import { Schema } from "effect";
+import { unknown } from "../std";
+import type { FieldMeta } from "./_annotation";
 import { applyCommon, type BaseFieldOpts, type WithLocalized } from "./_base";
 
 export type JsonOpts<T> = BaseFieldOpts<T>;
+export type JsonMeta = FieldMeta;
 
 /**
  * Free-form JSON. The runtime shape is `unknown`; consumers pin a TypeScript
@@ -12,9 +14,9 @@ export type JsonOpts<T> = BaseFieldOpts<T>;
  * fields.json<{ ok: boolean }>()
  * ```
  */
-export const json = <T = unknown, const O extends JsonOpts<T> = JsonOpts<T>>(
+export function json<T = unknown, const O extends JsonOpts<T> = JsonOpts<T>>(
   opts?: O,
-): WithLocalized<T, O> => {
-  const o = opts ?? ({} as O);
-  return applyCommon(Schema.Unknown, o, { kind: "json", widget: "json" }) as WithLocalized<T, O>;
-};
+): WithLocalized<T, O, JsonMeta> {
+  const meta: JsonMeta = { kind: "json", widget: "json" };
+  return applyCommon(unknown<T>(), opts, meta);
+}

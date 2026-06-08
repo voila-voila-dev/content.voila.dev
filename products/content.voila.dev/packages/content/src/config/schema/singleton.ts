@@ -14,13 +14,15 @@ export type Singleton<
   Fields extends FieldsMap = FieldsMap,
 > = SingletonDef<Slug, Fields>;
 
-export const defineSingleton = <const Slug extends string, const Fields extends FieldsMap>(def: {
+export function defineSingleton<const Slug extends string, const Fields extends FieldsMap>(def: {
   readonly slug: Slug;
   readonly label?: string;
   readonly fields: Fields;
-}): Singleton<Slug, Fields> => ({
-  kind: "singleton",
-  slug: def.slug,
-  label: def.label,
-  fields: def.fields,
-});
+}): Singleton<Slug, Fields> {
+  return {
+    kind: "singleton",
+    slug: def.slug,
+    label: def.label,
+    fields: def.fields,
+  };
+}

@@ -1,7 +1,16 @@
-import { Schema } from "effect";
+import { arrayOf, str, type Validator } from "../std";
+import type { FieldMeta } from "./_annotation";
 import { applyCommon, type BaseFieldOpts, type WithLocalized } from "./_base";
 
 export type OnDelete = "restrict" | "cascade" | "setNull";
+
+export type RelationMeta = FieldMeta<{
+  readonly to: string;
+  readonly many: boolean;
+  readonly onDelete: OnDelete;
+  readonly filter?: (ctx: unknown) => Record<string, unknown>;
+  readonly through?: string;
+}>;
 
 export interface RelationOpts<T = string | ReadonlyArray<string>> extends BaseFieldOpts<T> {
   /** Target collection slug. */
@@ -15,12 +24,12 @@ export interface RelationOpts<T = string | ReadonlyArray<string>> extends BaseFi
   readonly through?: string;
 }
 
-export const relation = <const O extends RelationOpts = RelationOpts>(
+export function relation<const O extends RelationOpts = RelationOpts>(
   opts: O & RelationOpts,
-): WithLocalized<string | ReadonlyArray<string>, O> => {
+): WithLocalized<string | ReadonlyArray<string>, O, RelationMeta> {
   // Stored as foreign-key id(s). The exact id format is the target's id field.
-  const inner: Schema.Schema.Any = opts.many ? Schema.Array(Schema.String) : Schema.String;
-  return applyCommon(inner, opts, {
+  const inner: Validator<string | ReadonlyArray<string>> = opts.many ? arrayOf(str()) : str();
+  const meta: RelationMeta = {
     kind: "relation",
     widget: "relation",
     to: opts.to,
@@ -28,5 +37,6 @@ export const relation = <const O extends RelationOpts = RelationOpts>(
     onDelete: opts.onDelete ?? "restrict",
     filter: opts.filter,
     through: opts.through,
-  }) as WithLocalized<string | ReadonlyArray<string>, O>;
-};
+  };
+  return applyCommon(inner, opts, meta);
+}

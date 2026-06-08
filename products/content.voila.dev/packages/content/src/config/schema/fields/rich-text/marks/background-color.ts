@@ -1,4 +1,3 @@
-import { Schema } from "effect";
-import { defineMark } from "../_core";
+import { defineMark, str } from "../_core";
 
-export const backgroundColor = defineMark({ key: "backgroundColor", schema: Schema.String });
+export const backgroundColor = defineMark({ key: "backgroundColor", schema: str() });

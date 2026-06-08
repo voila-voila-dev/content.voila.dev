@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { Schema } from "effect";
 import { defineConfig } from "./config";
 import { defineCollection } from "./schema/collection";
 import * as fields from "./schema/fields";
 import { defineSingleton } from "./schema/singleton";
+import { decodeSync, type Infer } from "./schema/std";
 
 describe("defineConfig", () => {
   const posts = defineCollection({
@@ -59,17 +59,18 @@ describe("defineConfig", () => {
     });
     const title = config.collections.posts.fields.title;
 
-    // Type-level: title.Type is { readonly "en-US": string; readonly "fr-FR": string }.
-    // The assertion below would fail to typecheck if the narrowing regressed.
-    type T = Schema.Schema.Type<typeof title>;
+    // Type-level: the narrowed field's output is
+    // { readonly "en-US": string; readonly "fr-FR": string }. The probe below
+    // would fail to typecheck if the narrowing regressed.
+    type T = Infer<typeof title>;
     const _typeProbe: T = { "en-US": "Hi", "fr-FR": "Salut" };
     expect(_typeProbe["fr-FR"]).toBe("Salut");
 
     // Runtime: an unselected locale is rejected, selected ones are accepted.
-    expect(Schema.decodeUnknownSync(title)({ "en-US": "Hi", "fr-FR": "Salut" })).toEqual({
+    expect(decodeSync(title, { "en-US": "Hi", "fr-FR": "Salut" })).toEqual({
       "en-US": "Hi",
       "fr-FR": "Salut",
     });
-    expect(() => Schema.decodeUnknownSync(title)({ "de-DE": "Hallo" })).toThrow();
+    expect(() => decodeSync(title, { "de-DE": "Hallo" })).toThrow();
   });
 });

@@ -1,6 +1,5 @@
-import type { Schema } from "effect";
-import { element } from "../_core";
+import { element, type Infer } from "../_core";
 
 export const table = element("table", {});
 
-export type TableElement = Schema.Schema.Type<ReturnType<typeof table.build>>;
+export type TableElement = Infer<ReturnType<typeof table.build>>;

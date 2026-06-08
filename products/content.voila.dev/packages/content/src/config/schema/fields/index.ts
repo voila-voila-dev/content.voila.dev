@@ -1,14 +1,9 @@
 // `import { fields } from "@voila/content"` — every constructor lives in its
 // own file (see ./<name>.ts) and is re-exported under the canonical name here.
 
-export {
-  type FieldAccess,
-  type FieldMeta,
-  type FieldTransform,
-  VoilaField,
-  VoilaInner,
-} from "./_annotation";
-export type { BaseFieldOpts, WithLocalized } from "./_base";
+export type { FieldAccess, FieldMeta, FieldMetaBase, FieldTransform } from "./_annotation";
+export type { BaseFieldOpts, Field, WithLocalized } from "./_base";
+export { makeField } from "./_base";
 export { isLocale, LOCALES, type Locale } from "./_locale";
 export type { Localized, LocalizedMarker, NarrowField, NarrowFields } from "./_localized";
 export type { FieldsMap } from "./_map";

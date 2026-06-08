@@ -190,4 +190,6 @@ export type Locale = (typeof LOCALES)[number];
 
 const LOCALE_SET: ReadonlySet<string> = new Set(LOCALES);
 
-export const isLocale = (value: string): value is Locale => LOCALE_SET.has(value);
+export function isLocale(value: string): value is Locale {
+  return LOCALE_SET.has(value);
+}

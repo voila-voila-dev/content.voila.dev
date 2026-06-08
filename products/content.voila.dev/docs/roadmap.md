@@ -1,0 +1,87 @@
+# Roadmap
+
+Milestone-based, ~1 FTE. Slip the date, never the exit criterion. Each phase
+ships with tests green (`bun test`) before it's marked done.
+
+> **Context:** the engine was rebuilt in plain TypeScript (Effect removed). The
+> schema/fields core is done; everything below the line is being rebuilt or
+> built fresh on that pure-TS foundation. See [tech decisions](./tech-decisions.md).
+
+## ✅ Phase 0 — Schema & fields engine (`@voila/content`)
+
+- [x] `defineConfig` / `defineCollection` / `defineSingleton`
+- [x] Field constructors (one file each): `string`, `number`, `boolean`, `id`,
+      `slug`, `secret`, `password`, `color`, `code`, `markdown`, `enum`,
+      `select`, `multiSelect`, `date`, `datetime`, `time`, `duration`,
+      `position`, `json`, `array`, `object`, `relation`, `polymorphic`, `media`,
+      `richText`
+- [x] Standard Schema validators (zero-dep `std/` kit); `Field<T, Meta>` carries
+      typed metadata
+- [x] Localized fields + locale narrowing via `defineConfig`
+- [x] `InferDoc` / `InferSingleton` (no codegen)
+- [x] Strict typing pass: cast-free field constructors
+
+**Exit:** pure-TS, zero Effect refs, full typecheck + tests green. ✅
+
+## Phase 1 — CLI & SQL (`@voila/content-cli`)
+
+- [ ] DDL generator from field metadata (SQLite + Postgres dialects)
+- [ ] Migrator: journal + `migrate generate` / `migrate apply`
+- [ ] Apply targets: `bun:sqlite` (local), D1 (wrangler), Postgres
+- [ ] `voila` binary on `node:util` arg parsing (`migrate`, `seed`, `doctor`)
+
+**Exit:** `voila migrate generate && apply` builds a real schema from a config.
+
+## Phase 2 — Server & typed client (`@voila/content/server`, `/client`)
+
+- [ ] REST read endpoints (list + cursor pagination, find, find-by-field)
+- [ ] Write path: create / update / delete / restore, validation envelopes
+- [ ] Typed client inferred from config (`client.posts.findOne(...)`)
+- [ ] Auth: Better Auth bridge, email magic-link, session middleware
+- [ ] CSRF (double-submit) on writes; per-collection RBAC hook
+
+**Exit:** log in → browse → edit a document over HTTP, end to end.
+
+## Phase 3 — UI: primitives + blocks (`@voila/ui`, `@voila/content-ui`)
+
+- [ ] `@voila/ui` primitives: button, input, select, checkbox/switch, card,
+      table parts, dialog/drawer/popover, combobox, datepicker, tabs, toast,
+      tooltip, sidebar, badge, command palette
+- [ ] `@voila/content-ui`: `DataTable` (columns/cells from config), `FieldRenderer`
+      + widget registry, `CollectionForm` (inputs + Standard Schema validation),
+      `AdminShell` + `AppSidebar` (nav from config), `ListView`, `DetailView`,
+      dashboard widgets
+- [ ] Tailwind v4 token layer; light/dark; Phosphor icons
+
+**Exit:** a config renders full list + create/edit/detail with no hand-written
+columns or form fields.
+
+## Phase 4 — Registry & vending (`@voila/content-registry`)
+
+- [ ] `registry.json` manifest + vended source for shell, routes, blocks, fields
+- [ ] `voila add` (resolve deps, copy real files, install npm deps)
+- [ ] `voila diff` / `voila list`
+- [ ] `create-voila` template: fresh TanStack Start app, wired, one migration
+
+**Exit:** the afternoon test (see [DX](./dx.md)) passes on a clean install.
+
+## Phase 5 — Full feature set
+
+- [ ] Media: R2/S3 storage, image/video transforms, signed URLs
+- [ ] i18n: localized content + admin translation
+- [ ] Drafts, versions, scheduled publishing
+- [ ] Role-based access (per-collection, per-field)
+- [ ] Search (D1 FTS5 / Postgres FTS), audit log, import/export (JSON/CSV)
+- [ ] Webhooks, background tasks, cron
+- [ ] Live preview (Cloudflare Durable Object channel)
+- [ ] MCP server over the config for AI agents
+
+**Exit:** day-one feature parity with serious headless CMSes — config-first.
+
+## Out of scope
+
+- Visual page builder (use blocks + rich text)
+- Marketing-site builder (this is a CMS, not Webflow)
+- Hosted SaaS tier (run it yourself; pay Cloudflare)
+
+→ [Philosophy](./philosophy.md) · [Developer Experience](./dx.md) · [Tech Decisions](./tech-decisions.md)

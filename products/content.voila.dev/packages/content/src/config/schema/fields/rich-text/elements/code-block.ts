@@ -1,8 +1,7 @@
-import { Schema } from "effect";
-import { element } from "../_core";
+import { element, type Infer, optional, str } from "../_core";
 
 export const codeBlock = element("code-block", {
-  language: Schema.optional(Schema.String),
+  language: optional(str()),
 });
 
-export type CodeBlockElement = Schema.Schema.Type<ReturnType<typeof codeBlock.build>>;
+export type CodeBlockElement = Infer<ReturnType<typeof codeBlock.build>>;

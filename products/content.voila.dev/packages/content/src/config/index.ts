@@ -16,7 +16,7 @@ export type {
   WithLocalized,
 } from "./schema/fields";
 export * as fields from "./schema/fields";
-export { isLocale, LOCALES, VoilaField } from "./schema/fields";
+export { isLocale, LOCALES } from "./schema/fields";
 export type { InferDoc, InferFields, InferSingleton } from "./schema/infer";
 export type { Singleton, SingletonDef } from "./schema/singleton";
 export { defineSingleton } from "./schema/singleton";

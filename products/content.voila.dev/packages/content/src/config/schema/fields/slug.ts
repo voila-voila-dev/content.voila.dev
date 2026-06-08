@@ -1,4 +1,5 @@
-import { Schema } from "effect";
+import { pattern as patternCheck, refine, str } from "../std";
+import type { FieldMeta } from "./_annotation";
 import { applyCommon, type BaseFieldOpts, type WithLocalized } from "./_base";
 
 export interface SlugOpts extends BaseFieldOpts<string> {
@@ -8,16 +9,23 @@ export interface SlugOpts extends BaseFieldOpts<string> {
   readonly reserved?: ReadonlyArray<string>;
 }
 
+export type SlugMeta = FieldMeta<{
+  readonly from?: string;
+  readonly reserved?: ReadonlyArray<string>;
+}>;
+
 // Lowercase, hyphen-separated; no leading/trailing/consecutive hyphens.
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-export const slug = <const O extends SlugOpts = SlugOpts>(opts?: O): WithLocalized<string, O> => {
-  const o = opts ?? ({} as O);
-  return applyCommon(Schema.String.pipe(Schema.pattern(SLUG_PATTERN)), o, {
+export function slug<const O extends SlugOpts = SlugOpts>(
+  opts?: O,
+): WithLocalized<string, O, SlugMeta> {
+  const meta: SlugMeta = {
     kind: "slug",
     widget: "slug",
-    unique: o.unique ?? true,
-    from: o.from,
-    reserved: o.reserved,
-  }) as WithLocalized<string, O>;
-};
+    unique: opts?.unique ?? true,
+    from: opts?.from,
+    reserved: opts?.reserved,
+  };
+  return applyCommon(refine(str(), patternCheck(SLUG_PATTERN)), opts, meta);
+}

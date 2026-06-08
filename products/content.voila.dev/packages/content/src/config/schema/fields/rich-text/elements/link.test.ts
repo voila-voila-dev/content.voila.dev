@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { Schema } from "effect";
+import { decodeSync, unknown, type Validator } from "../../../std";
 import type { RichTextNode } from "../_core";
 import { link } from "./link";
 
-const node = Schema.Unknown as unknown as Schema.Schema<RichTextNode>;
+const node = unknown() as Validator<RichTextNode>;
 
 describe("link element", () => {
   it("decodes a minimal value", () => {
@@ -13,6 +13,6 @@ describe("link element", () => {
       children: [],
       url: "https://example.com",
     };
-    expect(Schema.decodeUnknownSync(link.build(node))(value)).toEqual(value);
+    expect(decodeSync(link.build(node), value)).toEqual(value);
   });
 });

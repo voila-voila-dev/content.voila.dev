@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { Schema } from "effect";
+import { decodeSync } from "../../../std";
 import { fontFamily } from "./font-family";
 
 describe("fontFamily mark", () => {
   it("keys as `fontFamily` and accepts a string", () => {
     expect(fontFamily.key).toBe("fontFamily");
-    expect(Schema.decodeUnknownSync(fontFamily.schema)("Inter")).toBe("Inter");
+    expect(decodeSync(fontFamily.schema, "Inter")).toBe("Inter");
   });
 });

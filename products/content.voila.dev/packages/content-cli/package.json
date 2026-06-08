@@ -1,0 +1,30 @@
+{
+  "name": "@voila/content-cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "voila": "./src/cli/bin.ts"
+  },
+  "exports": {
+    ".": "./src/cli/index.ts",
+    "./sql": "./src/sql/index.ts"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@voila/content": "workspace:*",
+    "@effect/cli": "^0.75.1",
+    "@effect/platform": "^0.96.1",
+    "@effect/platform-bun": "^0.89.0",
+    "@effect/sql": "^0.51.1",
+    "@effect/sql-d1": "^0.49.0",
+    "@effect/sql-sqlite-bun": "^0.52.0",
+    "effect": "^3.21.2"
+  },
+  "devDependencies": {
+    "@voila/typescript-config": "workspace:*",
+    "miniflare": "^4.20260526.0"
+  }
+}

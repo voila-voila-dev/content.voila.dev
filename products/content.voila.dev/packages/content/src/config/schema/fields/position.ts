@@ -1,4 +1,5 @@
-import { Schema } from "effect";
+import { max as maxCheck, min as minCheck, num, refine, struct } from "../std";
+import type { FieldMeta } from "./_annotation";
 import { applyCommon, type BaseFieldOpts, type WithLocalized } from "./_base";
 
 export interface Position {
@@ -7,18 +8,16 @@ export interface Position {
 }
 
 export type PositionOpts = BaseFieldOpts<Position>;
+export type PositionMeta = FieldMeta;
 
-const PositionSchema = Schema.Struct({
-  latitude: Schema.Number.pipe(Schema.greaterThanOrEqualTo(-90), Schema.lessThanOrEqualTo(90)),
-  longitude: Schema.Number.pipe(Schema.greaterThanOrEqualTo(-180), Schema.lessThanOrEqualTo(180)),
+const PositionSchema = struct({
+  latitude: refine(num(), minCheck(-90), maxCheck(90)),
+  longitude: refine(num(), minCheck(-180), maxCheck(180)),
 });
 
-export const position = <const O extends PositionOpts = PositionOpts>(
+export function position<const O extends PositionOpts = PositionOpts>(
   opts?: O,
-): WithLocalized<Position, O> => {
-  const o = opts ?? ({} as O);
-  return applyCommon(PositionSchema, o, {
-    kind: "position",
-    widget: "position",
-  }) as WithLocalized<Position, O>;
-};
+): WithLocalized<Position, O, PositionMeta> {
+  const meta: PositionMeta = { kind: "position", widget: "position" };
+  return applyCommon(PositionSchema, opts, meta);
+}

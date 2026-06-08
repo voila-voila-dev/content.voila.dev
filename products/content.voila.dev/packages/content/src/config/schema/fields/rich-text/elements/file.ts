@@ -1,11 +1,10 @@
-import { Schema } from "effect";
-import { element } from "../_core";
+import { element, type Infer, min, num, optional, refine, str } from "../_core";
 
 export const file = element("file", {
-  url: Schema.String,
-  name: Schema.String,
-  size: Schema.optional(Schema.Number.pipe(Schema.greaterThanOrEqualTo(0))),
-  mime: Schema.optional(Schema.String),
+  url: str(),
+  name: str(),
+  size: optional(refine(num(), min(0))),
+  mime: optional(str()),
 });
 
-export type FileElement = Schema.Schema.Type<ReturnType<typeof file.build>>;
+export type FileElement = Infer<ReturnType<typeof file.build>>;

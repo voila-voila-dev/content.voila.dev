@@ -1,25 +1,20 @@
-import { Schema } from "effect";
+import { type InferShape, struct, type Validator } from "../std";
+import type { FieldMeta } from "./_annotation";
 import { applyCommon, type BaseFieldOpts, type WithLocalized } from "./_base";
 
-export type ObjectShape = Readonly<Record<string, Schema.Schema.Any>>;
+export type ObjectShape = Readonly<Record<string, Validator<unknown>>>;
 
-export type ObjectValue<S extends ObjectShape> = {
-  readonly [K in keyof S]: Schema.Schema.Type<S[K]>;
-};
+/** The decoded value of an object field — `optional(x)` members become optional keys. */
+export type ObjectValue<S extends ObjectShape> = InferShape<S>;
+
+export type ObjectMeta = FieldMeta<{ readonly keys: ReadonlyArray<string> }>;
 
 export type ObjectOpts<S extends ObjectShape> = BaseFieldOpts<ObjectValue<S>>;
 
-export const object = <
+export function object<
   const Shape extends ObjectShape,
   const O extends ObjectOpts<Shape> = ObjectOpts<Shape>,
->(
-  shape: Shape,
-  opts?: O,
-): WithLocalized<ObjectValue<Shape>, O> => {
-  const o = opts ?? ({} as O);
-  return applyCommon(Schema.Struct(shape), o, {
-    kind: "object",
-    widget: "object",
-    keys: Object.keys(shape),
-  }) as WithLocalized<ObjectValue<Shape>, O>;
-};
+>(shape: Shape, opts?: O): WithLocalized<ObjectValue<Shape>, O, ObjectMeta> {
+  const meta: ObjectMeta = { kind: "object", widget: "object", keys: Object.keys(shape) };
+  return applyCommon(struct(shape), opts, meta);
+}

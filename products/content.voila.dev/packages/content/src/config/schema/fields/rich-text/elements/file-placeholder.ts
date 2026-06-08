@@ -1,8 +1,7 @@
-import { Schema } from "effect";
-import { element } from "../_core";
+import { element, type Infer, optional, str } from "../_core";
 
 export const filePlaceholder = element("file-placeholder", {
-  fileName: Schema.optional(Schema.String),
+  fileName: optional(str()),
 });
 
-export type FilePlaceholderElement = Schema.Schema.Type<ReturnType<typeof filePlaceholder.build>>;
+export type FilePlaceholderElement = Infer<ReturnType<typeof filePlaceholder.build>>;

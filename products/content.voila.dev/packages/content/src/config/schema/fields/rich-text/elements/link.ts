@@ -1,10 +1,9 @@
-import { Schema } from "effect";
-import { element } from "../_core";
+import { element, type Infer, literal, optional, str } from "../_core";
 
 export const link = element("link", {
-  url: Schema.String,
-  title: Schema.optional(Schema.String),
-  target: Schema.optional(Schema.Union(Schema.Literal("_self"), Schema.Literal("_blank"))),
+  url: str(),
+  title: optional(str()),
+  target: optional(literal("_self", "_blank")),
 });
 
-export type LinkElement = Schema.Schema.Type<ReturnType<typeof link.build>>;
+export type LinkElement = Infer<ReturnType<typeof link.build>>;

@@ -2,11 +2,15 @@
 // config. Every downstream layer (typed client, forms, DB adapter) keys off
 // these types instead of re-deriving the shape of a collection ad hoc.
 
-import type { Schema } from "effect";
 import type { NormalizedConfig } from "../config";
 import type { Collection } from "./collection";
+import type { Field } from "./fields/_base";
 import type { FieldsMap } from "./fields/_map";
 import type { Singleton } from "./singleton";
+
+/** The validated (output) type a field carries, regardless of its meta type. */
+// biome-ignore lint/suspicious/noExplicitAny: match any meta type when extracting T.
+type FieldType<F> = F extends Field<infer T, any> ? T : never;
 
 /**
  * Expand a field value one level so editors render the object's members
@@ -30,22 +34,22 @@ type Expand<T> = T extends Date
         : T;
 
 /**
- * Resolve a field map to its decoded document shape: each field's annotated
- * effect/Schema collapses to its `Type` (the decoded value), expanded one
- * level for readable hovers. Localized fields are already narrowed to the
- * project's selected locales by `defineConfig`, so the brand and wide
- * `Record<Locale, T>` wrapper never leak through here.
+ * Resolve a field map to its document shape: each field collapses to the value
+ * type `T` it carries (`Field<T>`), expanded one level for readable hovers.
+ * Localized fields are already narrowed to the project's selected locales by
+ * `defineConfig`, so the brand and wide `Record<Locale, T>` wrapper never leak
+ * through here.
  */
 export type InferFields<Fields extends FieldsMap> = {
-  readonly [K in keyof Fields]: Expand<Schema.Schema.Type<Fields[K]>>;
+  readonly [K in keyof Fields]: Expand<FieldType<Fields[K]>>;
 };
 
 /**
  * The TypeScript shape of a document in the `Slug` collection of `C`.
  *
- * Walks `C["collections"][Slug].fields` and resolves each field via its
- * effect/Schema `Type`. Because `defineConfig` has already narrowed localized
- * fields to the selected locales, a `string({ localized: true })` field on a
+ * Walks `C["collections"][Slug].fields` and resolves each field to its value
+ * type. Because `defineConfig` has already narrowed localized fields to the
+ * selected locales, a `string({ localized: true })` field on a
  * config with `locales: ["en-US", "fr-FR"]` surfaces as
  * `{ readonly "en-US": string; readonly "fr-FR": string }`.
  *

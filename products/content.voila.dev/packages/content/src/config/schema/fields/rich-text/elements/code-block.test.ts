@@ -1,13 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { Schema } from "effect";
+import { decodeSync, unknown, type Validator } from "../../../std";
 import type { RichTextNode } from "../_core";
 import { codeBlock } from "./code-block";
 
-const node = Schema.Unknown as unknown as Schema.Schema<RichTextNode>;
+const node = unknown() as Validator<RichTextNode>;
 
 describe("code-block element", () => {
   it("decodes a minimal value", () => {
     const value = { id: "1", type: "code-block" as const, children: [], language: "ts" };
-    expect(Schema.decodeUnknownSync(codeBlock.build(node))(value)).toEqual(value);
+    expect(decodeSync(codeBlock.build(node), value)).toEqual(value);
   });
 });

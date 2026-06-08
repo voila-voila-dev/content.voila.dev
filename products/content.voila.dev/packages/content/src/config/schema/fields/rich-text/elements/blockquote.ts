@@ -1,8 +1,7 @@
-import { Schema } from "effect";
-import { element } from "../_core";
+import { element, type Infer, optional, str } from "../_core";
 
 export const blockquote = element("blockquote", {
-  cite: Schema.optional(Schema.String),
+  cite: optional(str()),
 });
 
-export type BlockquoteElement = Schema.Schema.Type<ReturnType<typeof blockquote.build>>;
+export type BlockquoteElement = Infer<ReturnType<typeof blockquote.build>>;

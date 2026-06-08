@@ -1,10 +1,16 @@
-import { Schema } from "effect";
+import { arrayOf, str, struct, type Validator } from "../std";
+import type { FieldMeta } from "./_annotation";
 import { applyCommon, type BaseFieldOpts, type WithLocalized } from "./_base";
 
 export interface PolymorphicRef {
   readonly type: string;
   readonly id: string;
 }
+
+export type PolymorphicMeta = FieldMeta<{
+  readonly to: ReadonlyArray<string>;
+  readonly many: boolean;
+}>;
 
 export interface PolymorphicOpts
   extends BaseFieldOpts<PolymorphicRef | ReadonlyArray<PolymorphicRef>> {
@@ -13,19 +19,19 @@ export interface PolymorphicOpts
   readonly many?: boolean;
 }
 
-const RefSchema = Schema.Struct({
-  type: Schema.String,
-  id: Schema.String,
-});
+const RefSchema = struct({ type: str(), id: str() });
 
-export const polymorphic = <const O extends PolymorphicOpts = PolymorphicOpts>(
+export function polymorphic<const O extends PolymorphicOpts = PolymorphicOpts>(
   opts: O & PolymorphicOpts,
-): WithLocalized<PolymorphicRef | ReadonlyArray<PolymorphicRef>, O> => {
-  const inner: Schema.Schema.Any = opts.many ? Schema.Array(RefSchema) : RefSchema;
-  return applyCommon(inner, opts, {
+): WithLocalized<PolymorphicRef | ReadonlyArray<PolymorphicRef>, O, PolymorphicMeta> {
+  const inner: Validator<PolymorphicRef | ReadonlyArray<PolymorphicRef>> = opts.many
+    ? arrayOf(RefSchema)
+    : RefSchema;
+  const meta: PolymorphicMeta = {
     kind: "polymorphic",
     widget: "polymorphic",
     to: opts.to,
     many: opts.many ?? false,
-  }) as WithLocalized<PolymorphicRef | ReadonlyArray<PolymorphicRef>, O>;
-};
+  };
+  return applyCommon(inner, opts, meta);
+}

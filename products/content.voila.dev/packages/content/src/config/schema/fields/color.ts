@@ -1,7 +1,9 @@
-import { Schema } from "effect";
+import { pattern as patternCheck, refine, str } from "../std";
+import type { FieldMeta } from "./_annotation";
 import { applyCommon, type BaseFieldOpts, type WithLocalized } from "./_base";
 
 export type ColorFormat = "hex" | "rgb" | "oklch";
+export type ColorMeta = FieldMeta<{ readonly format?: ColorFormat }>;
 
 export interface ColorOpts extends BaseFieldOpts<string> {
   readonly format?: ColorFormat;
@@ -13,14 +15,10 @@ const PATTERN: Record<ColorFormat, RegExp> = {
   oklch: /^oklch\(\s*[\d.]+%?\s+[\d.]+\s+[\d.]+(?:\s*\/\s*[\d.]+%?)?\s*\)$/i,
 };
 
-export const color = <const O extends ColorOpts = ColorOpts>(
+export function color<const O extends ColorOpts = ColorOpts>(
   opts?: O,
-): WithLocalized<string, O> => {
-  const o = opts ?? ({} as O);
-  const fmt = o.format ?? "hex";
-  return applyCommon(Schema.String.pipe(Schema.pattern(PATTERN[fmt])), o, {
-    kind: "color",
-    widget: "color",
-    format: fmt,
-  }) as WithLocalized<string, O>;
-};
+): WithLocalized<string, O, ColorMeta> {
+  const fmt = opts?.format ?? "hex";
+  const meta: ColorMeta = { kind: "color", widget: "color", format: fmt };
+  return applyCommon(refine(str(), patternCheck(PATTERN[fmt])), opts, meta);
+}

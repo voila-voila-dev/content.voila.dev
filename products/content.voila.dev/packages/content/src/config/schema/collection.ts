@@ -14,13 +14,15 @@ export type Collection<
   Fields extends FieldsMap = FieldsMap,
 > = CollectionDef<Slug, Fields>;
 
-export const defineCollection = <const Slug extends string, const Fields extends FieldsMap>(def: {
+export function defineCollection<const Slug extends string, const Fields extends FieldsMap>(def: {
   readonly slug: Slug;
   readonly label?: string;
   readonly fields: Fields;
-}): Collection<Slug, Fields> => ({
-  kind: "collection",
-  slug: def.slug,
-  label: def.label,
-  fields: def.fields,
-});
+}): Collection<Slug, Fields> {
+  return {
+    kind: "collection",
+    slug: def.slug,
+    label: def.label,
+    fields: def.fields,
+  };
+}

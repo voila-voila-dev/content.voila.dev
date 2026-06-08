@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { Schema } from "effect";
+import { decodeSync, unknown, type Validator } from "../../../std";
 import type { RichTextNode } from "../_core";
 import { callout } from "./callout";
 
-const node = Schema.Unknown as unknown as Schema.Schema<RichTextNode>;
+const node = unknown() as Validator<RichTextNode>;
 
 describe("callout element", () => {
   it("decodes a minimal value", () => {
@@ -14,6 +14,6 @@ describe("callout element", () => {
       icon: "💡",
       bgColor: "#fff7d6",
     };
-    expect(Schema.decodeUnknownSync(callout.build(node))(value)).toEqual(value);
+    expect(decodeSync(callout.build(node), value)).toEqual(value);
   });
 });

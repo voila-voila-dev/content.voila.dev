@@ -22,7 +22,7 @@ export type {
 // `Schema<Record<Locale, T>>` shape; `defineConfig` reads the `i18n.locales`
 // tuple and narrows them to `Schema<Record<Locales[number], T>>` per project.
 export * as fields from "./config/schema/fields";
-export { isLocale, LOCALES, VoilaField } from "./config/schema/fields";
+export { isLocale, LOCALES } from "./config/schema/fields";
 // Rich-text elements + marks + extension helpers. Pass these to
 // `fields.richText({ elements, marks })` to restrict a field, or use
 // `rt.defineElement` / `rt.defineMark` to introduce custom kinds.
@@ -30,5 +30,3 @@ export * as rt from "./config/schema/fields/rich-text";
 export type { InferDoc, InferFields, InferSingleton } from "./config/schema/infer";
 export type { Singleton, SingletonDef } from "./config/schema/singleton";
 export { defineSingleton } from "./config/schema/singleton";
-export type { Content, ContentDefinition } from "./content";
-export { defineContent } from "./content";

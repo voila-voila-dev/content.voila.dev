@@ -1,11 +1,10 @@
-import { Schema } from "effect";
-import { element } from "../_core";
+import { element, type Infer, optional, str } from "../_core";
 
 export const callout = element("callout", {
   /** Emoji rendered at the start of the callout (e.g. `"💡"`, `"⚠️"`). */
-  icon: Schema.String,
+  icon: str(),
   /** Optional background — any CSS color expression or design-system token. */
-  bgColor: Schema.optional(Schema.String),
+  bgColor: optional(str()),
 });
 
-export type CalloutElement = Schema.Schema.Type<ReturnType<typeof callout.build>>;
+export type CalloutElement = Infer<ReturnType<typeof callout.build>>;

@@ -1,6 +1,5 @@
-import type { Schema } from "effect";
-import { element } from "../_core";
+import { element, type Infer } from "../_core";
 
 export const imagePlaceholder = element("image-placeholder", {});
 
-export type ImagePlaceholderElement = Schema.Schema.Type<ReturnType<typeof imagePlaceholder.build>>;
+export type ImagePlaceholderElement = Infer<ReturnType<typeof imagePlaceholder.build>>;

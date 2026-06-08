@@ -1,13 +1,12 @@
-import { Schema } from "effect";
-import { element } from "../_core";
+import { element, type Infer, optional, str } from "../_core";
 
 export const mention = element("mention", {
   /** Source collection slug (e.g. `"users"`, `"tags"`). */
-  source: Schema.String,
+  source: str(),
   /** The referenced record's id (or any application-defined value). */
-  value: Schema.String,
+  value: str(),
   /** Display label shown inline; defaults to the resolved record's label. */
-  label: Schema.optional(Schema.String),
+  label: optional(str()),
 });
 
-export type MentionElement = Schema.Schema.Type<ReturnType<typeof mention.build>>;
+export type MentionElement = Infer<ReturnType<typeof mention.build>>;

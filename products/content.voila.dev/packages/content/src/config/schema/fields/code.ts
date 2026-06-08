@@ -1,4 +1,5 @@
-import { Schema } from "effect";
+import { str } from "../std";
+import type { FieldMeta } from "./_annotation";
 import { applyCommon, type BaseFieldOpts, type WithLocalized } from "./_base";
 
 export type CodeLanguage =
@@ -16,15 +17,15 @@ export type CodeLanguage =
   | "md"
   | "plain";
 
+export type CodeMeta = FieldMeta<{ readonly language?: CodeLanguage }>;
+
 export interface CodeOpts extends BaseFieldOpts<string> {
   readonly language?: CodeLanguage;
 }
 
-export const code = <const O extends CodeOpts = CodeOpts>(opts?: O): WithLocalized<string, O> => {
-  const o = opts ?? ({} as O);
-  return applyCommon(Schema.String, o, {
-    kind: "code",
-    widget: "code",
-    language: o.language ?? "plain",
-  }) as WithLocalized<string, O>;
-};
+export function code<const O extends CodeOpts = CodeOpts>(
+  opts?: O,
+): WithLocalized<string, O, CodeMeta> {
+  const meta: CodeMeta = { kind: "code", widget: "code", language: opts?.language ?? "plain" };
+  return applyCommon(str(), opts, meta);
+}

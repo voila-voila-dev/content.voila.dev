@@ -1,10 +1,9 @@
-import { Schema } from "effect";
-import { element } from "../_core";
+import { element, type Infer, optional, str } from "../_core";
 
 export const video = element("video", {
-  url: Schema.String,
-  caption: Schema.optional(Schema.String),
-  poster: Schema.optional(Schema.String),
+  url: str(),
+  caption: optional(str()),
+  poster: optional(str()),
 });
 
-export type VideoElement = Schema.Schema.Type<ReturnType<typeof video.build>>;
+export type VideoElement = Infer<ReturnType<typeof video.build>>;

@@ -1,13 +1,12 @@
-import { Schema } from "effect";
 import type { Branding } from "./branding";
 import type { I18nConfig } from "./i18n";
 import type { Collection } from "./schema/collection";
-import type { FieldMeta } from "./schema/fields/_annotation";
-import { VoilaField, VoilaInner } from "./schema/fields/_annotation";
+import { type Field, makeField } from "./schema/fields/_base";
 import type { Locale } from "./schema/fields/_locale";
 import type { NarrowFields } from "./schema/fields/_localized";
 import type { FieldsMap } from "./schema/fields/_map";
 import type { Singleton } from "./schema/singleton";
+import { record } from "./schema/std";
 
 export type CollectionMap = Readonly<Record<string, Collection>>;
 export type SingletonMap = Readonly<Record<string, Singleton>>;
@@ -59,56 +58,52 @@ export interface NormalizedConfig<
   readonly singletons: NarrowSingletons<Singletons, Locales[number]>;
 }
 
-const narrowFieldsRuntime = (fields: FieldsMap, locales: ReadonlyArray<Locale>): FieldsMap => {
+function narrowFieldsRuntime(fields: FieldsMap, locales: ReadonlyArray<Locale>): FieldsMap {
   if (locales.length === 0) return fields;
-  const [head, ...rest] = locales;
-  // biome-ignore lint/suspicious/noExplicitAny: Schema.Literal's variadic signature widens via cast.
-  const literal = Schema.Literal(head as string, ...(rest as Array<string>)) as any;
-  const out: Record<string, Schema.Schema.Any> = {};
+  const out: Record<string, Field> = {};
   for (const [key, field] of Object.entries(fields)) {
-    const annotations = field.ast.annotations as Readonly<Record<symbol, unknown>>;
-    const meta = annotations[VoilaField] as FieldMeta | undefined;
-    const inner = annotations[VoilaInner] as Schema.Schema.Any | undefined;
-    if (meta?.localized && inner !== undefined) {
-      out[key] = Schema.Record({ key: literal, value: inner }).pipe(
-        Schema.annotations({ [VoilaField]: meta, [VoilaInner]: inner }),
-      );
+    // Localized fields stash their per-locale value validator on `inner`; the
+    // wide `Record<string, T>` wrap is rebuilt here keyed to the project's
+    // selected locales (all required). Everything else passes through.
+    if (field.meta.localized && field.inner) {
+      const narrowed = record(field.inner, locales as ReadonlyArray<string>);
+      out[key] = makeField(narrowed, field.meta, field.inner);
     } else {
       out[key] = field;
     }
   }
   return out;
-};
+}
 
-const narrowCollectionsRuntime = (
+function narrowCollectionsRuntime(
   collections: CollectionMap,
   locales: ReadonlyArray<Locale>,
-): CollectionMap => {
+): CollectionMap {
   const out: Record<string, Collection> = {};
   for (const [key, col] of Object.entries(collections)) {
     out[key] = { ...col, fields: narrowFieldsRuntime(col.fields, locales) };
   }
   return out;
-};
+}
 
-const narrowSingletonsRuntime = (
+function narrowSingletonsRuntime(
   singletons: SingletonMap,
   locales: ReadonlyArray<Locale>,
-): SingletonMap => {
+): SingletonMap {
   const out: Record<string, Singleton> = {};
   for (const [key, sg] of Object.entries(singletons)) {
     out[key] = { ...sg, fields: narrowFieldsRuntime(sg.fields, locales) };
   }
   return out;
-};
+}
 
 /**
  * Builds the normalized config. Walks every collection/singleton and, when
- * `i18n.locales` is set, rewraps each localized field's `Schema.Record` with
- * `Schema.Literal(...locales)` as the key — narrowing both the runtime
- * validation and the inferred TS type to the selected locales.
+ * `i18n.locales` is set, rebuilds each localized field's record keyed to the
+ * selected locales — narrowing both the runtime validation and the inferred
+ * TS type to those locales.
  */
-export const defineConfig = <
+export function defineConfig<
   const Locales extends ReadonlyArray<Locale>,
   // biome-ignore lint/complexity/noBannedTypes: empty-object default lets `defineConfig` accept configs without collections.
   const Collections extends CollectionMap = {},
@@ -116,7 +111,7 @@ export const defineConfig = <
   const Singletons extends SingletonMap = {},
 >(
   config: Config<Locales, Collections, Singletons>,
-): NormalizedConfig<Locales, Collections, Singletons> => {
+): NormalizedConfig<Locales, Collections, Singletons> {
   const locales = config.i18n?.locales ?? [];
   const rawCollections = config.collections ?? ({} as Collections);
   const rawSingletons = config.singletons ?? ({} as Singletons);
@@ -132,4 +127,4 @@ export const defineConfig = <
       Locales[number]
     >,
   };
-};
+}

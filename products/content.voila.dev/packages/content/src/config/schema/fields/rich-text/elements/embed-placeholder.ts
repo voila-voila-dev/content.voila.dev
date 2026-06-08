@@ -1,8 +1,7 @@
-import { Schema } from "effect";
-import { element } from "../_core";
+import { element, type Infer, optional, str } from "../_core";
 
 export const embedPlaceholder = element("embed-placeholder", {
-  provider: Schema.optional(Schema.String),
+  provider: optional(str()),
 });
 
-export type EmbedPlaceholderElement = Schema.Schema.Type<ReturnType<typeof embedPlaceholder.build>>;
+export type EmbedPlaceholderElement = Infer<ReturnType<typeof embedPlaceholder.build>>;

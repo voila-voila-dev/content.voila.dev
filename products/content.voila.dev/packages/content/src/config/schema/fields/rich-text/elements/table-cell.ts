@@ -1,9 +1,8 @@
-import { Schema } from "effect";
-import { element } from "../_core";
+import { element, type Infer, integer, min, num, optional, refine } from "../_core";
 
 export const tableCell = element("table-cell", {
-  colspan: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(1))),
-  rowspan: Schema.optional(Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(1))),
+  colspan: optional(refine(num(), integer(), min(1))),
+  rowspan: optional(refine(num(), integer(), min(1))),
 });
 
-export type TableCellElement = Schema.Schema.Type<ReturnType<typeof tableCell.build>>;
+export type TableCellElement = Infer<ReturnType<typeof tableCell.build>>;
