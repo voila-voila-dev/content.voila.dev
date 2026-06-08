@@ -25,12 +25,19 @@ ships with tests green (`bun test`) before it's marked done.
 
 ## Phase 1 — CLI & SQL (`@voila/content-cli`)
 
-- [ ] DDL generator from field metadata (SQLite + Postgres dialects)
-- [ ] Migrator: journal + `migrate generate` / `migrate apply`
-- [ ] Apply targets: `bun:sqlite` (local), D1 (wrangler), Postgres
-- [ ] `voila` binary on `node:util` arg parsing (`migrate`, `seed`, `doctor`)
+- [x] DDL generator from field metadata (SQLite + Postgres dialects) — reads
+      `field.meta`, no schema-AST archaeology
+- [x] Migrator: `voila_migrations` journal + `migrate generate` / `migrate apply`
+- [x] Apply targets: `bun:sqlite` (local), D1 (wrangler). Postgres DDL renders;
+      live `migrate apply` to Postgres awaits the Phase 2 pg client
+- [x] `voila` binary on `node:util` `parseArgs` (`migrate generate`/`apply`)
+- [ ] `seed` / `doctor` subcommands
 
-**Exit:** `voila migrate generate && apply` builds a real schema from a config.
+Pure TypeScript, zero Effect. The runtime `Database` CRUD service + `SqliteLive`/
+`D1Live` client layers were deferred to Phase 2, where their driver seam is
+co-designed with the server/client that consumes them.
+
+**Exit:** `voila migrate generate && apply` builds a real schema from a config. ✅
 
 ## Phase 2 — Server & typed client (`@voila/content/server`, `/client`)
 

@@ -1,0 +1,22 @@
+{
+  "name": "@voila/content-cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "voila": "./src/cli/bin.ts"
+  },
+  "exports": {
+    ".": "./src/cli/index.ts",
+    "./sql": "./src/sql/index.ts"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@voila/content": "workspace:*"
+  },
+  "devDependencies": {
+    "@voila/typescript-config": "workspace:*"
+  }
+}
