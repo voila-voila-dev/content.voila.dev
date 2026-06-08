@@ -1,9 +1,0 @@
-# Package-local test config — shadows the root bunfig.toml.
-#
-# The root preloads happy-dom for component tests in `@voila/content`. The
-# playground's tests don't need it: `admin-routes.test.tsx` uses
-# `renderToStaticMarkup` (server-only), and the E2E suite drives a real
-# Chromium via Playwright. Preloading happy-dom here would override the
-# global `fetch` with a CORS-enforcing shim that blocks the E2E readiness
-# probe against `http://localhost:8787`.
-[test]

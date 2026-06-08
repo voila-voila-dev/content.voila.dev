@@ -4,11 +4,6 @@
   "references": [
     { "path": "./packages/ui/tsconfig.build.json" },
     { "path": "./packages/rich-text-editor/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/schema/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/database/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/content/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/auth/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/cli/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/client/tsconfig.build.json" }
+    { "path": "./products/content.voila.dev/packages/content/tsconfig.build.json" }
   ]
 }

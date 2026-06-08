@@ -4,12 +4,8 @@
     "composite": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    // JSX components in this package routinely defeat inference for
-    // isolatedDeclarations. Disable it here only; other packages still
-    // enforce it via the build base.
     "isolatedDeclarations": false
   },
   "include": ["src/**/*"],
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+  "exclude": ["src/**/*.test.ts"]
 }

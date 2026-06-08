@@ -1,7 +1,4 @@
 {
   "extends": "@voila/typescript-config/tsconfig.base.json",
-  "compilerOptions": {
-    "lib": ["ESNext", "DOM", "DOM.Iterable"]
-  },
   "include": ["src/**/*"]
 }
