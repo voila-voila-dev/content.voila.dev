@@ -132,7 +132,14 @@ TanStack Start build, outside the unit-test/CI loop). ✅ (pending that sign-off
 
 - [ ] Media: R2/S3 storage, image/video transforms, signed URLs
 - [ ] i18n: localized content + admin translation
-- [ ] Drafts, versions, scheduled publishing
+- [~] Drafts, scheduled publishing — **done** end to end:
+      `defineCollection({ drafts: true })` adds `status` + `publishedAt`;
+      `Database.list({ status })` scopes to live published rows (a future
+      `publishedAt` is scheduled, not yet live); `publish`/`unpublish` over
+      Database + REST (`?status`, `…/publish`/`…/unpublish`) + the typed client;
+      `StatusBadge` + `PublishControls` in `@voila/content-ui`. Still open:
+      full **version history** (revisions), a draft-aware client `Stored` type,
+      and a scheduled-publish worker to flip rows live at `publishedAt`.
 - [ ] Role-based access (per-collection, per-field)
 - [ ] Search (D1 FTS5 / Postgres FTS), audit log, import/export (JSON/CSV)
 - [ ] Webhooks, background tasks, cron
