@@ -4,6 +4,13 @@
 // ordered install plan, and `files` reads the source off disk to be copied into
 // a consumer app, where it becomes the app's own code.
 
+export {
+  type DiffLine,
+  diffFiles,
+  diffLines,
+  type FileDiff,
+  type FileStatus,
+} from "./diff";
 export { ITEMS_DIR, itemSourcePath, readItemFile } from "./files";
 export { registry } from "./registry";
 export { getItem, listItems, RegistryError, type ResolvedPlan, resolve } from "./resolve";

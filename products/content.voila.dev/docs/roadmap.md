@@ -113,8 +113,10 @@ columns or form fields. ✅
       files into the app (`--cwd`, skips existing unless `--overwrite`,
       `--dry-run`), and installs the npm deps via the detected package manager
       (`--no-install` to just print them)
-- [x] `voila list` — browse the catalog (grouped by type, `--type` filter);
-      `voila diff` still to come
+- [x] `voila list` — browse the catalog (grouped by type, `--type` filter)
+- [x] `voila diff [item...]` — drift between a vended copy and upstream
+      (per-file unchanged / modified / missing, with an LCS line diff of the
+      changes); defaults to the whole catalog when no item is named
 - [ ] `create-voila` template: fresh TanStack Start app, wired, one migration
 
 **Exit:** the afternoon test (see [DX](./dx.md)) passes on a clean install.

@@ -3,7 +3,7 @@
 // `node:util` `parseArgs`.
 
 import { runMigrate } from "./migrate";
-import { runAdd, runList } from "./registry";
+import { runAdd, runDiff, runList } from "./registry";
 
 /** A user-facing CLI failure — `bin.ts` prints the message and exits non-zero. */
 export class CliError extends Error {
@@ -20,6 +20,7 @@ Usage: voila <command>
 Commands:
   list               Browse the registry catalog of vendable items.
   add <item...>      Vend registry items (and their deps) into the app.
+  diff [item...]     Show drift between your vended copy and upstream.
   migrate generate   Generate a migration from the content config.
   migrate apply      Apply pending migrations to a target.
 
@@ -32,6 +33,8 @@ export async function run(argv: ReadonlyArray<string>): Promise<void> {
       return runList(rest);
     case "add":
       return runAdd(rest);
+    case "diff":
+      return runDiff(rest);
     case "migrate":
       return runMigrate(rest);
     case undefined:

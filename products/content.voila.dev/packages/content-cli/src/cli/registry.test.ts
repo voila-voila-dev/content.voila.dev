@@ -106,3 +106,48 @@ describe("voila add (subprocess)", () => {
     expect(result.stderr).toContain("Usage: voila add");
   });
 });
+
+describe("voila diff (subprocess)", () => {
+  let app: string;
+
+  beforeEach(() => {
+    app = mkdtempSync(join(tmpdir(), "voila-diff-cli-"));
+  });
+  afterEach(() => {
+    rmSync(app, { recursive: true, force: true });
+  });
+
+  it("reports missing files before anything is vended", () => {
+    const result = voila("diff", "content-client", "--cwd", app);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("missing   app/lib/content-client.ts");
+    expect(result.stdout).toContain("1 missing");
+  });
+
+  it("reports up to date right after add", () => {
+    voila("add", "content-client", "--cwd", app, "--no-install");
+    const result = voila("diff", "content-client", "--cwd", app);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Everything is up to date.");
+  });
+
+  it("shows changed lines when the local copy drifted", () => {
+    voila("add", "content-client", "--cwd", app, "--no-install");
+    const dest = join(app, "app/lib/content-client.ts");
+    Bun.write(dest, `${readFileSync(dest, "utf8")}\n// my local tweak\n`);
+
+    const result = voila("diff", "content-client", "--cwd", app);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("modified  app/lib/content-client.ts");
+    expect(result.stdout).toContain("+ // my local tweak");
+    expect(result.stdout).toContain("1 modified");
+  });
+
+  it("diffs the whole catalog when no item is named", () => {
+    const result = voila("diff", "--cwd", app);
+    expect(result.exitCode).toBe(0);
+    // every catalog file is missing in an empty app
+    expect(result.stdout).toContain("missing");
+    expect(result.stdout).toContain("app/routes/admin.tsx");
+  });
+});

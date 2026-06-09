@@ -9,8 +9,11 @@ import { existsSync } from "node:fs";
 import { isAbsolute, join, resolve as resolvePath } from "node:path";
 import { parseArgs } from "node:util";
 import {
+  diffFiles,
+  type FileDiff,
   fileTarget,
   listItems,
+  type RegistryFile,
   type RegistryItem,
   type RegistryItemType,
   registry,
@@ -93,6 +96,60 @@ export async function runAdd(args: ReadonlyArray<string>): Promise<void> {
     return;
   }
   installDependencies(cwd, specs);
+}
+
+export async function runDiff(args: ReadonlyArray<string>): Promise<void> {
+  const { values, positionals } = parseArgs({
+    args: [...args],
+    options: { cwd: { type: "string", default: "." } },
+    allowPositionals: true,
+    strict: true,
+  });
+
+  const cwdArg = values.cwd as string;
+  const cwd = isAbsolute(cwdArg) ? cwdArg : resolvePath(process.cwd(), cwdArg);
+
+  // Named items diff their resolved plan; with no names, diff the whole catalog.
+  const files: ReadonlyArray<RegistryFile> =
+    positionals.length > 0
+      ? resolvePlan(registry, positionals).files
+      : resolvePlan(
+          registry,
+          registry.items.map((item) => item.name),
+        ).files;
+
+  console.log(formatDiffs(await diffFiles(files, { cwd })));
+}
+
+/** Render the diffs: only changed (`+`/`-`) lines per modified file, plus a
+ *  one-line summary. Unchanged files are counted but not printed. */
+function formatDiffs(diffs: ReadonlyArray<FileDiff>): string {
+  const blocks: string[] = [];
+  let unchanged = 0;
+  let modified = 0;
+  let missing = 0;
+
+  for (const diff of diffs) {
+    if (diff.status === "unchanged") {
+      unchanged++;
+    } else if (diff.status === "missing") {
+      missing++;
+      blocks.push(`missing   ${diff.target}`);
+    } else {
+      modified++;
+      const lines = [`modified  ${diff.target}`];
+      for (const hunk of diff.hunks ?? []) {
+        if (hunk.type === "ctx") continue;
+        lines.push(`  ${hunk.type === "add" ? "+" : "-"} ${hunk.text}`);
+      }
+      blocks.push(lines.join("\n"));
+    }
+  }
+
+  const summary = `${diffs.length} file(s): ${unchanged} unchanged, ${modified} modified, ${missing} missing.`;
+  return blocks.length === 0
+    ? `Everything is up to date.\n\n${summary}`
+    : `${blocks.join("\n\n")}\n\n${summary}`;
 }
 
 /** Pick the package manager from the app's lockfile, defaulting to bun. */
