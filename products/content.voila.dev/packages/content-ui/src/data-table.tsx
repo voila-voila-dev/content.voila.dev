@@ -3,12 +3,12 @@
 // `defineConfig`) and its `rows`; columns default to every non-hidden field in
 // declaration order, or pass an explicit `columns` list of field keys. Each
 // cell renders through `FieldRenderer`, so the widget registry decides how a
-// value is shown. This is the read half of Phase 3 — `ListView` wraps it with
-// data fetching and actions in a later slice.
+// value is shown. Rows become clickable when `onRowClick` is set; `ListView`
+// wraps this with a header, pagination, and loading/error chrome.
 
 import type { Collection, Field } from "@voila/content";
 import { Table } from "@voila/ui";
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { FieldRenderer } from "./field-renderer";
 import { humanize } from "./lib/humanize";
 import type { DisplayRegistry } from "./registry/registry";
@@ -22,6 +22,8 @@ export interface DataTableProps {
   readonly registry?: DisplayRegistry;
   /** Stable React key for a row; defaults to `row.id` then the index. */
   readonly rowKey?: (row: Record<string, unknown>, index: number) => string;
+  /** When set, rows become clickable (and keyboard-activatable via Enter/Space). */
+  readonly onRowClick?: (row: Record<string, unknown>, index: number) => void;
   readonly emptyMessage?: string;
   readonly caption?: string;
 }
@@ -57,10 +59,23 @@ export function DataTable({
   columns,
   registry,
   rowKey = defaultRowKey,
+  onRowClick,
   emptyMessage = "No records.",
   caption,
 }: DataTableProps): ReactNode {
   const cols = resolveColumns(collection, columns);
+
+  // Enter/Space activate a focused clickable row, matching native button keys.
+  function handleRowKey(
+    event: KeyboardEvent<HTMLTableRowElement>,
+    row: Record<string, unknown>,
+    index: number,
+  ) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onRowClick?.(row, index);
+    }
+  }
 
   return (
     <Table.Root>
@@ -81,7 +96,13 @@ export function DataTable({
           </Table.Row>
         ) : (
           rows.map((row, index) => (
-            <Table.Row key={rowKey(row, index)}>
+            <Table.Row
+              key={rowKey(row, index)}
+              className={onRowClick ? "cursor-pointer" : undefined}
+              tabIndex={onRowClick ? 0 : undefined}
+              onClick={onRowClick ? () => onRowClick(row, index) : undefined}
+              onKeyDown={onRowClick ? (e) => handleRowKey(e, row, index) : undefined}
+            >
               {cols.map((col) => (
                 <Table.Cell key={col.key}>
                   <FieldRenderer field={col.field} value={row[col.key]} registry={registry} />

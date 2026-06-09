@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { defineCollection, fields } from "@voila/content";
 import { DataTable } from "./data-table";
 
@@ -62,5 +62,45 @@ describe("DataTable", () => {
   test("renders a caption when given", () => {
     const { container } = render(<DataTable collection={posts} rows={rows} caption="All posts" />);
     expect(container.querySelector("caption")?.textContent).toBe("All posts");
+  });
+
+  test("does not make rows interactive without onRowClick", () => {
+    const { container } = render(<DataTable collection={posts} rows={rows} />);
+    const body = container.querySelector("tbody");
+    const firstRow = body?.querySelector("tr");
+    expect(firstRow?.getAttribute("tabindex")).toBeNull();
+  });
+
+  test("onRowClick fires with the row and index on click", () => {
+    const onRowClick = mock();
+    const { container } = render(
+      <DataTable collection={posts} rows={rows} onRowClick={onRowClick} />,
+    );
+    const bodyRows = container.querySelectorAll("tbody tr");
+    fireEvent.click(bodyRows[1] as Element);
+    expect(onRowClick).toHaveBeenCalledTimes(1);
+    expect(onRowClick.mock.calls[0]?.[0]).toEqual(rows[1]);
+    expect(onRowClick.mock.calls[0]?.[1]).toBe(1);
+    expect((bodyRows[0] as Element).getAttribute("tabindex")).toBe("0");
+  });
+
+  test("Enter and Space activate a focused row", () => {
+    const onRowClick = mock();
+    const { container } = render(
+      <DataTable collection={posts} rows={rows} onRowClick={onRowClick} />,
+    );
+    const firstRow = container.querySelector("tbody tr") as Element;
+    fireEvent.keyDown(firstRow, { key: "Enter" });
+    fireEvent.keyDown(firstRow, { key: " " });
+    expect(onRowClick).toHaveBeenCalledTimes(2);
+  });
+
+  test("other keys do not activate a row", () => {
+    const onRowClick = mock();
+    const { container } = render(
+      <DataTable collection={posts} rows={rows} onRowClick={onRowClick} />,
+    );
+    fireEvent.keyDown(container.querySelector("tbody tr") as Element, { key: "a" });
+    expect(onRowClick).not.toHaveBeenCalled();
   });
 });
