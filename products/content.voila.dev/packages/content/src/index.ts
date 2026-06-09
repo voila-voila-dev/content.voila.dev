@@ -8,8 +8,10 @@ export { defineCollection } from "./config/schema/collection";
 // without reaching through the namespace.
 export type {
   BaseFieldOpts,
+  Field,
   FieldAccess,
   FieldMeta,
+  FieldMetaBase,
   FieldsMap,
   FieldTransform,
   Locale,

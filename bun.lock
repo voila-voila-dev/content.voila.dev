@@ -143,6 +143,28 @@
         "@voila/typescript-config": "workspace:*",
       },
     },
+    "products/content.voila.dev/packages/content-ui": {
+      "name": "@voila/content-ui",
+      "version": "0.1.0",
+      "dependencies": {
+        "@voila/content": "workspace:*",
+        "@voila/ui": "workspace:*",
+      },
+      "devDependencies": {
+        "@happy-dom/global-registrator": "^15.11.7",
+        "@testing-library/react": "^16.1.0",
+        "@types/react": "catalog:",
+        "@types/react-dom": "catalog:",
+        "@voila/typescript-config": "workspace:*",
+        "happy-dom": "^15.11.7",
+        "react": "catalog:",
+        "react-dom": "catalog:",
+      },
+      "peerDependencies": {
+        "react": "catalog:",
+        "react-dom": "catalog:",
+      },
+    },
     "scripts/coverage-gate": {
       "name": "@voila/coverage-gate",
       "version": "0.1.0",
@@ -849,6 +871,8 @@
     "@voila/content": ["@voila/content@workspace:products/content.voila.dev/packages/content"],
 
     "@voila/content-cli": ["@voila/content-cli@workspace:products/content.voila.dev/packages/content-cli"],
+
+    "@voila/content-ui": ["@voila/content-ui@workspace:products/content.voila.dev/packages/content-ui"],
 
     "@voila/coverage-gate": ["@voila/coverage-gate@workspace:scripts/coverage-gate"],
 
