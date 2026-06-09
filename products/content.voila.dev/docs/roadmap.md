@@ -109,7 +109,10 @@ columns or form fields. ✅
       files + npm `dependencies` + `registryDependencies`) with the real source
       under `src/items/`, and a `resolve()` that turns item names into a
       dependency-first install plan (cycle + version-conflict detection).
-- [ ] `voila add` (resolve deps, copy real files, install npm deps)
+- [x] `voila add <item...>` — resolves the dependency graph, copies the real
+      files into the app (`--cwd`, skips existing unless `--overwrite`,
+      `--dry-run`), and installs the npm deps via the detected package manager
+      (`--no-install` to just print them)
 - [x] `voila list` — browse the catalog (grouped by type, `--type` filter);
       `voila diff` still to come
 - [ ] `create-voila` template: fresh TanStack Start app, wired, one migration

@@ -1,14 +1,21 @@
-// `voila list` — browse the registry catalog of vendable items. Groups items by
-// type and prints each name, title, and description; an optional `--type` scopes
-// the listing. The catalog and its filtering live in `@voila/content-registry`;
-// this file only parses flags and formats the output.
+// `voila list` and `voila add` — the registry commands. `list` browses the
+// catalog of vendable items; `add` resolves an item's dependency graph, copies
+// the real source files into the app (skipping existing ones unless
+// `--overwrite`), and installs the npm packages they need. The catalog,
+// dependency resolution, and file vending live in `@voila/content-registry`;
+// this file parses flags, formats output, and drives the package manager.
 
+import { existsSync } from "node:fs";
+import { isAbsolute, join, resolve as resolvePath } from "node:path";
 import { parseArgs } from "node:util";
 import {
+  fileTarget,
   listItems,
   type RegistryItem,
   type RegistryItemType,
   registry,
+  resolve as resolvePlan,
+  vendFiles,
 } from "@voila/content-registry";
 import { CliError } from "./index";
 
@@ -33,6 +40,81 @@ export async function runList(args: ReadonlyArray<string>): Promise<void> {
   }
 
   console.log(formatCatalog(items));
+}
+
+export async function runAdd(args: ReadonlyArray<string>): Promise<void> {
+  const { values, positionals } = parseArgs({
+    args: [...args],
+    options: {
+      cwd: { type: "string", default: "." },
+      overwrite: { type: "boolean", default: false },
+      // `node:util` parseArgs has no built-in `--no-x` negation here, so the
+      // skip-install flag is its own boolean (install is on by default).
+      "no-install": { type: "boolean", default: false },
+      "dry-run": { type: "boolean", default: false },
+    },
+    allowPositionals: true,
+    strict: true,
+  });
+
+  if (positionals.length === 0) {
+    throw new CliError('Usage: voila add <item...>. Run "voila list" to see the catalog.');
+  }
+
+  // resolve() throws a RegistryError (caught + printed by bin.ts) on an unknown
+  // item, a dependency cycle, or a conflict — so the plan below is always sound.
+  const plan = resolvePlan(registry, positionals);
+  const cwdArg = values.cwd as string;
+  const cwd = isAbsolute(cwdArg) ? cwdArg : resolvePath(process.cwd(), cwdArg);
+  const deps = Object.entries(plan.dependencies);
+
+  if (values["dry-run"] as boolean) {
+    console.log("Would write:");
+    for (const file of plan.files) console.log(`  ${fileTarget(file)}`);
+    if (deps.length > 0) {
+      console.log("Would install:");
+      for (const [pkg, range] of deps) console.log(`  ${pkg}@${range}`);
+    }
+    return;
+  }
+
+  const result = await vendFiles(plan.files, { cwd, overwrite: values.overwrite as boolean });
+  for (const target of result.written) console.log(`  + ${target}`);
+  for (const target of result.skipped) {
+    console.log(`  · ${target} (exists — pass --overwrite to replace)`);
+  }
+
+  if (deps.length === 0) return;
+
+  const specs = deps.map(([pkg, range]) => `${pkg}@${range}`);
+  if (values["no-install"] as boolean) {
+    const pm = detectPackageManager(cwd);
+    console.log(`\nDependencies to install:\n  ${pm} add ${specs.join(" ")}`);
+    return;
+  }
+  installDependencies(cwd, specs);
+}
+
+/** Pick the package manager from the app's lockfile, defaulting to bun. */
+function detectPackageManager(cwd: string): string {
+  if (existsSync(join(cwd, "bun.lock")) || existsSync(join(cwd, "bun.lockb"))) return "bun";
+  if (existsSync(join(cwd, "pnpm-lock.yaml"))) return "pnpm";
+  if (existsSync(join(cwd, "yarn.lock"))) return "yarn";
+  if (existsSync(join(cwd, "package-lock.json"))) return "npm";
+  return "bun";
+}
+
+function installDependencies(cwd: string, specs: ReadonlyArray<string>): void {
+  const pm = detectPackageManager(cwd);
+  console.log(`\nInstalling with ${pm}: ${specs.join(" ")}`);
+  const proc = Bun.spawnSync({
+    cmd: [pm, "add", ...specs],
+    cwd,
+    stdio: ["inherit", "inherit", "inherit"],
+  });
+  if (proc.exitCode !== 0) {
+    throw new CliError(`Dependency install failed (${pm} exited ${proc.exitCode}).`);
+  }
 }
 
 /** Render items grouped into type sections (in `TYPES` order); within a section

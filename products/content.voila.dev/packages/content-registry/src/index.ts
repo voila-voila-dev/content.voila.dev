@@ -14,3 +14,4 @@ export {
   type RegistryItem,
   type RegistryItemType,
 } from "./types";
+export { type VendOptions, type VendResult, vendFiles } from "./vend";
