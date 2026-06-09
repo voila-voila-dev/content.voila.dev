@@ -1,0 +1,13 @@
+{
+  "extends": "@voila/typescript-config/tsconfig.build.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": ["src/**/*"],
+  // `template/` is the app skeleton copied verbatim into the new project — it
+  // targets the generated app's deps (TanStack Start, the app's own modules),
+  // not this package, so it ships as files and is never compiled here.
+  "exclude": ["src/**/*.test.ts", "template/**"]
+}

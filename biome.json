@@ -7,7 +7,14 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!**/*.gen.ts", "!**/*.gen.tsx", "!**/dist", "!**/.tanstack"]
+    "includes": [
+      "**",
+      "!**/*.gen.ts",
+      "!**/*.gen.tsx",
+      "!**/dist",
+      "!**/.tanstack",
+      "!**/create-voila/template"
+    ]
   },
   "formatter": {
     "enabled": true,

@@ -102,7 +102,7 @@ framework. Wiring them into a running app (loaders, routes) is Phase 4 vending.
 **Exit:** a config renders full list + create/edit/detail with no hand-written
 columns or form fields. ✅
 
-## Phase 4 — Registry & vending (`@voila/content-registry`)
+## ✅ Phase 4 — Registry & vending (`@voila/content-registry`)
 
 - [x] Registry manifest + vended source for shell, routes, blocks, fields:
       `@voila/content-registry` ships a typed catalog (`RegistryItem` =
@@ -117,9 +117,16 @@ columns or form fields. ✅
 - [x] `voila diff [item...]` — drift between a vended copy and upstream
       (per-file unchanged / modified / missing, with an LCS line diff of the
       changes); defaults to the whole catalog when no item is named
-- [ ] `create-voila` template: fresh TanStack Start app, wired, one migration
+- [x] `create-voila <dir>` template: scaffolds a fresh TanStack Start app
+      (`app/` routes + wired admin shell, `content.config.ts`, Tailwind v4
+      tokens), then installs deps with the detected package manager and
+      generates the first migration. `--name`, `--no-install`, `--force`.
 
-**Exit:** the afternoon test (see [DX](./dx.md)) passes on a clean install.
+**Exit:** the afternoon test (see [DX](./dx.md)) passes on a clean install. The
+CLI surface (`create-voila`, `voila add/list/diff/migrate`) and the scaffolded
+template are in place; end-to-end validation on a clean install — actually
+booting the generated app to `/admin` — is the remaining sign-off (needs a real
+TanStack Start build, outside the unit-test/CI loop). ✅ (pending that sign-off)
 
 ## Phase 5 — Full feature set
 

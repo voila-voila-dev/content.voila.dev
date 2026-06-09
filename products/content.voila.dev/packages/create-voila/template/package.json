@@ -1,0 +1,27 @@
+{
+  "name": "{{projectName}}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "start": "node .output/server/index.mjs",
+    "migrate:generate": "voila migrate generate",
+    "migrate:apply": "voila migrate apply"
+  },
+  "dependencies": {
+    "@tanstack/react-router": "^1.0.0",
+    "@tanstack/react-start": "^1.0.0",
+    "@voila/content": "^0.1.0",
+    "@voila/content-ui": "^0.1.0",
+    "@voila/ui": "^0.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@voila/content-cli": "^0.1.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^7.0.0"
+  }
+}

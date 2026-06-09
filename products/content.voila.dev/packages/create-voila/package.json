@@ -1,0 +1,21 @@
+{
+  "name": "create-voila",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "create-voila": "./src/bin.ts"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "@voila/typescript-config": "workspace:*"
+  }
+}
