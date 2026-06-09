@@ -1,0 +1,8 @@
+# Coverage config for the package-aggregate gate (`scripts/coverage-gate`).
+# `bun test --coverage` (run from this dir) emits lcov scoped to this package's
+# own `src/` — the `../**` ignore keeps sibling packages out of the report. The
+# registry core is pure Node (fs/path), so no happy-dom preload is needed.
+[test]
+coverageReporter = ["lcov"]
+coverageDir = "coverage"
+coveragePathIgnorePatterns = ["../**"]

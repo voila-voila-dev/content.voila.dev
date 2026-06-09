@@ -24,7 +24,7 @@
     "format": "biome format --write",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
-    "test:cov:gates": "bun scripts/coverage-gate products/content.voila.dev/packages/content 80 && bun scripts/coverage-gate products/content.voila.dev/packages/content 90 config/schema && bun scripts/coverage-gate products/content.voila.dev/packages/content-ui 90",
+    "test:cov:gates": "bun scripts/coverage-gate products/content.voila.dev/packages/content 80 && bun scripts/coverage-gate products/content.voila.dev/packages/content 90 config/schema && bun scripts/coverage-gate products/content.voila.dev/packages/content-ui 90 && bun scripts/coverage-gate products/content.voila.dev/packages/content-registry 90",
     "check": "biome check --write && tsc -b && bun test",
     "changeset": "changeset",
     "version": "changeset version",

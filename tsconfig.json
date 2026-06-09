@@ -5,6 +5,7 @@
     { "path": "./packages/ui/tsconfig.build.json" },
     { "path": "./packages/rich-text-editor/tsconfig.build.json" },
     { "path": "./products/content.voila.dev/packages/content/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/content-ui/tsconfig.build.json" }
+    { "path": "./products/content.voila.dev/packages/content-ui/tsconfig.build.json" },
+    { "path": "./products/content.voila.dev/packages/content-registry/tsconfig.build.json" }
   ]
 }

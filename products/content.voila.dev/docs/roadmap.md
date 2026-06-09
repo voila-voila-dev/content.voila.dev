@@ -104,9 +104,14 @@ columns or form fields. ✅
 
 ## Phase 4 — Registry & vending (`@voila/content-registry`)
 
-- [ ] `registry.json` manifest + vended source for shell, routes, blocks, fields
+- [x] Registry manifest + vended source for shell, routes, blocks, fields:
+      `@voila/content-registry` ships a typed catalog (`RegistryItem` =
+      files + npm `dependencies` + `registryDependencies`) with the real source
+      under `src/items/`, and a `resolve()` that turns item names into a
+      dependency-first install plan (cycle + version-conflict detection).
 - [ ] `voila add` (resolve deps, copy real files, install npm deps)
-- [ ] `voila diff` / `voila list`
+- [x] `voila list` — browse the catalog (grouped by type, `--type` filter);
+      `voila diff` still to come
 - [ ] `create-voila` template: fresh TanStack Start app, wired, one migration
 
 **Exit:** the afternoon test (see [DX](./dx.md)) passes on a clean install.

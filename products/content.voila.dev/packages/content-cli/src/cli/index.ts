@@ -3,6 +3,7 @@
 // `node:util` `parseArgs`.
 
 import { runMigrate } from "./migrate";
+import { runList } from "./registry";
 
 /** A user-facing CLI failure — `bin.ts` prints the message and exits non-zero. */
 export class CliError extends Error {
@@ -17,6 +18,7 @@ const HELP = `Voila content CLI
 Usage: voila <command>
 
 Commands:
+  list               Browse the registry catalog of vendable items.
   migrate generate   Generate a migration from the content config.
   migrate apply      Apply pending migrations to a target.
 
@@ -25,6 +27,8 @@ Run "voila migrate <command> --help" for command options.`;
 export async function run(argv: ReadonlyArray<string>): Promise<void> {
   const [command, ...rest] = argv;
   switch (command) {
+    case "list":
+      return runList(rest);
     case "migrate":
       return runMigrate(rest);
     case undefined:
