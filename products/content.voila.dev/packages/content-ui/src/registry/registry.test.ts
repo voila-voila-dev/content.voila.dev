@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { FieldMetaBase } from "@voila/content";
 import { JsonDisplay, TextDisplay } from "../widgets/display";
-import { defaultDisplayRegistry, mergeRegistry, resolveDisplayWidget } from "./registry";
+import { defaultDisplayRegistry, mergeDisplayRegistry, resolveDisplayWidget } from "./registry";
 
 function meta(partial: Partial<FieldMetaBase> & { kind: string }): FieldMetaBase {
   return partial;
@@ -10,7 +10,7 @@ function meta(partial: Partial<FieldMetaBase> & { kind: string }): FieldMetaBase
 describe("resolveDisplayWidget", () => {
   test("prefers an explicit widget name over the kind", () => {
     const custom = () => null;
-    const registry = mergeRegistry({ stars: custom });
+    const registry = mergeDisplayRegistry({ stars: custom });
     expect(resolveDisplayWidget(meta({ kind: "number", widget: "stars" }), registry)).toBe(custom);
   });
 
@@ -35,14 +35,14 @@ describe("resolveDisplayWidget", () => {
   });
 });
 
-describe("mergeRegistry", () => {
+describe("mergeDisplayRegistry", () => {
   test("returns the base untouched when no overrides are given", () => {
-    expect(mergeRegistry()).toBe(defaultDisplayRegistry);
+    expect(mergeDisplayRegistry()).toBe(defaultDisplayRegistry);
   });
 
   test("overrides win over the base without mutating it", () => {
     const custom = () => null;
-    const merged = mergeRegistry({ string: custom });
+    const merged = mergeDisplayRegistry({ string: custom });
     expect(merged.string).toBe(custom);
     expect(defaultDisplayRegistry.string).toBe(TextDisplay);
   });

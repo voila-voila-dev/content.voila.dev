@@ -2,7 +2,7 @@
 // `DisplayWidget`; `resolveDisplayWidget` picks one for a field by trying its
 // explicit `meta.widget`, then its `meta.kind`, then a JSON fallback. Consumers
 // override per-kind by passing a partial registry that is merged over the
-// defaults (`mergeRegistry`) — the escape hatch for custom cell renderers.
+// defaults (`mergeDisplayRegistry`) — the escape hatch for custom cell renderers.
 
 import type { FieldMetaBase } from "@voila/content";
 import {
@@ -13,6 +13,7 @@ import {
   NumberDisplay,
   TextDisplay,
 } from "../widgets/display";
+import { mergeMaps } from "./merge";
 
 export type DisplayRegistry = Readonly<Record<string, DisplayWidget>>;
 
@@ -38,12 +39,9 @@ export const defaultDisplayRegistry: DisplayRegistry = {
   time: DateDisplay,
 };
 
-/** Merge a caller's overrides over the defaults, producing a new registry. */
-export function mergeRegistry(
-  overrides?: DisplayRegistry,
-  base: DisplayRegistry = defaultDisplayRegistry,
-): DisplayRegistry {
-  return overrides ? { ...base, ...overrides } : base;
+/** Merge a caller's overrides over the default display widgets. */
+export function mergeDisplayRegistry(overrides?: DisplayRegistry): DisplayRegistry {
+  return mergeMaps(defaultDisplayRegistry, overrides);
 }
 
 /**

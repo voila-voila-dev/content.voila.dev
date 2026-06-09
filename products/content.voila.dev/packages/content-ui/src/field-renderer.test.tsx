@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { render } from "@testing-library/react";
 import { fields } from "@voila/content";
 import { FieldRenderer } from "./field-renderer";
-import { mergeRegistry } from "./registry/registry";
+import { mergeDisplayRegistry } from "./registry/registry";
 
 describe("FieldRenderer", () => {
   test("renders a value via the widget resolved from the field kind", () => {
@@ -17,7 +17,7 @@ describe("FieldRenderer", () => {
       <FieldRenderer
         field={fields.string()}
         value="hi"
-        registry={mergeRegistry({ string: Loud })}
+        registry={mergeDisplayRegistry({ string: Loud })}
       />,
     );
     expect(container.querySelector("strong")?.textContent).toBe("HI");

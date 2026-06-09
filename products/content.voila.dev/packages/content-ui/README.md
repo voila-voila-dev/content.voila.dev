@@ -7,15 +7,20 @@ or form fields.
 
 ## Status
 
-Phase 3, read/display slice:
+Phase 3 — read/display + write:
 
-- **Widget registry** — maps a field's `meta.widget ?? meta.kind` to a display
-  widget; `mergeRegistry` lets you override per kind.
-- **`FieldRenderer`** — resolves and renders one field value.
+- **Widget registries** — map a field's `meta.widget ?? meta.kind` to a widget;
+  `mergeDisplayRegistry` / `mergeEditRegistry` override per kind. Display widgets
+  cover text/number/boolean/date; edit widgets cover text/textarea/number/
+  boolean/select(+enum)/date, with an honest fallback for kinds without an
+  editor yet.
+- **`FieldRenderer`** — resolves and renders one field value (read).
 - **`DataTable`** — builds columns and cells from a collection's fields.
+- **`CollectionForm`** — builds inputs from field kinds, validates against each
+  field's Standard Schema (`validateFields`, the same contract the REST write
+  path enforces), and submits decoded values.
 
-Forms (`CollectionForm`), `AdminShell`, `ListView`, and `DetailView` land in
-later slices.
+`AdminShell`, `ListView`, and `DetailView` land in later slices.
 
 ## Example
 
@@ -32,8 +37,25 @@ import { DataTable } from "@voila/content-ui";
 Columns default to every non-hidden field. Override a kind's renderer:
 
 ```tsx
-import { DataTable, mergeRegistry, type DisplayWidget } from "@voila/content-ui";
+import { DataTable, mergeDisplayRegistry, type DisplayWidget } from "@voila/content-ui";
 
 const Stars: DisplayWidget = ({ value }) => <span>{"★".repeat(Number(value) || 0)}</span>;
-<DataTable collection={col} rows={rows} registry={mergeRegistry({ rating: Stars })} />;
+<DataTable collection={col} rows={rows} registry={mergeDisplayRegistry({ rating: Stars })} />;
 ```
+
+A `CollectionForm` builds inputs from the same fields and validates on submit:
+
+```tsx
+import { CollectionForm } from "@voila/content-ui";
+
+<CollectionForm
+  collection={config.collections.posts}
+  defaultValues={post}
+  onSubmit={(values) => client.posts.update(post.id, values)}
+/>;
+```
+
+It only calls `onSubmit` with decoded values once every field passes its
+Standard Schema; failures render inline. Override an input with
+`mergeEditRegistry({ <kind>: MyInput })`, or pass a custom widget per field via
+the config (`fields.string({ widget: "myWidget" })`).
