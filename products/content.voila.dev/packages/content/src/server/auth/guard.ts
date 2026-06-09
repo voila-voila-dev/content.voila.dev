@@ -32,7 +32,13 @@ export interface RouteDescriptor {
 
 // Operations that change state and therefore carry CSRF protection. Reads are
 // exempt — they're safe to issue cross-site and don't mutate anything.
-const MUTATING: ReadonlySet<Operation> = new Set(["create", "update", "delete", "restore"]);
+const MUTATING: ReadonlySet<Operation> = new Set([
+  "create",
+  "update",
+  "delete",
+  "restore",
+  "publish",
+]);
 
 /**
  * Run the auth → CSRF → access pipeline for a matched route. Order matters:

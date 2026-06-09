@@ -21,7 +21,9 @@ export { createRestHandler, type RestHandlerOptions } from "./router";
 export {
   handleCreate,
   handleDelete,
+  handlePublish,
   handleRestore,
+  handleUnpublish,
   handleUpdate,
   validateWrite,
 } from "./write";

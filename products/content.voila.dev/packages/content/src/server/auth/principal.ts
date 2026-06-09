@@ -14,4 +14,4 @@ export interface Principal {
 // The operations a request can map to, shared by the router (which classifies a
 // route) and the access hook (which authorizes it). `read` covers both
 // find-by-id and find-by-field; `list` is the collection read.
-export type Operation = "list" | "read" | "create" | "update" | "delete" | "restore";
+export type Operation = "list" | "read" | "create" | "update" | "delete" | "restore" | "publish";

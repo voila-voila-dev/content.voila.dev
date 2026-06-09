@@ -315,3 +315,35 @@ describe("router — write shapes", () => {
     expect(await handle(new Request("https://x/admin/api/posts", { method: "PATCH" }))).toBeNull();
   });
 });
+
+// `posts` here is NOT draft-enabled — these assert the publish routes degrade
+// safely (400) rather than 500, and that `?status` is validated.
+describe("publish — non-draft collection + validation", () => {
+  it("publishing a non-draft collection is a 400 BAD_REQUEST", async () => {
+    const post = await create({ title: "X", slug: "x" });
+    const response = await send(`/admin/api/posts/${post.id}/publish`, { method: "POST" });
+    expect(response.status).toBe(400);
+    expect((await failureOf(response)).code).toBe("BAD_REQUEST");
+  });
+
+  it("unpublishing a non-draft collection is a 400 BAD_REQUEST", async () => {
+    const post = await create({ title: "X", slug: "x" });
+    const response = await send(`/admin/api/posts/${post.id}/unpublish`, { method: "POST" });
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects an invalid publish `at` with 400", async () => {
+    const post = await create({ title: "X", slug: "x" });
+    const response = await send(`/admin/api/posts/${post.id}/publish`, {
+      method: "POST",
+      body: { at: "soon" },
+    });
+    expect(response.status).toBe(400);
+  });
+
+  it("rejects an invalid ?status filter with 400", async () => {
+    const response = await send("/admin/api/posts?status=bogus", { method: "GET" });
+    expect(response.status).toBe(400);
+    expect((await failureOf(response)).code).toBe("BAD_REQUEST");
+  });
+});

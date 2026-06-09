@@ -27,6 +27,9 @@ export type LookupValue = string | number | boolean;
 /** Orderable keys: a declared field or one of the always-present system columns. */
 export type OrderKey<Doc> = (keyof Doc & string) | "id" | "createdAt" | "updatedAt";
 
+/** Draft scoping for `list` (draft-enabled collections only). */
+export type DraftFilter = "published" | "draft" | "any";
+
 export interface ListParams<Doc> {
   /** Page size (server clamps to 1–100). */
   readonly limit?: number;
@@ -36,6 +39,8 @@ export interface ListParams<Doc> {
   readonly order?: "asc" | "desc";
   /** Opaque `nextCursor` from a prior page. */
   readonly cursor?: string;
+  /** Draft scoping; defaults to live published rows. Ignored for non-draft collections. */
+  readonly status?: DraftFilter;
 }
 
 export interface ListPage<Doc> {
@@ -59,6 +64,10 @@ export interface CollectionClient<Doc> {
   delete(id: string): Promise<void>;
   /** Restore a soft-deleted row; returns the restored row. */
   restore(id: string): Promise<Stored<Doc>>;
+  /** Publish a row (draft-enabled collections); `at` schedules a future go-live. */
+  publish(id: string, opts?: { at?: number }): Promise<Stored<Doc>>;
+  /** Return a row to draft (draft-enabled collections). */
+  unpublish(id: string): Promise<Stored<Doc>>;
 }
 
 /** The typed client surface: one `CollectionClient` per configured collection. */
@@ -100,6 +109,7 @@ function listQuery<Doc>(params: ListParams<Doc> | undefined): string {
   if (params.orderBy !== undefined) qs.set("orderBy", params.orderBy);
   if (params.order !== undefined) qs.set("order", params.order);
   if (params.cursor !== undefined) qs.set("cursor", params.cursor);
+  if (params.status !== undefined) qs.set("status", params.status);
   const query = qs.toString();
   return query ? `?${query}` : "";
 }
@@ -155,6 +165,17 @@ function makeCollectionClient(
       await send<unknown>(`${root}/${enc(id)}`, { method: "DELETE" });
     },
     restore: (id) => send<Stored<unknown>>(`${root}/${enc(id)}/restore`, { method: "POST" }),
+    publish: (id, opts) =>
+      send<Stored<unknown>>(`${root}/${enc(id)}/publish`, {
+        method: "POST",
+        ...(opts?.at !== undefined
+          ? {
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ at: opts.at }),
+            }
+          : {}),
+      }),
+    unpublish: (id) => send<Stored<unknown>>(`${root}/${enc(id)}/unpublish`, { method: "POST" }),
   };
   return impl;
 }

@@ -20,7 +20,15 @@ import type { CollectionLike } from "./query";
 
 // Columns the server owns. A client is free to send them (a round-tripped row,
 // say), but they're never validated or written — `Database` stamps them.
-const SYSTEM_FIELDS = new Set(["id", "createdAt", "updatedAt", "deletedAt"]);
+// `status`/`publishedAt` are managed via the publish/unpublish routes, not writes.
+const SYSTEM_FIELDS = new Set([
+  "id",
+  "createdAt",
+  "updatedAt",
+  "deletedAt",
+  "status",
+  "publishedAt",
+]);
 
 // Flatten a Standard Schema issue path (which may carry `{ key }` segments) to
 // the plain `(string | number)[]` the wire envelope uses.
@@ -153,6 +161,67 @@ export function handleRestore(ctx: RestContext, slug: string, id: string): Promi
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
     const row = await ctx.database.restore(entry.slug, id);
+    if (row === null) fail(notFound(entry.slug));
+    return Response.json({ data: row });
+  });
+}
+
+/** Optional `{ at }` (epoch ms) on a publish body — a future value schedules go-live. */
+async function parsePublishAt(request: Request): Promise<number | undefined> {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    // An empty / non-JSON body just means "publish now".
+    return undefined;
+  }
+  if (typeof body !== "object" || body === null) return undefined;
+  const at = (body as { readonly at?: unknown }).at;
+  if (at === undefined || at === null) return undefined;
+  if (typeof at !== "number" || !Number.isFinite(at)) {
+    fail(badRequest({ field: "at", expected: "epoch-ms number" }));
+  }
+  return at;
+}
+
+// Translate a `Database` publish-state error (e.g. collection isn't
+// draft-enabled) into a 400 instead of letting it fold to a generic 500.
+async function runPublish(
+  slug: string,
+  fn: () => Promise<Document | null>,
+): Promise<Document | null> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (error instanceof DatabaseError)
+      fail(badRequest({ collection: slug, reason: error.message }));
+    throw error;
+  }
+}
+
+/** `POST /:collection/:id/publish` — publish a document (optional `{ at }` to schedule). */
+export function handlePublish(
+  ctx: RestContext,
+  slug: string,
+  id: string,
+  request: Request,
+): Promise<Response> {
+  return runHandler(async () => {
+    const entry = requireCollection(ctx.config, slug);
+    const at = await parsePublishAt(request);
+    const row = await runPublish(entry.slug, () =>
+      ctx.database.publish(entry.slug, id, at !== undefined ? { at } : {}),
+    );
+    if (row === null) fail(notFound(entry.slug));
+    return Response.json({ data: row });
+  });
+}
+
+/** `POST /:collection/:id/unpublish` — return a document to draft. */
+export function handleUnpublish(ctx: RestContext, slug: string, id: string): Promise<Response> {
+  return runHandler(async () => {
+    const entry = requireCollection(ctx.config, slug);
+    const row = await runPublish(entry.slug, () => ctx.database.unpublish(entry.slug, id));
     if (row === null) fail(notFound(entry.slug));
     return Response.json({ data: row });
   });

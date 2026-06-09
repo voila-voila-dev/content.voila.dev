@@ -11,6 +11,8 @@
 //   PATCH  /:collection/:id                → update
 //   DELETE /:collection/:id                → soft-delete
 //   POST   /:collection/:id/restore        → restore
+//   POST   /:collection/:id/publish        → publish (optional `{ at }`)
+//   POST   /:collection/:id/unpublish      → unpublish
 //
 // Each request is matched to a route descriptor (operation + collection +
 // optional document id) and a handler thunk. The guard (`authorizeRequest`) runs
@@ -21,7 +23,14 @@
 import { authorizeRequest, type GuardOptions, type RouteDescriptor } from "../auth/guard";
 import type { Operation } from "../auth/principal";
 import { handleFindByField, handleFindById, handleList, type RestContext } from "./handlers";
-import { handleCreate, handleDelete, handleRestore, handleUpdate } from "./write";
+import {
+  handleCreate,
+  handleDelete,
+  handlePublish,
+  handleRestore,
+  handleUnpublish,
+  handleUpdate,
+} from "./write";
 
 export interface RestHandlerOptions extends GuardOptions {
   /** Path prefix the routes mount under (e.g. `/admin/api`). Defaults to none. */
@@ -92,6 +101,14 @@ function matchRoute(ctx: RestContext, request: Request, basePath: string): Match
     }
     if (segments.length === 3 && second !== undefined && third === "restore") {
       return route("restore", collection, second, () => handleRestore(ctx, collection, second));
+    }
+    if (segments.length === 3 && second !== undefined && third === "publish") {
+      return route("publish", collection, second, () =>
+        handlePublish(ctx, collection, second, request),
+      );
+    }
+    if (segments.length === 3 && second !== undefined && third === "unpublish") {
+      return route("publish", collection, second, () => handleUnpublish(ctx, collection, second));
     }
     return null;
   }

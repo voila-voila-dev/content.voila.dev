@@ -11,7 +11,7 @@
 
 import type { Field, FieldsMap } from "../../config/schema/fields";
 import { decodeCursor } from "../database/cursor";
-import type { FieldValue, ListOpts, OrderDirection } from "../database/types";
+import type { DraftFilter, FieldValue, ListOpts, OrderDirection } from "../database/types";
 import { badRequest, fail, invalidCursor, invalidOrder } from "./errors";
 
 const DEFAULT_LIMIT = 25;
@@ -73,18 +73,21 @@ export function kindOfKey(collection: CollectionLike, key: string): string | und
   return SORTABLE_KINDS.has(field.meta.kind) ? field.meta.kind : undefined;
 }
 
-/** Parsed `?limit/orderBy/order/cursor` for a list request, ready for `Database.list`. */
+/** Parsed `?limit/orderBy/order/cursor/status` for a list request, ready for `Database.list`. */
 export interface ListQuery extends ListOpts {
   readonly limit: number;
   readonly orderBy: string;
   readonly direction: OrderDirection;
   /** The original opaque cursor token, validated; absent on the first page. */
   readonly cursor?: string;
+  /** Draft scoping (draft-enabled collections); absent → published-only. */
+  readonly status?: DraftFilter;
 }
 
 /**
- * Parse `?limit`, `?orderBy`, `?order`, and `?cursor` for a list request.
- * Defaults: 25 rows (max 100), newest-first by `createdAt`.
+ * Parse `?limit`, `?orderBy`, `?order`, `?cursor`, and `?status` for a list
+ * request. Defaults: 25 rows (max 100), newest-first by `createdAt`, and — for
+ * draft-enabled collections — only live published rows.
  */
 export function parseListQuery(url: URL, collection: CollectionLike): ListQuery {
   const limit = parseLimit(url.searchParams.get("limit"));
@@ -103,7 +106,14 @@ export function parseListQuery(url: URL, collection: CollectionLike): ListQuery 
     }
   }
 
-  return { limit, orderBy, direction, cursor };
+  const status = parseStatus(url.searchParams.get("status"));
+  return { limit, orderBy, direction, cursor, status };
+}
+
+function parseStatus(raw: string | null): DraftFilter | undefined {
+  if (raw === null) return undefined;
+  if (raw === "published" || raw === "draft" || raw === "any") return raw;
+  return fail(badRequest({ field: "status", expected: "published | draft | any" }));
 }
 
 function parseLimit(raw: string | null): number {
