@@ -10,7 +10,16 @@ import { type ColumnSchema, deriveSchema, type TableSchema } from "../../sql";
 import { type CursorPosition, decodeCursor, encodeCursor } from "./cursor";
 import type { SqlDriver, SqlRow, SqlValue } from "./driver";
 import { and, buildInsert, buildUpdateSet, frag, or, quoteId, type Sql } from "./query";
-import type { Database, Document, FieldValue, ListOpts, ListResult, OrderDirection } from "./types";
+import type {
+  Database,
+  Document,
+  DraftFilter,
+  FieldValue,
+  ListOpts,
+  ListResult,
+  OrderDirection,
+  PublishOpts,
+} from "./types";
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -49,6 +58,8 @@ export interface TableInfo {
   readonly byColumn: ReadonlyMap<string, ColumnInfo>;
   /** Indexed by field name (camelCase) for `orderBy` resolution. */
   readonly byField: ReadonlyMap<string, ColumnInfo>;
+  /** True when the collection opted into draft/published workflow. */
+  readonly drafts: boolean;
 }
 
 // JSON columns render to Postgres `JSONB` regardless of dialect, so the postgres
@@ -110,7 +121,7 @@ export const indexTable = (table: TableSchema): TableInfo => {
     byColumn.set(col.name, info);
     byField.set(col.fieldName, info);
   }
-  return { name: table.name, byColumn, byField };
+  return { name: table.name, byColumn, byField, drafts: table.drafts === true };
 };
 
 export const mapRow = (table: TableInfo, row: SqlRow): Document => {
@@ -184,6 +195,21 @@ const detectConflict = (
   return null;
 };
 
+// The `WHERE` fragment that scopes a draft-enabled table's reads to the
+// requested `status`, or `null` when no scoping applies (non-draft table, or
+// `any`). "Live" = published *and* any scheduled `publishedAt` has elapsed.
+function draftPredicate(table: TableInfo, status: DraftFilter): Sql | null {
+  if (!table.drafts || status === "any") return null;
+  if (status === "draft") return frag(`${quoteId("status")} = ?`, ["draft"]);
+  return and([
+    frag(`${quoteId("status")} = ?`, ["published"]),
+    or([
+      frag(`${quoteId("published_at")} IS NULL`),
+      frag(`${quoteId("published_at")} <= ?`, [Date.now()]),
+    ]),
+  ]);
+}
+
 export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Database {
   const tables = new Map<string, TableInfo>(
     deriveSchema(config).map((t) => [t.name, indexTable(t)] as const),
@@ -255,6 +281,8 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
     const op = direction === "asc" ? ">" : "<";
 
     const conditions: Array<Sql> = [frag(`${quoteId("deleted_at")} IS NULL`)];
+    const draftScope = draftPredicate(table, opts.status ?? "published");
+    if (draftScope !== null) conditions.push(draftScope);
     if (opts.cursor !== undefined) {
       const cursor = decodeCursor(opts.cursor);
       if (cursor !== null) {
@@ -368,6 +396,8 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
       createdAt: now,
       updatedAt: now,
       deletedAt: null,
+      // Draft-enabled rows start unpublished; `publish` flips them live.
+      ...(table.drafts ? { status: "draft", publishedAt: null } : {}),
     });
     const insert = buildInsert(table.name, row);
     await execWrite(table, `Failed to create "${collection}".`, () =>
@@ -437,5 +467,49 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
     return reread(table, id);
   };
 
-  return { list, get, findOne, create, update, softDelete, hardDelete, restore };
+  // Flip a live row's publish state. Shared by `publish`/`unpublish`: both set
+  // `status` + `published_at` + `updated_at` on a non-soft-deleted row.
+  const setPublishState = async (
+    collection: string,
+    id: string,
+    status: "published" | "draft",
+    publishedAt: number | null,
+  ): Promise<Document | null> => {
+    const table = requireTable(collection);
+    if (!table.drafts) {
+      throw new DatabaseError({ message: `Collection "${collection}" is not draft-enabled.` });
+    }
+    // Only a live (non-soft-deleted) row can change publish state.
+    if ((await get(collection, id)) === null) return null;
+    await exec(`Failed to set publish state on "${collection}/${id}".`, () =>
+      driver.run(
+        `UPDATE ${quoteId(table.name)} SET ${quoteId("status")} = ?, ${quoteId("published_at")} = ?, ${quoteId("updated_at")} = ? WHERE ${quoteId("id")} = ? AND ${quoteId("deleted_at")} IS NULL`,
+        [status, publishedAt, Date.now(), id],
+      ),
+    );
+    return reread(table, id);
+  };
+
+  const publish = (
+    collection: string,
+    id: string,
+    opts: PublishOpts = {},
+  ): Promise<Document | null> =>
+    setPublishState(collection, id, "published", opts.at ?? Date.now());
+
+  const unpublish = (collection: string, id: string): Promise<Document | null> =>
+    setPublishState(collection, id, "draft", null);
+
+  return {
+    list,
+    get,
+    findOne,
+    create,
+    update,
+    softDelete,
+    hardDelete,
+    restore,
+    publish,
+    unpublish,
+  };
 }

@@ -7,6 +7,15 @@
 
 export type OrderDirection = "asc" | "desc";
 
+/**
+ * Draft scoping for `list` on a draft-enabled collection (ignored otherwise):
+ * - `published` (default) — only live rows (`status = published` and any
+ *   `publishedAt` schedule has elapsed),
+ * - `draft` — only rows still in draft,
+ * - `any` — every row regardless of status (the admin view).
+ */
+export type DraftFilter = "published" | "draft" | "any";
+
 /** A decoded document: camelCase field names, JSON columns parsed. */
 export type Document = Record<string, unknown>;
 
@@ -19,6 +28,8 @@ export interface ListOpts {
   readonly orderBy?: string;
   /** Sort direction. Defaults to `desc` (newest first). */
   readonly direction?: OrderDirection;
+  /** Draft scoping (draft-enabled collections only). Defaults to `published`. */
+  readonly status?: DraftFilter;
 }
 
 export interface ListResult {
@@ -50,4 +61,17 @@ export interface Database {
   /** Clear `deletedAt` on a soft-deleted row; returns the restored row, or `null`
    *  if it's missing or already live. */
   restore(collection: string, id: string): Promise<Document | null>;
+  /** Publish a live row: set `status` to `published` and stamp `publishedAt`
+   *  (`opts.at` to schedule a future go-live; defaults to now). Returns the
+   *  stored row, or `null` if missing/soft-deleted. Errors if the collection
+   *  isn't draft-enabled. */
+  publish(collection: string, id: string, opts?: PublishOpts): Promise<Document | null>;
+  /** Return a row to `draft` and clear `publishedAt`; returns the stored row, or
+   *  `null` if missing/soft-deleted. Errors if the collection isn't draft-enabled. */
+  unpublish(collection: string, id: string): Promise<Document | null>;
+}
+
+export interface PublishOpts {
+  /** Epoch-ms go-live time. A future value schedules publication. Defaults to now. */
+  readonly at?: number;
 }

@@ -18,8 +18,10 @@ export {
 export type {
   Database,
   Document,
+  DraftFilter,
   FieldValue,
   ListOpts,
   ListResult,
   OrderDirection,
+  PublishOpts,
 } from "./types";

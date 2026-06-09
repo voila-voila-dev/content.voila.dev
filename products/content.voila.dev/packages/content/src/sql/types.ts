@@ -40,4 +40,7 @@ export interface TableSchema {
    * `CHECK ("id" = '<value>')` so only one row can ever exist.
    */
   readonly singletonCheck?: { readonly id: string };
+  /** True when the collection opted into draft/published workflow — the table
+   *  carries `status` + `published_at` columns and reads scope to live rows. */
+  readonly drafts?: boolean;
 }

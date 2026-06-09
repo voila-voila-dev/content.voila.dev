@@ -139,12 +139,35 @@ function systemColumns(): ReadonlyArray<ColumnSchema> {
   ];
 }
 
+/**
+ * Extra system columns for a draft-enabled collection: an editorial `status`
+ * (`draft`/`published`, defaulting to `draft`) and a nullable `published_at`
+ * timestamp that powers scheduled publishing (a future value isn't live yet).
+ */
+function draftColumns(): ReadonlyArray<ColumnSchema> {
+  return [
+    {
+      name: "status",
+      fieldName: "status",
+      type: TEXT,
+      notNull: true,
+      defaultExpr: { sqlite: "'draft'", postgres: "'draft'" },
+    },
+    {
+      name: "published_at",
+      fieldName: "publishedAt",
+      type: DATETIME,
+      notNull: false,
+    },
+  ];
+}
+
 function buildTable(
   slug: string,
   fields: FieldsMap,
-  options: { singletonId?: string },
+  options: { singletonId?: string; drafts?: boolean },
 ): TableSchema {
-  const columns: ColumnSchema[] = [...systemColumns()];
+  const columns: ColumnSchema[] = [...systemColumns(), ...(options.drafts ? draftColumns() : [])];
   const indexes: IndexSchema[] = [];
   // Seed the seen set with system column names so a user `column: "id"`
   // (or `"created_at"`, etc.) is rejected the same way two user fields
@@ -189,6 +212,7 @@ function buildTable(
     columns,
     indexes,
     singletonCheck: options.singletonId ? { id: options.singletonId } : undefined,
+    drafts: options.drafts === true,
   };
 }
 
@@ -202,12 +226,12 @@ export function deriveSchema(config: NormalizedConfig): ReadonlyArray<TableSchem
   // `NormalizedConfig` narrows collections/singletons with a mapped type whose
   // values erase to `unknown` under `Object.entries`; re-view them as the
   // field-bearing shape the deriver actually reads.
-  const collections = config.collections as Record<string, { fields: FieldsMap }>;
+  const collections = config.collections as Record<string, { fields: FieldsMap; drafts?: boolean }>;
   const singletons = config.singletons as Record<string, { fields: FieldsMap }>;
 
   const tables: TableSchema[] = [];
   for (const [slug, collection] of Object.entries(collections)) {
-    tables.push(buildTable(slug, collection.fields, {}));
+    tables.push(buildTable(slug, collection.fields, { drafts: collection.drafts === true }));
   }
   for (const [slug, singleton] of Object.entries(singletons)) {
     tables.push(buildTable(slug, singleton.fields, { singletonId: slug }));
