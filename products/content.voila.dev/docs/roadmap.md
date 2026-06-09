@@ -81,19 +81,26 @@ seam was co-designed with the server/client that consumes them.
 pieces are in place (auth bridge + REST write path + typed client); the wired
 admin UI lands in Phase 3.
 
-## Phase 3 — UI: primitives + blocks (`@voila/ui`, `@voila/content-ui`)
+## ✅ Phase 3 — UI: primitives + blocks (`@voila/ui`, `@voila/content-ui`)
 
-- [ ] `@voila/ui` primitives: button, input, select, checkbox/switch, card,
+- [x] `@voila/ui` primitives: button, input, select, checkbox/switch, card,
       table parts, dialog/drawer/popover, combobox, datepicker, tabs, toast,
       tooltip, sidebar, badge, command palette
-- [ ] `@voila/content-ui`: `DataTable` (columns/cells from config), `FieldRenderer`
+- [x] `@voila/content-ui`: `DataTable` (columns/cells from config), `FieldRenderer`
       + widget registry, `CollectionForm` (inputs + Standard Schema validation),
       `AdminShell` + `AppSidebar` (nav from config), `ListView`, `DetailView`,
-      dashboard widgets
-- [ ] Tailwind v4 token layer; light/dark; Phosphor icons
+      dashboard widgets (`Dashboard` + `StatCard`)
+- [x] Tailwind v4 token layer; light/dark; Phosphor icons (`@voila/ui`:
+      `styles.css` HSL tokens + `.dark`, `@voila/ui/tailwind` `@theme`,
+      `@voila/ui/icons`)
+
+The `@voila/content-ui` blocks are presentational and router-agnostic — the host
+fetches with the typed `@voila/content/client` and feeds data + actions in
+(`renderLink` / `currentPath` / `onRowClick`), so the same blocks drive any
+framework. Wiring them into a running app (loaders, routes) is Phase 4 vending.
 
 **Exit:** a config renders full list + create/edit/detail with no hand-written
-columns or form fields.
+columns or form fields. ✅
 
 ## Phase 4 — Registry & vending (`@voila/content-registry`)
 

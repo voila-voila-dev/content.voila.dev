@@ -1,12 +1,13 @@
 // @voila/content-ui — schema-aware blocks that read a `@voila/content` config
 // and compose `@voila/ui` primitives. Phase 3: the widget registries,
 // `FieldRenderer`, `DataTable` (read/display), `CollectionForm` (write), the
-// `AdminShell` + `AppSidebar` layout (nav from config), and the `ListView` /
-// `DetailView` pages that wrap them for a collection's list and detail screens.
+// `AdminShell` + `AppSidebar` layout (nav from config), the `ListView` /
+// `DetailView` pages, and the `Dashboard` + `StatCard` landing widgets.
 
 export { AdminShell, type AdminShellProps } from "./admin-shell";
 export { AppSidebar, type AppSidebarProps } from "./app-sidebar";
 export { CollectionForm, type CollectionFormProps } from "./collection-form";
+export { Dashboard, type DashboardProps } from "./dashboard";
 export { DataTable, type DataTableProps } from "./data-table";
 export { DetailView, type DetailViewProps } from "./detail-view";
 export { FieldRenderer, type FieldRendererProps } from "./field-renderer";
@@ -52,3 +53,4 @@ export {
   TextInput,
   UnsupportedInput,
 } from "./widgets/edit";
+export { StatCard, type StatCardProps } from "./widgets/stat-card";
