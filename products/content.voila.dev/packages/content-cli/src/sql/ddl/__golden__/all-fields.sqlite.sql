@@ -42,3 +42,16 @@ CREATE TABLE "settings" (
   "primary_color" TEXT,
   CHECK ("id" = 'settings')
 );
+
+CREATE TABLE "voila_media" (
+  "id" TEXT PRIMARY KEY NOT NULL,
+  "key" TEXT NOT NULL,
+  "filename" TEXT NOT NULL,
+  "mime" TEXT NOT NULL,
+  "size" INTEGER NOT NULL,
+  "width" INTEGER,
+  "height" INTEGER,
+  "alt" TEXT,
+  "created_at" INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE UNIQUE INDEX "voila_media_key_unique_idx" ON "voila_media" ("key");

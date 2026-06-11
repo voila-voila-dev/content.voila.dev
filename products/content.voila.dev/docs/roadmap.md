@@ -130,7 +130,25 @@ TanStack Start build, outside the unit-test/CI loop). ✅ (pending that sign-off
 
 ## Phase 5 — Full feature set
 
-- [ ] Media: R2/S3 storage, image/video transforms, signed URLs
+- [x] Media: R2/S3 storage, signed URLs, upload pipeline — **done**. A
+      `Storage` seam (put/get/delete + optional `signedUrl`, mirroring
+      `SqlDriver`/`Mailer`) with four adapters: in-memory (tests/dev), fs
+      (local dev, Node/Bun), Cloudflare R2 binding, and S3-compatible HTTP
+      (SigV4 presigned URLs on Web Crypto — AWS S3, R2's S3 API, MinIO; no
+      SDK). Uploads land under the reserved `_media` routes (`POST` multipart →
+      bytes to `Storage`, metadata to the engine-owned `voila_media` table,
+      shipped by `deriveSchema`/`voila migrate generate` whenever a config
+      declares a media field): library list + record fetch + `…/:id/file`
+      serving (302 to a signed URL when the backend signs, else streamed with
+      the record's mime) + delete, all behind the same auth → CSRF → RBAC
+      guard (the hook sees collection `_media`; uploads cap at a configurable
+      `maxBytes` → 413 `TOO_LARGE`). `makeMediaClient` (standalone, so it can't
+      collide with a collection slug) gives `upload`/`get`/`list`/`delete`/
+      `fileUrl`; the upload response is exactly the `MediaValue` a media field
+      stores, ready to drop into a document write.
+- [ ] Media transforms: image/video variants (the `media` field's
+      `transforms`/`variants` meta is in place; execution needs a raster
+      pipeline — CDN URL builder or worker — not built yet)
 - [ ] i18n: localized content + admin translation
 - [x] Drafts, scheduled publishing — **done** end to end:
       `defineCollection({ drafts: true })` adds `status` + `publishedAt`;

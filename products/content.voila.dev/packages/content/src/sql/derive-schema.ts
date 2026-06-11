@@ -165,6 +165,54 @@ function draftColumns(): ReadonlyArray<ColumnSchema> {
 /** Table name of the engine-owned revision store (one table for all collections). */
 export const REVISIONS_TABLE = "voila_revisions";
 
+/** Table name of the engine-owned media library (one table for all uploads). */
+export const MEDIA_TABLE = "voila_media";
+
+/**
+ * The engine-owned media library: one row per uploaded file, keyed by the
+ * storage object `key` the `Storage` seam wrote. Emitted only when the config
+ * declares a media field, so schemas without uploads stay lean. Detection is
+ * top-level only — array/object field metas don't retain their children, so a
+ * media field nested inside one isn't visible here (declare a top-level media
+ * field, or ship the table yourself, if you compose media that way).
+ */
+function mediaTable(): TableSchema {
+  return {
+    name: MEDIA_TABLE,
+    columns: [
+      { name: "id", fieldName: "id", type: TEXT, notNull: true, primaryKey: true },
+      { name: "key", fieldName: "key", type: TEXT, notNull: true },
+      { name: "filename", fieldName: "filename", type: TEXT, notNull: true },
+      { name: "mime", fieldName: "mime", type: TEXT, notNull: true },
+      { name: "size", fieldName: "size", type: INTEGER, notNull: true },
+      { name: "width", fieldName: "width", type: INTEGER, notNull: false },
+      { name: "height", fieldName: "height", type: INTEGER, notNull: false },
+      { name: "alt", fieldName: "alt", type: TEXT, notNull: false },
+      {
+        name: "created_at",
+        fieldName: "createdAt",
+        type: DATETIME,
+        notNull: true,
+        defaultExpr: { sqlite: "(unixepoch() * 1000)", postgres: "now()" },
+      },
+    ],
+    indexes: [
+      {
+        name: `${MEDIA_TABLE}_key_unique_idx`,
+        table: MEDIA_TABLE,
+        columns: ["key"],
+        unique: true,
+      },
+    ],
+    system: true,
+  };
+}
+
+/** True when any top-level field in the map is a media field. */
+function usesMedia(fields: FieldsMap): boolean {
+  return Object.values(fields).some((field) => readMeta(field).kind === "media");
+}
+
 /**
  * The engine-owned revision store, shared by every revisions-enabled
  * collection: one row per snapshot, the document serialized as JSON in `data`.
@@ -273,17 +321,21 @@ export function deriveSchema(config: NormalizedConfig): ReadonlyArray<TableSchem
 
   const tables: TableSchema[] = [];
   let anyRevisions = false;
+  let anyMedia = false;
   for (const [slug, collection] of Object.entries(collections)) {
     const revisions = collection.revisions === true;
     anyRevisions ||= revisions;
+    anyMedia ||= usesMedia(collection.fields);
     tables.push(
       buildTable(slug, collection.fields, { drafts: collection.drafts === true, revisions }),
     );
   }
   for (const [slug, singleton] of Object.entries(singletons)) {
+    anyMedia ||= usesMedia(singleton.fields);
     tables.push(buildTable(slug, singleton.fields, { singletonId: slug }));
   }
-  // The shared revision store ships only when something writes to it.
+  // The shared revision + media stores ship only when something writes to them.
   if (anyRevisions) tables.push(revisionsTable());
+  if (anyMedia) tables.push(mediaTable());
   return tables;
 }

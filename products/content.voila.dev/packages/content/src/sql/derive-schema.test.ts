@@ -1,12 +1,16 @@
 import { describe, expect, it } from "bun:test";
-import { defineCollection, defineConfig, fields } from "@voila/content";
+import { defineCollection, defineConfig, defineSingleton, fields } from "@voila/content";
 import { allFieldsConfig } from "./all-fields.fixture";
 import { deriveSchema } from "./derive-schema";
 
 describe("deriveSchema", () => {
-  it("prepends id/created_at/updated_at/deleted_at to every table", () => {
+  it("prepends id/created_at/updated_at/deleted_at to every content table", () => {
     const tables = deriveSchema(allFieldsConfig);
-    for (const table of tables) {
+    // Engine-owned system tables (voila_media here — the fixture has a media
+    // field) define their own column shapes.
+    const content = tables.filter((t) => t.system !== true);
+    expect(content.length).toBeGreaterThan(0);
+    for (const table of content) {
       const head = table.columns.slice(0, 4).map((c) => c.name);
       expect(head).toEqual(["id", "created_at", "updated_at", "deleted_at"]);
     }
@@ -157,5 +161,56 @@ describe("deriveSchema", () => {
       collections: { things: collection },
     });
     expect(() => deriveSchema(config)).toThrow(/nick_name/);
+  });
+});
+
+describe("voila_media", () => {
+  it("ships the media table when a collection declares a media field", () => {
+    const tables = deriveSchema(allFieldsConfig);
+    const media = tables.find((t) => t.name === "voila_media");
+    expect(media).toBeDefined();
+    expect(media?.system).toBe(true);
+    expect(media?.columns.map((c) => c.name)).toEqual([
+      "id",
+      "key",
+      "filename",
+      "mime",
+      "size",
+      "width",
+      "height",
+      "alt",
+      "created_at",
+    ]);
+    expect(media?.indexes[0]).toEqual({
+      name: "voila_media_key_unique_idx",
+      table: "voila_media",
+      columns: ["key"],
+      unique: true,
+    });
+  });
+
+  it("ships it when only a singleton declares a media field", () => {
+    const profile = defineSingleton({
+      slug: "profile",
+      fields: { avatar: fields.media() },
+    });
+    const config = defineConfig({
+      branding: { name: "Acme" },
+      collections: {},
+      singletons: { profile },
+    });
+    expect(deriveSchema(config).some((t) => t.name === "voila_media")).toBe(true);
+  });
+
+  it("stays out of media-free schemas", () => {
+    const collection = defineCollection({
+      slug: "things",
+      fields: { name: fields.string() },
+    });
+    const config = defineConfig({
+      branding: { name: "Acme" },
+      collections: { things: collection },
+    });
+    expect(deriveSchema(config).some((t) => t.name === "voila_media")).toBe(false);
   });
 });

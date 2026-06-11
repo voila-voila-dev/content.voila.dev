@@ -21,3 +21,11 @@ export {
   type SystemFields,
 } from "./client";
 export { type ApiFailure, ContentClientError, isContentClientError } from "./errors";
+export {
+  type MediaClient,
+  type MediaItem,
+  type MediaListPage,
+  type MediaListParams,
+  type MediaUploadOpts,
+  makeMediaClient,
+} from "./media";

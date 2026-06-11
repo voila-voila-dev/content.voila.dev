@@ -29,6 +29,15 @@ const NativeAbortSignal = globalThis.AbortSignal;
 const NativeFetch = globalThis.fetch;
 const NativeResponse = globalThis.Response;
 
+// Capture the native multipart primitives too. happy-dom's `FormData`/`File`/
+// `Blob` can't serialize into a *native* `Request` body (no shared boundary
+// encoding → `ERR_FORMDATA_PARSE_ERROR`), and `formData()` results from native
+// requests fail `instanceof` against happy-dom's `File`. The media upload
+// tests build multipart requests server-side, so the natives stay global.
+const NativeFormData = globalThis.FormData;
+const NativeFile = globalThis.File;
+const NativeBlob = globalThis.Blob;
+
 // happy-dom installs a `location` of `about:blank`, whose `origin`+`pathname`
 // is `"null" + "blank"` = `"nullblank"` — and `@effect/platform`'s `makeUrl`
 // resolves every request URL against `location.origin + location.pathname`, so
@@ -50,6 +59,9 @@ globalThis.Response = NativeResponse;
 // networking primitives, so restore the native pair globally.
 globalThis.Request = NativeRequest;
 globalThis.Headers = NativeHeaders;
+globalThis.FormData = NativeFormData;
+globalThis.File = NativeFile;
+globalThis.Blob = NativeBlob;
 
 // Drop happy-dom's `location` unless it existed natively (it doesn't in Bun).
 if (!hadLocation && "location" in globalThis) {

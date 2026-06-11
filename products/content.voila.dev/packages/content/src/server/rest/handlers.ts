@@ -28,10 +28,12 @@ import {
 import { readAccessContext, redactDocument } from "./field-access";
 import { type CollectionLike, coerceFieldValue, parseListQuery } from "./query";
 
-/** Everything the read handlers need: the config (for validation) and the data layer. */
+/** Everything the read handlers need: the config (for validation) and the data
+ *  layer. `media` opts the dispatcher into the `_media` routes (see `rest/media`). */
 export interface RestContext {
   readonly config: NormalizedConfig;
   readonly database: Database;
+  readonly media?: import("./media").MediaContext;
 }
 
 /**

@@ -17,6 +17,13 @@
 //   GET    /:collection/:id/revisions/:rev → fetch one revision
 //   POST   /:collection/:id/revisions/:rev/restore → re-apply a revision
 //
+// Media routes (reserved `_media` segment; served only when `ctx.media` is wired):
+//   POST   /_media           → upload (multipart: file + alt?/width?/height?)
+//   GET    /_media           → list the library (newest first)
+//   GET    /_media/:id       → fetch one record (metadata)
+//   GET    /_media/:id/file  → the bytes (302 to a signed URL when available)
+//   DELETE /_media/:id       → delete bytes + record
+//
 // Each request is matched to a route descriptor (operation + collection +
 // optional document id) and a handler thunk. The guard (`authorizeRequest`) runs
 // between match and invoke: an unmatched route returns `null` *before* the guard,
@@ -26,6 +33,14 @@
 import { authorizeRequest, type GuardOptions, type RouteDescriptor } from "../auth/guard";
 import type { Operation, Principal } from "../auth/principal";
 import { handleFindByField, handleFindById, handleList, type RestContext } from "./handlers";
+import {
+  handleMediaDelete,
+  handleMediaFile,
+  handleMediaGet,
+  handleMediaList,
+  handleMediaUpload,
+  MEDIA_SEGMENT,
+} from "./media";
 import { handleGetRevision, handleListRevisions, handleRestoreRevision } from "./revisions";
 import {
   handleCreate,
@@ -65,6 +80,46 @@ function normalizeBase(basePath: string | undefined): string {
   return basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
 }
 
+// The `_media` sub-router. Reads classify as `list`/`read`, the upload as
+// `create`, the delete as `delete` — all on the pseudo-collection `_media`, so
+// the host's RBAC hook (and CSRF on the mutations) covers media like any other
+// collection. The file route is a `read`: it serves bytes (or a signed
+// redirect), but it's still just a read of the document's content.
+function matchMediaRoute(
+  ctx: RestContext,
+  request: Request,
+  url: URL,
+  basePath: string,
+  segments: ReadonlyArray<string>,
+): MatchedRoute | null {
+  const media = ctx.media;
+  if (media === undefined) return null;
+  const [, id, third] = segments;
+  const { method } = request;
+
+  if (method === "GET") {
+    if (segments.length === 1) {
+      return route("list", MEDIA_SEGMENT, undefined, () => handleMediaList(media, url, basePath));
+    }
+    if (segments.length === 2 && id !== undefined) {
+      return route("read", MEDIA_SEGMENT, id, () => handleMediaGet(media, id, basePath));
+    }
+    if (segments.length === 3 && id !== undefined && third === "file") {
+      return route("read", MEDIA_SEGMENT, id, () => handleMediaFile(media, id));
+    }
+    return null;
+  }
+  if (method === "POST" && segments.length === 1) {
+    return route("create", MEDIA_SEGMENT, undefined, () =>
+      handleMediaUpload(media, request, basePath),
+    );
+  }
+  if (method === "DELETE" && segments.length === 2 && id !== undefined) {
+    return route("delete", MEDIA_SEGMENT, id, () => handleMediaDelete(media, id));
+  }
+  return null;
+}
+
 // Resolve a request to the route it hits, or `null` when this dispatcher doesn't
 // own it (wrong base, unknown method/shape). Pure routing — no I/O — so the guard
 // can run against the descriptor before any handler executes.
@@ -85,6 +140,12 @@ function matchRoute(ctx: RestContext, request: Request, basePath: string): Match
   const [collection, second, third, fourth, fifth] = segments;
   if (collection === undefined) return null;
   const { method } = request;
+
+  // `_media` is a reserved segment, never a collection slug. The routes exist
+  // only when the host wired a media context; otherwise fall through.
+  if (collection === MEDIA_SEGMENT) {
+    return matchMediaRoute(ctx, request, url, basePath, segments);
+  }
 
   if (method === "GET") {
     if (segments.length === 1) {

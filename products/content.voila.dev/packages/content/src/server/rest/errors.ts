@@ -73,6 +73,14 @@ export interface CsrfError extends BaseError {
   readonly code: "CSRF";
 }
 
+export interface TooLargeError extends BaseError {
+  readonly code: "TOO_LARGE";
+  /** The configured cap, in bytes. */
+  readonly maxBytes: number;
+  /** The rejected upload's size, when known. */
+  readonly size?: number;
+}
+
 /** One field-level validation failure: where it occurred and what was wrong. */
 export interface ValidationIssue {
   /** Path to the offending value, field name first (e.g. `["title"]`, `["tags", 0]`). */
@@ -107,7 +115,8 @@ export type ApiFailure =
   | InternalError
   | UnauthorizedError
   | ForbiddenError
-  | CsrfError;
+  | CsrfError
+  | TooLargeError;
 
 export type ApiErrorCode = ApiFailure["code"];
 
@@ -125,6 +134,7 @@ const STATUS: Record<ApiErrorCode, number> = {
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
   CSRF: 403,
+  TOO_LARGE: 413,
 };
 
 // ---------- typed constructors ----------
@@ -206,6 +216,13 @@ export function forbidden(
 /** A mutating request whose CSRF double-submit token was missing or invalid. */
 export function csrfFailure(): CsrfError {
   return { code: "CSRF" };
+}
+
+/** An upload exceeding the configured byte cap. */
+export function tooLarge(maxBytes: number, size?: number): TooLargeError {
+  return size === undefined
+    ? { code: "TOO_LARGE", maxBytes }
+    : { code: "TOO_LARGE", maxBytes, size };
 }
 
 // ---------- throwable wrapper ----------

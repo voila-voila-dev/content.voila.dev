@@ -19,6 +19,15 @@ export {
   type RestContext,
 } from "./handlers";
 export {
+  handleMediaDelete,
+  handleMediaFile,
+  handleMediaGet,
+  handleMediaList,
+  handleMediaUpload,
+  MEDIA_SEGMENT,
+  type MediaContext,
+} from "./media";
+export {
   handleGetRevision,
   handleListRevisions,
   handleRestoreRevision,
