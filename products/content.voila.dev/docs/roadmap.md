@@ -146,9 +146,18 @@ TanStack Start build, outside the unit-test/CI loop). ✅ (pending that sign-off
       collide with a collection slug) gives `upload`/`get`/`list`/`delete`/
       `fileUrl`; the upload response is exactly the `MediaValue` a media field
       stores, ready to drop into a document write.
-- [ ] Media transforms: image/video variants (the `media` field's
-      `transforms`/`variants` meta is in place; execution needs a raster
-      pipeline — CDN URL builder or worker — not built yet)
+- [x] Media transforms (images) — **done** as render-time URLs: the engine
+      never rasterizes. An `ImageCdn` seam (`(sourceUrl, MediaTransform) →
+      string`) with `cloudflareImageCdn` building `/cdn-cgi/image/<options>/…`
+      URLs (sharp→Cloudflare fit mapping, no-op fast path, optional zone
+      base); `mediaVariantUrls(field.meta.transforms, value, cdn)` resolves a
+      media field's named transforms against a stored `MediaValue` — variants
+      are computed where they're rendered, not stored at upload (the upload
+      pipeline is field-agnostic). Client-safe, any URL-based resizer plugs
+      into the seam (imgix, Cloudinary, imgproxy…). *Video transcoding is
+      deliberately out of engine scope* — store and serve video through the
+      media pipeline, transcode with a dedicated service (Cloudflare Stream,
+      Mux).
 - [ ] i18n: localized content + admin translation
 - [x] Drafts, scheduled publishing — **done** end to end:
       `defineCollection({ drafts: true })` adds `status` + `publishedAt`;

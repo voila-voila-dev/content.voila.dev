@@ -9,6 +9,7 @@ export { defineCollection } from "./config/schema/collection";
 export type {
   AccessibleFields,
   BaseFieldOpts,
+  CloudflareImageCdnOpts,
   Field,
   FieldAccess,
   FieldAccessContext,
@@ -17,9 +18,12 @@ export type {
   FieldMetaBase,
   FieldsMap,
   FieldTransform,
+  ImageCdn,
   Locale,
   Localized,
   LocalizedMarker,
+  MediaTransform,
+  MediaValue,
   WithLocalized,
 } from "./config/schema/fields";
 // Field constructors live one-per-file under ./config/schema/fields and are surfaced
@@ -31,8 +35,11 @@ export {
   accessibleFields,
   canReadField,
   canWriteField,
+  cloudflareImageCdn,
+  cloudflareImageOptions,
   isLocale,
   LOCALES,
+  mediaVariantUrls,
 } from "./config/schema/fields";
 // Rich-text elements + marks + extension helpers. Pass these to
 // `fields.richText({ elements, marks })` to restrict a field, or use

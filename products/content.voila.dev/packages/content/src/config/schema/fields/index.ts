@@ -16,6 +16,14 @@ export { makeField } from "./_base";
 export { isLocale, LOCALES, type Locale } from "./_locale";
 export type { Localized, LocalizedMarker, NarrowField, NarrowFields } from "./_localized";
 export type { FieldsMap } from "./_map";
+// Image-CDN transform URLs (render-time variants for media fields)
+export {
+  type CloudflareImageCdnOpts,
+  cloudflareImageCdn,
+  cloudflareImageOptions,
+  type ImageCdn,
+  mediaVariantUrls,
+} from "./_media-cdn";
 // Structured
 export { type ArrayOpts, array } from "./array";
 export { type BooleanOpts, boolean } from "./boolean";

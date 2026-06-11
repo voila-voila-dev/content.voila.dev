@@ -24,7 +24,8 @@ export interface MediaOpts extends BaseFieldOpts<MediaValue> {
   readonly accept?: ReadonlyArray<string>;
   /** Max file size in bytes. */
   readonly max?: number;
-  /** Named transforms generated on upload. */
+  /** Named transforms, resolved to image-CDN URLs at render time via
+   *  `mediaVariantUrls` (the engine never rasterizes — see `ImageCdn`). */
   readonly transforms?: Readonly<Record<string, MediaTransform>>;
 }
 
