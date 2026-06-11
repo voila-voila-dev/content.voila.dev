@@ -6,7 +6,7 @@
 // classification all live here; the driver only runs strings + `?` params.
 
 import type { NormalizedConfig } from "../../config/config";
-import { type ColumnSchema, deriveSchema, type TableSchema } from "../../sql";
+import { type ColumnSchema, deriveSchema, REVISIONS_TABLE, type TableSchema } from "../../sql";
 import { type CursorPosition, decodeCursor, encodeCursor } from "./cursor";
 import type { SqlDriver, SqlRow, SqlValue } from "./driver";
 import { and, buildInsert, buildUpdateSet, frag, or, quoteId, type Sql } from "./query";
@@ -19,6 +19,9 @@ import type {
   ListResult,
   OrderDirection,
   PublishOpts,
+  Revision,
+  RevisionListOpts,
+  RevisionListResult,
 } from "./types";
 
 const DEFAULT_LIMIT = 20;
@@ -60,6 +63,8 @@ export interface TableInfo {
   readonly byField: ReadonlyMap<string, ColumnInfo>;
   /** True when the collection opted into draft/published workflow. */
   readonly drafts: boolean;
+  /** True when the collection opted into version history. */
+  readonly revisions: boolean;
 }
 
 // JSON columns render to Postgres `JSONB` regardless of dialect, so the postgres
@@ -121,7 +126,13 @@ export const indexTable = (table: TableSchema): TableInfo => {
     byColumn.set(col.name, info);
     byField.set(col.fieldName, info);
   }
-  return { name: table.name, byColumn, byField, drafts: table.drafts === true };
+  return {
+    name: table.name,
+    byColumn,
+    byField,
+    drafts: table.drafts === true,
+    revisions: table.revisions === true,
+  };
 };
 
 export const mapRow = (table: TableInfo, row: SqlRow): Document => {
@@ -217,9 +228,25 @@ function draftPredicate(table: TableInfo, status: DraftFilter): Sql | null {
   ]);
 }
 
+// Snapshot field names the server owns. Stripped when a revision is restored —
+// `update` re-stamps the timestamps, and publish state is managed by the
+// publish routes, not by time travel.
+const REVISION_SYSTEM_FIELDS = new Set([
+  "id",
+  "createdAt",
+  "updatedAt",
+  "deletedAt",
+  "status",
+  "publishedAt",
+]);
+
 export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Database {
+  // Engine-owned system tables (the revision store) ship with the schema but
+  // aren't collections — they never resolve through `requireTable`.
   const tables = new Map<string, TableInfo>(
-    deriveSchema(config).map((t) => [t.name, indexTable(t)] as const),
+    deriveSchema(config)
+      .filter((t) => t.system !== true)
+      .map((t) => [t.name, indexTable(t)] as const),
   );
 
   const requireTable = (collection: string): TableInfo => {
@@ -258,6 +285,31 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
         field: conflict.field ?? undefined,
       });
     }
+  };
+
+  // Append a version-history snapshot of a just-written row. `rev` is assigned
+  // by an inline `MAX(rev) + 1` subquery, atomic under SQLite/D1's single
+  // writer. No-op unless the collection opted into revisions.
+  const snapshot = async (table: TableInfo, doc: Document): Promise<void> => {
+    if (!table.revisions) return;
+    const documentId = String(doc.id);
+    await exec(`Failed to snapshot "${table.name}/${documentId}".`, () =>
+      driver.run(
+        `INSERT INTO ${quoteId(REVISIONS_TABLE)} ` +
+          `(${quoteId("id")}, ${quoteId("collection")}, ${quoteId("document_id")}, ${quoteId("rev")}, ${quoteId("data")}, ${quoteId("created_at")}) ` +
+          `VALUES (?, ?, ?, (SELECT COALESCE(MAX(${quoteId("rev")}), 0) + 1 FROM ${quoteId(REVISIONS_TABLE)} ` +
+          `WHERE ${quoteId("collection")} = ? AND ${quoteId("document_id")} = ?), ?, ?)`,
+        [
+          crypto.randomUUID(),
+          table.name,
+          documentId,
+          table.name,
+          documentId,
+          JSON.stringify(doc),
+          Date.now(),
+        ],
+      ),
+    );
   };
 
   // Re-read a row by id (ignoring soft-delete state) — the canonical row the
@@ -414,6 +466,7 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
     if (stored === null) {
       throw new DatabaseError({ message: `Created "${collection}/${id}" vanished on read.` });
     }
+    await snapshot(table, stored);
     return stored;
   };
 
@@ -434,7 +487,9 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
         [...set.params, id],
       ),
     );
-    return reread(table, id);
+    const stored = await reread(table, id);
+    if (stored !== null) await snapshot(table, stored);
+    return stored;
   };
 
   const softDelete = async (collection: string, id: string): Promise<boolean> => {
@@ -494,7 +549,9 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
         [status, publishedAt, Date.now(), id],
       ),
     );
-    return reread(table, id);
+    const stored = await reread(table, id);
+    if (stored !== null) await snapshot(table, stored);
+    return stored;
   };
 
   const publish = (
@@ -507,6 +564,94 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
   const unpublish = (collection: string, id: string): Promise<Document | null> =>
     setPublishState(collection, id, "draft", null);
 
+  const requireRevisions = (collection: string): TableInfo => {
+    const table = requireTable(collection);
+    if (!table.revisions) {
+      throw new DatabaseError({ message: `Collection "${collection}" is not revisions-enabled.` });
+    }
+    return table;
+  };
+
+  // A stored snapshot row → the canonical `Revision`. `rev`/`created_at` come
+  // back as numbers from SQLite/D1 (bigint/Date smoothed for a future pg driver).
+  const mapRevision = (row: SqlRow): Revision => ({
+    rev: Number(row.rev),
+    createdAt: row.created_at instanceof Date ? row.created_at.getTime() : Number(row.created_at),
+    doc: JSON.parse(String(row.data)) as Document,
+  });
+
+  const listRevisions = async (
+    collection: string,
+    id: string,
+    opts: RevisionListOpts = {},
+  ): Promise<RevisionListResult> => {
+    const table = requireRevisions(collection);
+    const limit = Math.min(Math.max(1, Math.trunc(opts.limit ?? DEFAULT_LIMIT)), MAX_LIMIT);
+
+    // The cursor is the last page's lowest `rev` (history pages newest-first);
+    // garbage is ignored the same way a malformed keyset cursor is.
+    const before = opts.cursor !== undefined ? Number.parseInt(opts.cursor, 10) : Number.NaN;
+    const conditions: Array<Sql> = [
+      frag(`${quoteId("collection")} = ?`, [table.name]),
+      frag(`${quoteId("document_id")} = ?`, [id]),
+    ];
+    if (Number.isFinite(before)) conditions.push(frag(`${quoteId("rev")} < ?`, [before]));
+
+    const where = and(conditions);
+    const rows = await exec(`Failed to list revisions of "${collection}/${id}".`, () =>
+      driver.all(
+        `SELECT * FROM ${quoteId(REVISIONS_TABLE)} WHERE ${where.text} ORDER BY ${quoteId("rev")} DESC LIMIT ${limit + 1}`,
+        where.params,
+      ),
+    );
+
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const revisions = page.map(mapRevision);
+    const last = revisions.at(-1);
+    return {
+      revisions,
+      nextCursor: hasMore && last !== undefined ? String(last.rev) : null,
+    };
+  };
+
+  const getRevision = async (
+    collection: string,
+    id: string,
+    rev: number,
+  ): Promise<Revision | null> => {
+    const table = requireRevisions(collection);
+    const rows = await exec(`Failed to get revision ${rev} of "${collection}/${id}".`, () =>
+      driver.all(
+        `SELECT * FROM ${quoteId(REVISIONS_TABLE)} WHERE ${quoteId("collection")} = ? AND ${quoteId("document_id")} = ? AND ${quoteId("rev")} = ? LIMIT 1`,
+        [table.name, id, rev],
+      ),
+    );
+    const row = rows[0];
+    return row === undefined ? null : mapRevision(row);
+  };
+
+  const restoreRevision = async (
+    collection: string,
+    id: string,
+    rev: number,
+  ): Promise<Document | null> => {
+    const table = requireRevisions(collection);
+    const revision = await getRevision(collection, id, rev);
+    if (revision === null) return null;
+    // Content fields only: system columns are stripped, and a field the config
+    // no longer declares (snapshot predates a schema change) is dropped rather
+    // than crashing the UPDATE on a missing column.
+    const values: Document = {};
+    for (const [field, value] of Object.entries(revision.doc)) {
+      if (REVISION_SYSTEM_FIELDS.has(field)) continue;
+      if (!table.byField.has(field)) continue;
+      values[field] = value;
+    }
+    // `update` bumps `updatedAt` and appends the post-restore snapshot.
+    return update(collection, id, values);
+  };
+
   return {
     list,
     get,
@@ -518,5 +663,8 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
     restore,
     publish,
     unpublish,
+    listRevisions,
+    getRevision,
+    restoreRevision,
   };
 }

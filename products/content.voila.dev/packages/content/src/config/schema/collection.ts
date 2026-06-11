@@ -21,6 +21,14 @@ export interface CollectionDef<
    * exist without any cast.
    */
   readonly drafts?: Drafts;
+  /**
+   * Opt into version history. Every content write (create, update, publish,
+   * unpublish) snapshots the stored row into the engine-owned `voila_revisions`
+   * table; past revisions can be listed and restored. Off by default. Unlike
+   * `drafts`, the flag adds no columns to the collection's own table — row
+   * shapes are unchanged — so it isn't carried at the type level.
+   */
+  readonly revisions?: boolean;
   readonly fields: Fields;
 }
 
@@ -38,6 +46,7 @@ export function defineCollection<
   readonly slug: Slug;
   readonly label?: string;
   readonly drafts?: Drafts;
+  readonly revisions?: boolean;
   readonly fields: Fields;
 }): Collection<Slug, Fields, Drafts> {
   return {
@@ -45,6 +54,7 @@ export function defineCollection<
     slug: def.slug,
     label: def.label,
     drafts: def.drafts,
+    revisions: def.revisions,
     fields: def.fields,
   };
 }

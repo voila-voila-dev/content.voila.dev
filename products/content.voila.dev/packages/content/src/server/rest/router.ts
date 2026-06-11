@@ -13,6 +13,9 @@
 //   POST   /:collection/:id/restore        → restore
 //   POST   /:collection/:id/publish        → publish (optional `{ at }`)
 //   POST   /:collection/:id/unpublish      → unpublish
+//   GET    /:collection/:id/revisions      → list version history (newest first)
+//   GET    /:collection/:id/revisions/:rev → fetch one revision
+//   POST   /:collection/:id/revisions/:rev/restore → re-apply a revision
 //
 // Each request is matched to a route descriptor (operation + collection +
 // optional document id) and a handler thunk. The guard (`authorizeRequest`) runs
@@ -23,6 +26,7 @@
 import { authorizeRequest, type GuardOptions, type RouteDescriptor } from "../auth/guard";
 import type { Operation } from "../auth/principal";
 import { handleFindByField, handleFindById, handleList, type RestContext } from "./handlers";
+import { handleGetRevision, handleListRevisions, handleRestoreRevision } from "./revisions";
 import {
   handleCreate,
   handleDelete,
@@ -76,7 +80,7 @@ function matchRoute(ctx: RestContext, request: Request, basePath: string): Match
 
   // Explicit `!== undefined` guards (not just length checks) so the segment
   // reads narrow under `noUncheckedIndexedAccess`.
-  const [collection, second, third, fourth] = segments;
+  const [collection, second, third, fourth, fifth] = segments;
   if (collection === undefined) return null;
   const { method } = request;
 
@@ -90,6 +94,23 @@ function matchRoute(ctx: RestContext, request: Request, basePath: string): Match
     if (segments.length === 4 && second === "by" && third !== undefined && fourth !== undefined) {
       return route("read", collection, undefined, () =>
         handleFindByField(ctx, collection, third, fourth),
+      );
+    }
+    // Version history is a read of the document it belongs to, so the RBAC
+    // hook sees the same `read` operation as a direct fetch.
+    if (segments.length === 3 && second !== undefined && third === "revisions") {
+      return route("read", collection, second, () =>
+        handleListRevisions(ctx, collection, second, url),
+      );
+    }
+    if (
+      segments.length === 4 &&
+      second !== undefined &&
+      third === "revisions" &&
+      fourth !== undefined
+    ) {
+      return route("read", collection, second, () =>
+        handleGetRevision(ctx, collection, second, fourth),
       );
     }
     return null;
@@ -109,6 +130,19 @@ function matchRoute(ctx: RestContext, request: Request, basePath: string): Match
     }
     if (segments.length === 3 && second !== undefined && third === "unpublish") {
       return route("publish", collection, second, () => handleUnpublish(ctx, collection, second));
+    }
+    // Restoring a revision rewrites the document's content, so it authorizes
+    // (and CSRF-checks) as an `update`, not as the soft-delete `restore`.
+    if (
+      segments.length === 5 &&
+      second !== undefined &&
+      third === "revisions" &&
+      fourth !== undefined &&
+      fifth === "restore"
+    ) {
+      return route("update", collection, second, () =>
+        handleRestoreRevision(ctx, collection, second, fourth),
+      );
     }
     return null;
   }

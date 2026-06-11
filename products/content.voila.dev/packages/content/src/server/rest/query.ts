@@ -116,7 +116,9 @@ function parseStatus(raw: string | null): DraftFilter | undefined {
   return fail(badRequest({ field: "status", expected: "published | draft | scheduled | any" }));
 }
 
-function parseLimit(raw: string | null): number {
+/** Parse a `?limit` value: 25 by default, integer, 1–100. Shared with the
+ *  revision-history list route. */
+export function parseLimit(raw: string | null): number {
   if (raw === null) return DEFAULT_LIMIT;
   const n = Number(raw);
   if (!Number.isInteger(n) || n < 1 || n > MAX_LIMIT) {

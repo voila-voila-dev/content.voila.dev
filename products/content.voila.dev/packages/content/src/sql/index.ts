@@ -5,6 +5,6 @@
 // (`@voila/content-cli`) read column shape from a single source of truth.
 
 export { authTableStatements, authTablesSql } from "./auth-schema";
-export { deriveSchema } from "./derive-schema";
+export { deriveSchema, REVISIONS_TABLE } from "./derive-schema";
 export { toColumnName } from "./to-column-name";
 export type { ColumnSchema, Dialect, IndexSchema, TableSchema } from "./types";

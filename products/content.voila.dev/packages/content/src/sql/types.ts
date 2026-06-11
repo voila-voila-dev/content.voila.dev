@@ -43,4 +43,10 @@ export interface TableSchema {
   /** True when the collection opted into draft/published workflow — the table
    *  carries `status` + `published_at` columns and reads scope to live rows. */
   readonly drafts?: boolean;
+  /** True when the collection opted into version history — content writes
+   *  snapshot the stored row into the engine-owned `voila_revisions` table. */
+  readonly revisions?: boolean;
+  /** True for engine-owned tables (e.g. `voila_revisions`) that ship with the
+   *  schema but aren't collections — the runtime `Database` doesn't expose them. */
+  readonly system?: boolean;
 }

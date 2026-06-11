@@ -17,6 +17,11 @@ export {
   handleList,
   type RestContext,
 } from "./handlers";
+export {
+  handleGetRevision,
+  handleListRevisions,
+  handleRestoreRevision,
+} from "./revisions";
 export { createRestHandler, type RestHandlerOptions } from "./router";
 export {
   handleCreate,

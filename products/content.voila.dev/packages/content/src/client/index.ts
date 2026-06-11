@@ -14,6 +14,9 @@ export {
   type LookupValue,
   makeClient,
   type OrderKey,
+  type Revision,
+  type RevisionListParams,
+  type RevisionPage,
   type Stored,
   type SystemFields,
 } from "./client";

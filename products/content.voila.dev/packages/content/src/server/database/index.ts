@@ -24,4 +24,7 @@ export type {
   ListResult,
   OrderDirection,
   PublishOpts,
+  Revision,
+  RevisionListOpts,
+  RevisionListResult,
 } from "./types";

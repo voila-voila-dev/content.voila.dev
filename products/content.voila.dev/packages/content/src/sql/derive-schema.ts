@@ -162,10 +162,48 @@ function draftColumns(): ReadonlyArray<ColumnSchema> {
   ];
 }
 
+/** Table name of the engine-owned revision store (one table for all collections). */
+export const REVISIONS_TABLE = "voila_revisions";
+
+/**
+ * The engine-owned revision store, shared by every revisions-enabled
+ * collection: one row per snapshot, the document serialized as JSON in `data`.
+ * `rev` counts from 1 per document; `(collection, document_id, rev)` is unique.
+ * Emitted only when at least one collection opted in.
+ */
+function revisionsTable(): TableSchema {
+  return {
+    name: REVISIONS_TABLE,
+    columns: [
+      { name: "id", fieldName: "id", type: TEXT, notNull: true, primaryKey: true },
+      { name: "collection", fieldName: "collection", type: TEXT, notNull: true },
+      { name: "document_id", fieldName: "documentId", type: TEXT, notNull: true },
+      { name: "rev", fieldName: "rev", type: INTEGER, notNull: true },
+      { name: "data", fieldName: "data", type: JSON_TYPE, notNull: true },
+      {
+        name: "created_at",
+        fieldName: "createdAt",
+        type: DATETIME,
+        notNull: true,
+        defaultExpr: { sqlite: "(unixepoch() * 1000)", postgres: "now()" },
+      },
+    ],
+    indexes: [
+      {
+        name: `${REVISIONS_TABLE}_doc_rev_unique_idx`,
+        table: REVISIONS_TABLE,
+        columns: ["collection", "document_id", "rev"],
+        unique: true,
+      },
+    ],
+    system: true,
+  };
+}
+
 function buildTable(
   slug: string,
   fields: FieldsMap,
-  options: { singletonId?: string; drafts?: boolean },
+  options: { singletonId?: string; drafts?: boolean; revisions?: boolean },
 ): TableSchema {
   const columns: ColumnSchema[] = [...systemColumns(), ...(options.drafts ? draftColumns() : [])];
   const indexes: IndexSchema[] = [];
@@ -213,6 +251,7 @@ function buildTable(
     indexes,
     singletonCheck: options.singletonId ? { id: options.singletonId } : undefined,
     drafts: options.drafts === true,
+    revisions: options.revisions === true,
   };
 }
 
@@ -226,15 +265,25 @@ export function deriveSchema(config: NormalizedConfig): ReadonlyArray<TableSchem
   // `NormalizedConfig` narrows collections/singletons with a mapped type whose
   // values erase to `unknown` under `Object.entries`; re-view them as the
   // field-bearing shape the deriver actually reads.
-  const collections = config.collections as Record<string, { fields: FieldsMap; drafts?: boolean }>;
+  const collections = config.collections as Record<
+    string,
+    { fields: FieldsMap; drafts?: boolean; revisions?: boolean }
+  >;
   const singletons = config.singletons as Record<string, { fields: FieldsMap }>;
 
   const tables: TableSchema[] = [];
+  let anyRevisions = false;
   for (const [slug, collection] of Object.entries(collections)) {
-    tables.push(buildTable(slug, collection.fields, { drafts: collection.drafts === true }));
+    const revisions = collection.revisions === true;
+    anyRevisions ||= revisions;
+    tables.push(
+      buildTable(slug, collection.fields, { drafts: collection.drafts === true, revisions }),
+    );
   }
   for (const [slug, singleton] of Object.entries(singletons)) {
     tables.push(buildTable(slug, singleton.fields, { singletonId: slug }));
   }
+  // The shared revision store ships only when something writes to it.
+  if (anyRevisions) tables.push(revisionsTable());
   return tables;
 }

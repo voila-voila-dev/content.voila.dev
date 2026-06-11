@@ -71,9 +71,54 @@ export interface Database {
   /** Return a row to `draft` and clear `publishedAt`; returns the stored row, or
    *  `null` if missing/soft-deleted. Errors if the collection isn't draft-enabled. */
   unpublish(collection: string, id: string): Promise<Document | null>;
+  /** Page through a document's version history, newest first. Errors if the
+   *  collection isn't revisions-enabled. */
+  listRevisions(
+    collection: string,
+    id: string,
+    opts?: RevisionListOpts,
+  ): Promise<RevisionListResult>;
+  /** Fetch one revision by number, or `null` if it doesn't exist. Errors if the
+   *  collection isn't revisions-enabled. */
+  getRevision(collection: string, id: string, rev: number): Promise<Revision | null>;
+  /** Re-apply a past revision's content fields to the live row (via `update`, so
+   *  a new revision is appended — history stays linear). Publish state and other
+   *  system columns are untouched. Returns the stored row, or `null` if the
+   *  revision or the live row is missing. Errors if the collection isn't
+   *  revisions-enabled. */
+  restoreRevision(collection: string, id: string, rev: number): Promise<Document | null>;
 }
 
 export interface PublishOpts {
   /** Epoch-ms go-live time. A future value schedules publication. Defaults to now. */
   readonly at?: number;
+}
+
+/**
+ * One snapshot in a document's version history: the full stored row (system
+ * columns included) as it stood after the write that produced it. `rev` counts
+ * from 1 per document and only ever grows — restoring an old revision appends
+ * a new one rather than rewinding, so history stays linear.
+ */
+export interface Revision {
+  /** 1-based, per-document revision number; newest is highest. */
+  readonly rev: number;
+  /** Epoch-ms time the snapshot was taken. */
+  readonly createdAt: number;
+  /** The stored row at that point, in canonical camelCase form. */
+  readonly doc: Document;
+}
+
+export interface RevisionListOpts {
+  /** Page size. Clamped to 1–100; defaults to 20. */
+  readonly limit?: number;
+  /** Cursor returned as `nextCursor` from a prior page. */
+  readonly cursor?: string;
+}
+
+export interface RevisionListResult {
+  /** Revisions ordered newest-first. */
+  readonly revisions: ReadonlyArray<Revision>;
+  /** Cursor for the next page, or `null` when the last page was returned. */
+  readonly nextCursor: string | null;
 }

@@ -69,6 +69,31 @@ export interface ListPage<Doc, Drafts extends boolean = false> {
 }
 
 /**
+ * One snapshot in a document's version history (revisions-enabled collections):
+ * the full stored row as it stood after the write that produced it. `rev`
+ * counts from 1 per document; newest is highest.
+ */
+export interface Revision<Doc, Drafts extends boolean = false> {
+  readonly rev: number;
+  /** Epoch-ms time the snapshot was taken. */
+  readonly createdAt: number;
+  readonly doc: Stored<Doc, Drafts>;
+}
+
+export interface RevisionListParams {
+  /** Page size (server clamps to 1–100). */
+  readonly limit?: number;
+  /** Opaque `nextCursor` from a prior page. */
+  readonly cursor?: string;
+}
+
+export interface RevisionPage<Doc, Drafts extends boolean = false> {
+  /** Revisions ordered newest-first. */
+  readonly data: ReadonlyArray<Revision<Doc, Drafts>>;
+  readonly nextCursor: string | null;
+}
+
+/**
  * The per-collection method surface, typed from the collection's document shape.
  * `Drafts` mirrors the collection's `drafts` flag: when `true`, every returned
  * row carries the `status`/`publishedAt` draft columns.
@@ -92,6 +117,14 @@ export interface CollectionClient<Doc, Drafts extends boolean = false> {
   publish(id: string, opts?: { at?: number }): Promise<Stored<Doc, Drafts>>;
   /** Return a row to draft (draft-enabled collections). */
   unpublish(id: string): Promise<Stored<Doc, Drafts>>;
+  /** Page through a row's version history, newest first (revisions-enabled collections). */
+  revisions(id: string, params?: RevisionListParams): Promise<RevisionPage<Doc, Drafts>>;
+  /** Fetch one revision by number, or `null` if it doesn't exist (revisions-enabled
+   *  collections). */
+  revision(id: string, rev: number): Promise<Revision<Doc, Drafts> | null>;
+  /** Re-apply a past revision's content fields (appends a new revision — history
+   *  stays linear); returns the stored row (revisions-enabled collections). */
+  restoreRevision(id: string, rev: number): Promise<Stored<Doc, Drafts>>;
 }
 
 /** The typed client surface: one `CollectionClient` per configured collection. */
@@ -203,6 +236,22 @@ function makeCollectionClient(
           : {}),
       }),
     unpublish: (id) => send<Stored<unknown>>(`${root}/${enc(id)}/unpublish`, { method: "POST" }),
+    async revisions(id, params) {
+      const qs = new URLSearchParams();
+      if (params?.limit !== undefined) qs.set("limit", String(params.limit));
+      if (params?.cursor !== undefined) qs.set("cursor", params.cursor);
+      const query = qs.toString();
+      const res = await fetchImpl(`${root}/${enc(id)}/revisions${query ? `?${query}` : ""}`);
+      const body = (await res.json()) as Envelope;
+      if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL);
+      return {
+        data: (body.data as ReadonlyArray<Revision<unknown>>) ?? [],
+        nextCursor: body.nextCursor ?? null,
+      };
+    },
+    revision: (id, rev) => sendMaybe<Revision<unknown>>(`${root}/${enc(id)}/revisions/${rev}`),
+    restoreRevision: (id, rev) =>
+      send<Stored<unknown>>(`${root}/${enc(id)}/revisions/${rev}/restore`, { method: "POST" }),
   };
   return impl;
 }
