@@ -34,6 +34,11 @@ export {
   mergeDisplayRegistry,
   resolveDisplayWidget,
 } from "./registry/registry";
+export {
+  RevisionHistory,
+  type RevisionHistoryItem,
+  type RevisionHistoryProps,
+} from "./revision-history";
 export { StatusFilter, type StatusFilterProps, type StatusFilterValue } from "./status-filter";
 export {
   BooleanDisplay,
