@@ -137,9 +137,16 @@ TanStack Start build, outside the unit-test/CI loop). ✅ (pending that sign-off
       `Database.list({ status })` scopes to live published rows (a future
       `publishedAt` is scheduled, not yet live); `publish`/`unpublish` over
       Database + REST (`?status`, `…/publish`/`…/unpublish`) + the typed client;
-      `StatusBadge` + `PublishControls` in `@voila/content-ui`. Still open:
-      full **version history** (revisions), a draft-aware client `Stored` type,
-      and a scheduled-publish worker to flip rows live at `publishedAt`.
+      `StatusBadge` + `PublishControls` in `@voila/content-ui`. The `drafts`
+      flag is carried at the type level, so the typed client's `Stored` rows
+      surface `status`/`publishedAt` only on draft-enabled collections; the
+      `scheduled` filter (published with a future `publishedAt`) works across
+      Database / REST / client; `ListView` renders a segmented status filter
+      (`StatusFilter`) for draft-enabled collections. *No publish worker by
+      design*: go-live is evaluated at query time (`publishedAt <= now`), so
+      scheduled rows flip live with zero infrastructure — a cron only becomes
+      necessary when webhooks need a discrete "went live" event (see below).
+      Still open: full **version history** (revisions).
 - [ ] Role-based access (per-collection, per-field)
 - [ ] Search (D1 FTS5 / Postgres FTS), audit log, import/export (JSON/CSV)
 - [ ] Webhooks, background tasks, cron
