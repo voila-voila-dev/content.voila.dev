@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 import { DataTable } from "./data-table";
 import { humanize } from "./lib/humanize";
 import type { DisplayRegistry } from "./registry/registry";
+import { StatusFilter, type StatusFilterValue } from "./status-filter";
 
 export interface ListViewProps {
   readonly collection: Collection;
@@ -36,6 +37,13 @@ export interface ListViewProps {
   readonly nextCursor?: string | null;
   readonly onLoadMore?: () => void;
   readonly loadMoreLabel?: string;
+  /**
+   * Selected publish-state scope, shown as a segmented filter. Only rendered
+   * when the collection is draft-enabled and `onStatusChange` is wired; the
+   * host refetches with `client.<slug>.list({ status })` on change.
+   */
+  readonly status?: StatusFilterValue;
+  readonly onStatusChange?: (status: StatusFilterValue) => void;
 }
 
 export function ListView({
@@ -53,6 +61,8 @@ export function ListView({
   nextCursor,
   onLoadMore,
   loadMoreLabel = "Load more",
+  status = "any",
+  onStatusChange,
 }: ListViewProps): ReactNode {
   const heading = title ?? collection.label ?? humanize(collection.slug);
   const canLoadMore = Boolean(nextCursor) && onLoadMore !== undefined;
@@ -66,6 +76,10 @@ export function ListView({
         </div>
         {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
       </header>
+
+      {collection.drafts === true && onStatusChange !== undefined ? (
+        <StatusFilter value={status} onChange={onStatusChange} disabled={loading} />
+      ) : null}
 
       {error ? (
         <p role="alert" className="text-sm text-destructive">

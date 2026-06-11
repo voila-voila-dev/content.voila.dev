@@ -102,3 +102,30 @@ describe("ListView", () => {
     expect(screen.getByRole("button", { name: "More posts" })).toBeDefined();
   });
 });
+
+describe("ListView status filter", () => {
+  const drafted = defineCollection({
+    slug: "articles",
+    drafts: true,
+    fields: { title: fields.string() },
+  });
+
+  test("shows the filter for a draft-enabled collection and reports changes", () => {
+    const onStatusChange = mock();
+    render(
+      <ListView collection={drafted} rows={[]} status="any" onStatusChange={onStatusChange} />,
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Drafts" }));
+    expect(onStatusChange).toHaveBeenCalledWith("draft");
+  });
+
+  test("hidden for a non-draft collection even when wired", () => {
+    render(<ListView collection={posts} rows={rows} status="any" onStatusChange={() => {}} />);
+    expect(screen.queryByRole("tab")).toBeNull();
+  });
+
+  test("hidden when no onStatusChange handler is wired", () => {
+    render(<ListView collection={drafted} rows={[]} />);
+    expect(screen.queryByRole("tab")).toBeNull();
+  });
+});

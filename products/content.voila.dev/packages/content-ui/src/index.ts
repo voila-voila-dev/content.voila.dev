@@ -34,6 +34,7 @@ export {
   mergeDisplayRegistry,
   resolveDisplayWidget,
 } from "./registry/registry";
+export { StatusFilter, type StatusFilterProps, type StatusFilterValue } from "./status-filter";
 export {
   BooleanDisplay,
   DateDisplay,
