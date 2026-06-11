@@ -20,6 +20,7 @@ export {
 export {
   authorizeRequest,
   type GuardOptions,
+  type GuardPass,
   type RouteDescriptor,
 } from "./guard";
 export type { Operation, Principal } from "./principal";

@@ -3,9 +3,39 @@
 // CLI's DDL deriver and any admin UI read this off the field directly — no
 // schema-AST archaeology.
 
+/**
+ * The caller a field-access predicate decides about. Structurally identical to
+ * the server's `Principal` (which is defined in `server/auth` — the config
+ * layer stays client-safe, so the shape is mirrored here rather than imported).
+ * `null` means the request is unauthenticated (no `Authenticator` configured,
+ * or a public route).
+ */
+export interface FieldAccessPrincipal {
+  readonly id: string;
+  readonly email?: string;
+  readonly roles?: ReadonlyArray<string>;
+}
+
+/** What a field-access predicate sees: who is asking, for what, and where. */
+export interface FieldAccessContext {
+  readonly principal: FieldAccessPrincipal | null;
+  /** `read` covers every serialization of a row (list, find, write echoes). */
+  readonly operation: "read" | "create" | "update";
+  readonly collection: string;
+  /** The targeted document, on routes that name one. */
+  readonly documentId?: string;
+}
+
+/**
+ * Per-field access rules. `read: false` redacts the field from every row the
+ * REST layer serializes; `write: false` rejects a payload carrying the field
+ * (403 `FORBIDDEN`). Predicates are synchronous — they run per field per row.
+ * Omitted predicates allow. Enforcement lives at the REST boundary (the
+ * runtime `Database` is principal-agnostic by design).
+ */
 export interface FieldAccess {
-  readonly read?: (ctx: unknown) => boolean;
-  readonly write?: (ctx: unknown) => boolean;
+  readonly read?: (ctx: FieldAccessContext) => boolean;
+  readonly write?: (ctx: FieldAccessContext) => boolean;
 }
 
 export interface FieldTransform<T = unknown> {

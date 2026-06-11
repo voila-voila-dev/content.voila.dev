@@ -5,8 +5,9 @@
 // the existing read/write handlers and their tests unchanged.
 //
 // Returns the denial `Response` (a typed error envelope) for the first failing
-// check, or `null` to let the request proceed. The dispatcher in `rest/router`
-// calls this between matching a route and invoking its handler.
+// check, or a `GuardPass` carrying the resolved `Principal` (null on an open
+// API) so the handlers can evaluate per-field access rules. The dispatcher in
+// `rest/router` calls this between matching a route and invoking its handler.
 
 import { csrfFailure, errorResponse, forbidden, unauthorized } from "../rest/errors";
 import type { AccessControl } from "./access";
@@ -30,6 +31,11 @@ export interface RouteDescriptor {
   readonly documentId?: string;
 }
 
+/** A request the guard admitted: who is calling (`null` on an open API). */
+export interface GuardPass {
+  readonly principal: Principal | null;
+}
+
 // Operations that change state and therefore carry CSRF protection. Reads are
 // exempt — they're safe to issue cross-site and don't mutate anything.
 const MUTATING: ReadonlySet<Operation> = new Set([
@@ -50,7 +56,7 @@ export async function authorizeRequest(
   request: Request,
   route: RouteDescriptor,
   options: GuardOptions,
-): Promise<Response | null> {
+): Promise<Response | GuardPass> {
   let principal: Principal | null = null;
   if (options.auth) {
     principal = await options.auth.authenticate(request);
@@ -74,5 +80,5 @@ export async function authorizeRequest(
     if (!allowed) return errorResponse(forbidden(route.collection, route.operation));
   }
 
-  return null;
+  return { principal };
 }

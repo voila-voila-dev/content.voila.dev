@@ -159,7 +159,23 @@ TanStack Start build, outside the unit-test/CI loop). ✅ (pending that sign-off
       (`revisions`/`revision`/`restoreRevision`), and `@voila/content-ui`'s
       `RevisionHistory` block. Unlike `drafts`, the flag is runtime-only — it
       adds no columns to the collection's table, so row types are unchanged.
-- [ ] Role-based access (per-collection, per-field)
+- [x] Role-based access (per-collection, per-field) — **done**. Per-collection
+      shipped with Phase 2 auth (the `AccessControl` hook `createRestHandler`
+      consults per operation). Per-field: every field's `access: { read?, write? }`
+      predicates (already on `FieldMeta`, now typed over `FieldAccessContext` —
+      principal + operation + collection + documentId) are enforced at the REST
+      boundary. `read: false` *redacts* the field from every serialization —
+      lists, finds, write echoes, publish/restore echoes, revision snapshots —
+      and a find-by-unique-field lookup *on* a read-denied field is itself
+      denied (it would confirm values probe by probe). `write: false` rejects a
+      create/update payload carrying the field with 403 `FORBIDDEN` naming the
+      denied `fields`; a revision restore requires write access to every
+      guarded field (it re-applies the full snapshot). The guard now hands the
+      resolved `Principal` to the handlers; the runtime `Database` stays
+      principal-agnostic by design. Client-safe `accessibleFields(fields, ctx)`
+      (+ `canReadField`/`canWriteField`) lets an admin UI drive the existing
+      `fields`/`columns` props of the content-ui blocks from the same rules —
+      no UI fork needed.
 - [ ] Search (D1 FTS5 / Postgres FTS), audit log, import/export (JSON/CSV)
 - [ ] Webhooks, background tasks, cron
 - [ ] Live preview (Cloudflare Durable Object channel)

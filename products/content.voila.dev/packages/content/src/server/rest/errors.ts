@@ -65,6 +65,8 @@ export interface ForbiddenError extends BaseError {
   /** The collection and operation the principal was denied, when known. */
   readonly collectionSlug?: string;
   readonly operation?: string;
+  /** Set when the denial is field-level: the fields the principal may not write. */
+  readonly fields?: ReadonlyArray<string>;
 }
 
 export interface CsrfError extends BaseError {
@@ -181,12 +183,24 @@ export function unauthorized(): UnauthorizedError {
   return { code: "UNAUTHORIZED" };
 }
 
-/** Authenticated, but the RBAC hook denied this operation on this collection. */
-export function forbidden(collectionSlug?: string, operation?: string): ForbiddenError {
+/**
+ * Authenticated, but denied: by the RBAC hook for this operation on this
+ * collection, or — when `fields` is set — by per-field `access.write` rules.
+ */
+export function forbidden(
+  collectionSlug?: string,
+  operation?: string,
+  fields?: ReadonlyArray<string>,
+): ForbiddenError {
   const error: ForbiddenError = { code: "FORBIDDEN" };
   return collectionSlug === undefined
     ? error
-    : { ...error, collectionSlug, ...(operation === undefined ? {} : { operation }) };
+    : {
+        ...error,
+        collectionSlug,
+        ...(operation === undefined ? {} : { operation }),
+        ...(fields === undefined ? {} : { fields }),
+      };
 }
 
 /** A mutating request whose CSRF double-submit token was missing or invalid. */

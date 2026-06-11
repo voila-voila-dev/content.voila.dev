@@ -24,7 +24,7 @@
 // route that fails auth/CSRF/RBAC returns the typed error envelope.
 
 import { authorizeRequest, type GuardOptions, type RouteDescriptor } from "../auth/guard";
-import type { Operation } from "../auth/principal";
+import type { Operation, Principal } from "../auth/principal";
 import { handleFindByField, handleFindById, handleList, type RestContext } from "./handlers";
 import { handleGetRevision, handleListRevisions, handleRestoreRevision } from "./revisions";
 import {
@@ -41,17 +41,19 @@ export interface RestHandlerOptions extends GuardOptions {
   readonly basePath?: string;
 }
 
-// A matched route: what to authorize against, and how to run it.
+// A matched route: what to authorize against, and how to run it. The thunk
+// receives the principal the guard resolved so handlers can evaluate the
+// per-field access rules (`field.meta.access`).
 interface MatchedRoute {
   readonly route: RouteDescriptor;
-  readonly run: () => Promise<Response>;
+  readonly run: (principal: Principal | null) => Promise<Response>;
 }
 
 function route(
   operation: Operation,
   collection: string,
   documentId: string | undefined,
-  run: () => Promise<Response>,
+  run: (principal: Principal | null) => Promise<Response>,
 ): MatchedRoute {
   return { route: { operation, collection, documentId }, run };
 }
@@ -86,21 +88,21 @@ function matchRoute(ctx: RestContext, request: Request, basePath: string): Match
 
   if (method === "GET") {
     if (segments.length === 1) {
-      return route("list", collection, undefined, () => handleList(ctx, collection, url));
+      return route("list", collection, undefined, (p) => handleList(ctx, collection, url, p));
     }
     if (segments.length === 2 && second !== undefined) {
-      return route("read", collection, second, () => handleFindById(ctx, collection, second));
+      return route("read", collection, second, (p) => handleFindById(ctx, collection, second, p));
     }
     if (segments.length === 4 && second === "by" && third !== undefined && fourth !== undefined) {
-      return route("read", collection, undefined, () =>
-        handleFindByField(ctx, collection, third, fourth),
+      return route("read", collection, undefined, (p) =>
+        handleFindByField(ctx, collection, third, fourth, p),
       );
     }
     // Version history is a read of the document it belongs to, so the RBAC
     // hook sees the same `read` operation as a direct fetch.
     if (segments.length === 3 && second !== undefined && third === "revisions") {
-      return route("read", collection, second, () =>
-        handleListRevisions(ctx, collection, second, url),
+      return route("read", collection, second, (p) =>
+        handleListRevisions(ctx, collection, second, url, p),
       );
     }
     if (
@@ -109,8 +111,8 @@ function matchRoute(ctx: RestContext, request: Request, basePath: string): Match
       third === "revisions" &&
       fourth !== undefined
     ) {
-      return route("read", collection, second, () =>
-        handleGetRevision(ctx, collection, second, fourth),
+      return route("read", collection, second, (p) =>
+        handleGetRevision(ctx, collection, second, fourth, p),
       );
     }
     return null;
@@ -118,18 +120,22 @@ function matchRoute(ctx: RestContext, request: Request, basePath: string): Match
 
   if (method === "POST") {
     if (segments.length === 1) {
-      return route("create", collection, undefined, () => handleCreate(ctx, collection, request));
+      return route("create", collection, undefined, (p) =>
+        handleCreate(ctx, collection, request, p),
+      );
     }
     if (segments.length === 3 && second !== undefined && third === "restore") {
-      return route("restore", collection, second, () => handleRestore(ctx, collection, second));
+      return route("restore", collection, second, (p) => handleRestore(ctx, collection, second, p));
     }
     if (segments.length === 3 && second !== undefined && third === "publish") {
-      return route("publish", collection, second, () =>
-        handlePublish(ctx, collection, second, request),
+      return route("publish", collection, second, (p) =>
+        handlePublish(ctx, collection, second, request, p),
       );
     }
     if (segments.length === 3 && second !== undefined && third === "unpublish") {
-      return route("publish", collection, second, () => handleUnpublish(ctx, collection, second));
+      return route("publish", collection, second, (p) =>
+        handleUnpublish(ctx, collection, second, p),
+      );
     }
     // Restoring a revision rewrites the document's content, so it authorizes
     // (and CSRF-checks) as an `update`, not as the soft-delete `restore`.
@@ -140,16 +146,16 @@ function matchRoute(ctx: RestContext, request: Request, basePath: string): Match
       fourth !== undefined &&
       fifth === "restore"
     ) {
-      return route("update", collection, second, () =>
-        handleRestoreRevision(ctx, collection, second, fourth),
+      return route("update", collection, second, (p) =>
+        handleRestoreRevision(ctx, collection, second, fourth, p),
       );
     }
     return null;
   }
 
   if (method === "PATCH" && segments.length === 2 && second !== undefined) {
-    return route("update", collection, second, () =>
-      handleUpdate(ctx, collection, second, request),
+    return route("update", collection, second, (p) =>
+      handleUpdate(ctx, collection, second, request, p),
     );
   }
 
@@ -173,8 +179,8 @@ export function createRestHandler(
   return async (request: Request): Promise<Response | null> => {
     const matched = matchRoute(ctx, request, basePath);
     if (matched === null) return null;
-    const denied = await authorizeRequest(request, matched.route, options);
-    if (denied !== null) return denied;
-    return matched.run();
+    const verdict = await authorizeRequest(request, matched.route, options);
+    if (verdict instanceof Response) return verdict;
+    return matched.run(verdict.principal);
   };
 }

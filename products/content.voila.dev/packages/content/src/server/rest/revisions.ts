@@ -10,10 +10,13 @@
 // surface a `CONFLICT` if a restored unique value now collides); publish state
 // is untouched.
 
+import type { Principal } from "../auth/principal";
 import { DatabaseError } from "../database/database";
-import type { RevisionListOpts } from "../database/types";
+import type { Revision, RevisionListOpts } from "../database/types";
 import { badRequest, conflict, fail, invalidCursor, notFound } from "./errors";
+import { assertRestorableFields, readAccessContext, redactDocument } from "./field-access";
 import { type RestContext, requireCollection, runHandler } from "./handlers";
+import type { CollectionLike } from "./query";
 import { parseLimit } from "./query";
 
 /** Parse `?limit` and `?cursor` for a revision-history page. The cursor is the
@@ -51,12 +54,25 @@ async function runRevisions<A>(slug: string, fn: () => Promise<A>): Promise<A> {
   }
 }
 
+// A revision snapshot is the full stored row as it stood, so it redacts like
+// any other serialization of the document.
+function redactRevision(
+  entry: CollectionLike,
+  revision: Revision,
+  principal: Principal | null,
+  id: string,
+): Revision {
+  const doc = redactDocument(entry, revision.doc, readAccessContext(entry.slug, principal, id));
+  return doc === revision.doc ? revision : { ...revision, doc };
+}
+
 /** `GET /:collection/:id/revisions` — page through a document's history, newest first. */
 export function handleListRevisions(
   ctx: RestContext,
   slug: string,
   id: string,
   url: URL,
+  principal: Principal | null = null,
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
@@ -64,7 +80,8 @@ export function handleListRevisions(
     const result = await runRevisions(entry.slug, () =>
       ctx.database.listRevisions(entry.slug, id, query),
     );
-    return Response.json({ data: result.revisions, nextCursor: result.nextCursor });
+    const data = result.revisions.map((r) => redactRevision(entry, r, principal, id));
+    return Response.json({ data, nextCursor: result.nextCursor });
   });
 }
 
@@ -74,6 +91,7 @@ export function handleGetRevision(
   slug: string,
   id: string,
   rawRev: string,
+  principal: Principal | null = null,
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
@@ -82,7 +100,7 @@ export function handleGetRevision(
       ctx.database.getRevision(entry.slug, id, rev),
     );
     if (revision === null) fail(notFound(entry.slug));
-    return Response.json({ data: revision });
+    return Response.json({ data: redactRevision(entry, revision, principal, id) });
   });
 }
 
@@ -93,14 +111,20 @@ export function handleRestoreRevision(
   slug: string,
   id: string,
   rawRev: string,
+  principal: Principal | null = null,
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
     const rev = parseRev(rawRev);
+    // Restoring rewrites the snapshot's full content, so the principal must be
+    // allowed to write every field that carries a `write` rule.
+    assertRestorableFields(entry, principal, id);
     const row = await runRevisions(entry.slug, () =>
       ctx.database.restoreRevision(entry.slug, id, rev),
     );
     if (row === null) fail(notFound(entry.slug));
-    return Response.json({ data: row });
+    return Response.json({
+      data: redactDocument(entry, row, readAccessContext(entry.slug, principal, id)),
+    });
   });
 }

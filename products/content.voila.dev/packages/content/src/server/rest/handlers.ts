@@ -11,6 +11,7 @@
 
 import type { NormalizedConfig } from "../../config/config";
 import type { Field, FieldsMap } from "../../config/schema/fields";
+import type { Principal } from "../auth/principal";
 import type { Database } from "../database/types";
 import {
   ApiError,
@@ -18,11 +19,13 @@ import {
   errorResponse,
   fail,
   fieldNotUnique,
+  forbidden,
   internalFailure,
   notFound,
   unknownCollection,
   unknownField,
 } from "./errors";
+import { readAccessContext, redactDocument } from "./field-access";
 import { type CollectionLike, coerceFieldValue, parseListQuery } from "./query";
 
 /** Everything the read handlers need: the config (for validation) and the data layer. */
@@ -65,22 +68,36 @@ export async function runHandler(body: () => Promise<Response>): Promise<Respons
 }
 
 /** `GET /:collection` — cursor-paginated list. */
-export function handleList(ctx: RestContext, slug: string, url: URL): Promise<Response> {
+export function handleList(
+  ctx: RestContext,
+  slug: string,
+  url: URL,
+  principal: Principal | null = null,
+): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
     const query = parseListQuery(url, entry);
     const result = await ctx.database.list(entry.slug, query);
-    return Response.json({ data: result.documents, nextCursor: result.nextCursor });
+    const access = readAccessContext(entry.slug, principal);
+    const data = result.documents.map((row) => redactDocument(entry, row, access));
+    return Response.json({ data, nextCursor: result.nextCursor });
   });
 }
 
 /** `GET /:collection/:id` — find by primary key. */
-export function handleFindById(ctx: RestContext, slug: string, id: string): Promise<Response> {
+export function handleFindById(
+  ctx: RestContext,
+  slug: string,
+  id: string,
+  principal: Principal | null = null,
+): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
     const row = await ctx.database.get(entry.slug, id);
     if (row === null) fail(notFound(entry.slug));
-    return Response.json({ data: row });
+    return Response.json({
+      data: redactDocument(entry, row, readAccessContext(entry.slug, principal, id)),
+    });
   });
 }
 
@@ -90,15 +107,22 @@ export function handleFindByField(
   slug: string,
   fieldName: string,
   rawValue: string,
+  principal: Principal | null = null,
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
     const field = entry.fields[fieldName] as Field | undefined;
     if (!field) fail(unknownField(entry.slug, fieldName));
     if (field.meta.unique !== true) fail(fieldNotUnique(entry.slug, fieldName));
+    const access = readAccessContext(entry.slug, principal);
+    // Looking a row up *by* a read-denied field would confirm the field's
+    // values one probe at a time — deny the lookup itself.
+    if (field.meta.access?.read?.(access) === false) {
+      fail(forbidden(entry.slug, "read", [fieldName]));
+    }
     const value = coerceFieldValue(field, rawValue);
     const row = await ctx.database.findOne(entry.slug, fieldName, value);
     if (row === null) fail(notFound(entry.slug));
-    return Response.json({ data: row });
+    return Response.json({ data: redactDocument(entry, row, access) });
   });
 }

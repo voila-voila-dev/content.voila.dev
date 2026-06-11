@@ -9,12 +9,14 @@
 // violation surfaced by `Database` becomes a typed `CONFLICT` (409); any other
 // driver throw folds to `INTERNAL` (500) like the read path.
 
-import type { Field } from "../../config/schema/fields";
+import type { Field, FieldAccessContext } from "../../config/schema/fields";
 import type { Issue } from "../../config/schema/std";
 import { validateSync } from "../../config/schema/std";
+import type { Principal } from "../auth/principal";
 import { DatabaseError } from "../database/database";
 import type { Document } from "../database/types";
 import { badRequest, conflict, fail, notFound, type ValidationIssue, validation } from "./errors";
+import { assertWritableFields, readAccessContext, redactDocument } from "./field-access";
 import { type RestContext, requireCollection, runHandler } from "./handlers";
 import type { CollectionLike } from "./query";
 
@@ -119,13 +121,25 @@ async function runWrite<A>(slug: string, fn: () => Promise<A>): Promise<A> {
 }
 
 /** `POST /:collection` — create a document from `{ data }`. Echoes the stored row (201). */
-export function handleCreate(ctx: RestContext, slug: string, request: Request): Promise<Response> {
+export function handleCreate(
+  ctx: RestContext,
+  slug: string,
+  request: Request,
+  principal: Principal | null = null,
+): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
     const body = await parseWriteBody(request);
+    const access: FieldAccessContext = { principal, operation: "create", collection: entry.slug };
+    // Field-level write rules run before schema validation: a denied field is a
+    // 403 regardless of whether its value would have validated.
+    assertWritableFields(entry, body, access);
     const values = validateWrite(entry, body, { partial: false });
     const row = await runWrite(entry.slug, () => ctx.database.create(entry.slug, values));
-    return Response.json({ data: row }, { status: 201 });
+    return Response.json(
+      { data: redactDocument(entry, row, readAccessContext(entry.slug, principal)) },
+      { status: 201 },
+    );
   });
 }
 
@@ -135,14 +149,24 @@ export function handleUpdate(
   slug: string,
   id: string,
   request: Request,
+  principal: Principal | null = null,
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
     const body = await parseWriteBody(request);
+    const access: FieldAccessContext = {
+      principal,
+      operation: "update",
+      collection: entry.slug,
+      documentId: id,
+    };
+    assertWritableFields(entry, body, access);
     const values = validateWrite(entry, body, { partial: true });
     const row = await runWrite(entry.slug, () => ctx.database.update(entry.slug, id, values));
     if (row === null) fail(notFound(entry.slug));
-    return Response.json({ data: row });
+    return Response.json({
+      data: redactDocument(entry, row, readAccessContext(entry.slug, principal, id)),
+    });
   });
 }
 
@@ -157,12 +181,19 @@ export function handleDelete(ctx: RestContext, slug: string, id: string): Promis
 }
 
 /** `POST /:collection/:id/restore` — clear `deletedAt` on a soft-deleted document. */
-export function handleRestore(ctx: RestContext, slug: string, id: string): Promise<Response> {
+export function handleRestore(
+  ctx: RestContext,
+  slug: string,
+  id: string,
+  principal: Principal | null = null,
+): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
     const row = await ctx.database.restore(entry.slug, id);
     if (row === null) fail(notFound(entry.slug));
-    return Response.json({ data: row });
+    return Response.json({
+      data: redactDocument(entry, row, readAccessContext(entry.slug, principal, id)),
+    });
   });
 }
 
@@ -205,6 +236,7 @@ export function handlePublish(
   slug: string,
   id: string,
   request: Request,
+  principal: Principal | null = null,
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
@@ -213,16 +245,25 @@ export function handlePublish(
       ctx.database.publish(entry.slug, id, at !== undefined ? { at } : {}),
     );
     if (row === null) fail(notFound(entry.slug));
-    return Response.json({ data: row });
+    return Response.json({
+      data: redactDocument(entry, row, readAccessContext(entry.slug, principal, id)),
+    });
   });
 }
 
 /** `POST /:collection/:id/unpublish` — return a document to draft. */
-export function handleUnpublish(ctx: RestContext, slug: string, id: string): Promise<Response> {
+export function handleUnpublish(
+  ctx: RestContext,
+  slug: string,
+  id: string,
+  principal: Principal | null = null,
+): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
     const row = await runPublish(entry.slug, () => ctx.database.unpublish(entry.slug, id));
     if (row === null) fail(notFound(entry.slug));
-    return Response.json({ data: row });
+    return Response.json({
+      data: redactDocument(entry, row, readAccessContext(entry.slug, principal, id)),
+    });
   });
 }

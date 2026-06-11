@@ -11,6 +11,7 @@ export {
   errorResponse,
   type ValidationIssue,
 } from "./errors";
+export { redactDocument } from "./field-access";
 export {
   handleFindByField,
   handleFindById,

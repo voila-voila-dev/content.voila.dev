@@ -7,9 +7,12 @@ export { defineCollection } from "./config/schema/collection";
 // Shared field types stay top-level so consumers can import them directly
 // without reaching through the namespace.
 export type {
+  AccessibleFields,
   BaseFieldOpts,
   Field,
   FieldAccess,
+  FieldAccessContext,
+  FieldAccessPrincipal,
   FieldMeta,
   FieldMetaBase,
   FieldsMap,
@@ -24,7 +27,13 @@ export type {
 // `Schema<Record<Locale, T>>` shape; `defineConfig` reads the `i18n.locales`
 // tuple and narrows them to `Schema<Record<Locales[number], T>>` per project.
 export * as fields from "./config/schema/fields";
-export { isLocale, LOCALES } from "./config/schema/fields";
+export {
+  accessibleFields,
+  canReadField,
+  canWriteField,
+  isLocale,
+  LOCALES,
+} from "./config/schema/fields";
 // Rich-text elements + marks + extension helpers. Pass these to
 // `fields.richText({ elements, marks })` to restrict a field, or use
 // `rt.defineElement` / `rt.defineMark` to introduce custom kinds.
