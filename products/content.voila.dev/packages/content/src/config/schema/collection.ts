@@ -2,7 +2,11 @@
 
 import type { FieldsMap } from "./fields";
 
-export interface CollectionDef<Slug extends string, Fields extends FieldsMap> {
+export interface CollectionDef<
+  Slug extends string,
+  Fields extends FieldsMap,
+  Drafts extends boolean = boolean,
+> {
   readonly kind: "collection";
   readonly slug: Slug;
   readonly label?: string;
@@ -11,22 +15,31 @@ export interface CollectionDef<Slug extends string, Fields extends FieldsMap> {
    * nullable `publishedAt` (for scheduled publishing) to the table; `list`
    * returns only live published rows unless asked otherwise. Off by default —
    * a collection's rows are public the moment they're created.
+   *
+   * The flag is carried at the type level (`Drafts`), so downstream surfaces —
+   * the typed client's `Stored` rows — know whether `status`/`publishedAt`
+   * exist without any cast.
    */
-  readonly drafts?: boolean;
+  readonly drafts?: Drafts;
   readonly fields: Fields;
 }
 
 export type Collection<
   Slug extends string = string,
   Fields extends FieldsMap = FieldsMap,
-> = CollectionDef<Slug, Fields>;
+  Drafts extends boolean = boolean,
+> = CollectionDef<Slug, Fields, Drafts>;
 
-export function defineCollection<const Slug extends string, const Fields extends FieldsMap>(def: {
+export function defineCollection<
+  const Slug extends string,
+  const Fields extends FieldsMap,
+  const Drafts extends boolean = false,
+>(def: {
   readonly slug: Slug;
   readonly label?: string;
-  readonly drafts?: boolean;
+  readonly drafts?: Drafts;
   readonly fields: Fields;
-}): Collection<Slug, Fields> {
+}): Collection<Slug, Fields, Drafts> {
   return {
     kind: "collection",
     slug: def.slug,

@@ -17,7 +17,18 @@ const posts = defineCollection({
   fields: { title: fields.string({ required: true }) },
 });
 
-const config = defineConfig({ branding: { name: "Test" }, collections: { posts } });
+// Draft-free contrast collection: its rows must NOT carry draft columns in the type.
+const pages = defineCollection({
+  slug: "pages",
+  fields: { title: fields.string({ required: true }) },
+});
+
+const config = defineConfig({ branding: { name: "Test" }, collections: { posts, pages } });
+
+// Compile-time assertion that `A` and `B` are mutually assignable.
+type Expect<T extends true> = T;
+type Equal<A, B> =
+  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 
 function schemaStatements(cfg: NormalizedConfig): ReadonlyArray<string> {
   const stmts: Array<string> = [];
@@ -71,11 +82,14 @@ describe("drafts over the client", () => {
     expect((await client.posts.list()).data.map((d) => d.id)).toEqual([created.id]);
   });
 
-  it("a future publish schedule is not live yet", async () => {
+  it("a future publish schedule is not live yet, and lists as scheduled", async () => {
     const created = await client.posts.create({ title: "Soon" });
     await client.posts.publish(created.id, { at: Date.now() + 60_000 });
     expect((await client.posts.list()).data).toHaveLength(0);
     expect((await client.posts.list({ status: "any" })).data).toHaveLength(1);
+    expect((await client.posts.list({ status: "scheduled" })).data.map((d) => d.id)).toEqual([
+      created.id,
+    ]);
   });
 
   it("unpublish returns a row to draft", async () => {
@@ -88,5 +102,19 @@ describe("drafts over the client", () => {
 
   it("publishing a missing row is a typed NOT_FOUND error", async () => {
     expect(client.posts.publish("nope")).rejects.toMatchObject({ failure: { code: "NOT_FOUND" } });
+  });
+
+  it("rows are typed with draft columns only on draft-enabled collections", async () => {
+    const post = await client.posts.create({ title: "Typed" });
+    type _Status = Expect<Equal<(typeof post)["status"], "draft" | "published">>;
+    type _PublishedAt = Expect<Equal<(typeof post)["publishedAt"], number | null>>;
+    expect(post.publishedAt).toBeNull();
+
+    const page = await client.pages.create({ title: "Plain" });
+    type _NoStatus = Expect<Equal<"status" extends keyof typeof page ? true : false, false>>;
+    type _NoPublishedAt = Expect<
+      Equal<"publishedAt" extends keyof typeof page ? true : false, false>
+    >;
+    expect("status" in page).toBe(false);
   });
 });

@@ -112,8 +112,8 @@ export function parseListQuery(url: URL, collection: CollectionLike): ListQuery 
 
 function parseStatus(raw: string | null): DraftFilter | undefined {
   if (raw === null) return undefined;
-  if (raw === "published" || raw === "draft" || raw === "any") return raw;
-  return fail(badRequest({ field: "status", expected: "published | draft | any" }));
+  if (raw === "published" || raw === "draft" || raw === "scheduled" || raw === "any") return raw;
+  return fail(badRequest({ field: "status", expected: "published | draft | scheduled | any" }));
 }
 
 function parseLimit(raw: string | null): number {

@@ -12,9 +12,11 @@ export type OrderDirection = "asc" | "desc";
  * - `published` (default) — only live rows (`status = published` and any
  *   `publishedAt` schedule has elapsed),
  * - `draft` — only rows still in draft,
+ * - `scheduled` — rows published with a `publishedAt` still in the future
+ *   (queued to go live; they flip to `published` as query time passes it),
  * - `any` — every row regardless of status (the admin view).
  */
-export type DraftFilter = "published" | "draft" | "any";
+export type DraftFilter = "published" | "draft" | "scheduled" | "any";
 
 /** A decoded document: camelCase field names, JSON columns parsed. */
 export type Document = Record<string, unknown>;

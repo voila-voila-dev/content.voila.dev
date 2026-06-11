@@ -7,7 +7,7 @@
 // to typed data, and any error envelope becomes a typed `ContentClientError`.
 
 import type { NormalizedConfig } from "../config/config";
-import type { InferDoc } from "../config/schema/infer";
+import type { InferDoc, InferDrafts } from "../config/schema/infer";
 import { type ApiFailure, ContentClientError } from "./errors";
 
 /** System columns the server stamps on every row, on top of the declared fields. */
@@ -18,8 +18,24 @@ export interface SystemFields {
   readonly deletedAt: number | null;
 }
 
-/** A stored document: the declared field shape plus the system columns. */
-export type Stored<Doc> = Doc & SystemFields;
+/**
+ * Draft-workflow columns, present only on collections defined with
+ * `drafts: true`. A `published` row whose `publishedAt` is still in the future
+ * is scheduled, not yet live.
+ */
+export interface DraftSystemFields {
+  readonly status: "draft" | "published";
+  readonly publishedAt: number | null;
+}
+
+/**
+ * A stored document: the declared field shape plus the system columns. When the
+ * collection is draft-enabled (`Drafts` is `true` — inferred from the config by
+ * `ContentClient`), the draft columns are part of the row type too.
+ */
+export type Stored<Doc, Drafts extends boolean = false> = Doc &
+  SystemFields &
+  (Drafts extends true ? DraftSystemFields : unknown);
 
 /** A primitive usable as a unique-field lookup value. */
 export type LookupValue = string | number | boolean;
@@ -27,8 +43,12 @@ export type LookupValue = string | number | boolean;
 /** Orderable keys: a declared field or one of the always-present system columns. */
 export type OrderKey<Doc> = (keyof Doc & string) | "id" | "createdAt" | "updatedAt";
 
-/** Draft scoping for `list` (draft-enabled collections only). */
-export type DraftFilter = "published" | "draft" | "any";
+/**
+ * Draft scoping for `list` (draft-enabled collections only): live `published`
+ * rows (the default), `draft` rows, `scheduled` rows (published with a future
+ * `publishedAt`), or `any` row regardless of status.
+ */
+export type DraftFilter = "published" | "draft" | "scheduled" | "any";
 
 export interface ListParams<Doc> {
   /** Page size (server clamps to 1–100). */
@@ -43,36 +63,43 @@ export interface ListParams<Doc> {
   readonly status?: DraftFilter;
 }
 
-export interface ListPage<Doc> {
-  readonly data: ReadonlyArray<Stored<Doc>>;
+export interface ListPage<Doc, Drafts extends boolean = false> {
+  readonly data: ReadonlyArray<Stored<Doc, Drafts>>;
   readonly nextCursor: string | null;
 }
 
-/** The per-collection method surface, typed from the collection's document shape. */
-export interface CollectionClient<Doc> {
+/**
+ * The per-collection method surface, typed from the collection's document shape.
+ * `Drafts` mirrors the collection's `drafts` flag: when `true`, every returned
+ * row carries the `status`/`publishedAt` draft columns.
+ */
+export interface CollectionClient<Doc, Drafts extends boolean = false> {
   /** Page through live rows (keyset pagination). */
-  list(params?: ListParams<Doc>): Promise<ListPage<Doc>>;
+  list(params?: ListParams<Doc>): Promise<ListPage<Doc, Drafts>>;
   /** Fetch one row by id, or `null` if it's missing or soft-deleted. */
-  find(id: string): Promise<Stored<Doc> | null>;
+  find(id: string): Promise<Stored<Doc, Drafts> | null>;
   /** Fetch the row matching a unique field, or `null` if none match. */
-  findBy(field: keyof Doc & string, value: LookupValue): Promise<Stored<Doc> | null>;
+  findBy(field: keyof Doc & string, value: LookupValue): Promise<Stored<Doc, Drafts> | null>;
   /** Create a row from a full field payload; returns the stored row. */
-  create(data: Doc): Promise<Stored<Doc>>;
+  create(data: Doc): Promise<Stored<Doc, Drafts>>;
   /** Patch a subset of a row's fields; returns the stored row. */
-  update(id: string, data: Partial<Doc>): Promise<Stored<Doc>>;
+  update(id: string, data: Partial<Doc>): Promise<Stored<Doc, Drafts>>;
   /** Soft-delete a row. */
   delete(id: string): Promise<void>;
   /** Restore a soft-deleted row; returns the restored row. */
-  restore(id: string): Promise<Stored<Doc>>;
+  restore(id: string): Promise<Stored<Doc, Drafts>>;
   /** Publish a row (draft-enabled collections); `at` schedules a future go-live. */
-  publish(id: string, opts?: { at?: number }): Promise<Stored<Doc>>;
+  publish(id: string, opts?: { at?: number }): Promise<Stored<Doc, Drafts>>;
   /** Return a row to draft (draft-enabled collections). */
-  unpublish(id: string): Promise<Stored<Doc>>;
+  unpublish(id: string): Promise<Stored<Doc, Drafts>>;
 }
 
 /** The typed client surface: one `CollectionClient` per configured collection. */
 export type ContentClient<C extends NormalizedConfig> = {
-  readonly [Slug in keyof C["collections"] & string]: CollectionClient<InferDoc<C, Slug>>;
+  readonly [Slug in keyof C["collections"] & string]: CollectionClient<
+    InferDoc<C, Slug>,
+    InferDrafts<C, Slug>
+  >;
 };
 
 export interface ClientOptions {

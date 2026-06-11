@@ -61,6 +61,20 @@ export type InferDoc<C extends NormalizedConfig, Slug extends keyof C["collectio
   C["collections"][Slug] extends Collection<string, infer Fields> ? InferFields<Fields> : never;
 
 /**
+ * Whether the `Slug` collection of `C` opted into the drafts workflow
+ * (`defineCollection({ drafts: true })`). Resolves to the literal `true`/`false`
+ * carried by the collection's `Drafts` type parameter; a hand-built collection
+ * whose flag is only known as `boolean` resolves to `false`, matching the
+ * runtime default (no draft columns unless explicitly enabled).
+ */
+export type InferDrafts<C extends NormalizedConfig, Slug extends keyof C["collections"] & string> =
+  C["collections"][Slug] extends Collection<string, FieldsMap, infer Drafts>
+    ? boolean extends Drafts
+      ? false
+      : Drafts
+    : false;
+
+/**
  * The TypeScript shape of a singleton document in `C`. Companion to
  * {@link InferDoc} for `defineSingleton` slugs.
  *

@@ -30,7 +30,7 @@ export interface Config<
 // Narrow every collection's/singleton's localized fields to the selected
 // locales subset. Non-localized fields and collection identity pass through.
 type NarrowCollection<C, L extends Locale> =
-  C extends Collection<infer S, infer F> ? Collection<S, NarrowFields<F, L>> : C;
+  C extends Collection<infer S, infer F, infer D> ? Collection<S, NarrowFields<F, L>, D> : C;
 type NarrowSingleton<Sg, L extends Locale> =
   Sg extends Singleton<infer S, infer F> ? Singleton<S, NarrowFields<F, L>> : Sg;
 type NarrowCollections<CM extends CollectionMap, L extends Locale> = {

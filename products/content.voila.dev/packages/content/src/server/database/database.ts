@@ -197,10 +197,17 @@ const detectConflict = (
 
 // The `WHERE` fragment that scopes a draft-enabled table's reads to the
 // requested `status`, or `null` when no scoping applies (non-draft table, or
-// `any`). "Live" = published *and* any scheduled `publishedAt` has elapsed.
+// `any`). "Live" = published *and* any scheduled `publishedAt` has elapsed;
+// `scheduled` is the complement within published rows (a future `publishedAt`).
 function draftPredicate(table: TableInfo, status: DraftFilter): Sql | null {
   if (!table.drafts || status === "any") return null;
   if (status === "draft") return frag(`${quoteId("status")} = ?`, ["draft"]);
+  if (status === "scheduled") {
+    return and([
+      frag(`${quoteId("status")} = ?`, ["published"]),
+      frag(`${quoteId("published_at")} > ?`, [Date.now()]),
+    ]);
+  }
   return and([
     frag(`${quoteId("status")} = ?`, ["published"]),
     or([

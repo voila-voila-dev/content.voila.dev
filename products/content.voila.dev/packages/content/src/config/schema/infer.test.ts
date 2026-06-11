@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { defineConfig } from "../config";
 import { defineCollection } from "./collection";
 import * as fields from "./fields";
-import type { InferDoc, InferSingleton } from "./infer";
+import type { InferDoc, InferDrafts, InferSingleton } from "./infer";
 import { defineSingleton } from "./singleton";
 
 const posts = defineCollection({
@@ -13,6 +13,14 @@ const posts = defineCollection({
     cover: fields.media({ accept: ["image/*"] }),
     gallery: fields.array(fields.media({ accept: ["image/*"] })),
     publishedAt: fields.datetime(),
+  },
+});
+
+const articles = defineCollection({
+  slug: "articles",
+  drafts: true,
+  fields: {
+    title: fields.string({ localized: true }),
   },
 });
 
@@ -27,7 +35,7 @@ const settings = defineSingleton({
 const config = defineConfig({
   branding: { name: "Acme" },
   i18n: { locales: ["en-US", "fr-FR"], defaultLocale: "en-US" },
-  collections: { posts },
+  collections: { posts, articles },
   singletons: { settings },
 });
 
@@ -67,6 +75,15 @@ describe("InferDoc", () => {
     };
     expect(doc.title["fr-FR"]).toBe("Bonjour");
     expect(doc.views).toBe(3);
+  });
+
+  it("carries the drafts flag through defineConfig at the type level", () => {
+    // Locale narrowing rebuilds each collection's type — the `Drafts` parameter
+    // must survive that rebuild, or every collection would degrade to `false`.
+    type _Drafts = Expect<Equal<InferDrafts<typeof config, "articles">, true>>;
+    type _NoDrafts = Expect<Equal<InferDrafts<typeof config, "posts">, false>>;
+    expect(config.collections.articles.drafts).toBe(true);
+    expect(config.collections.posts.drafts).toBeUndefined();
   });
 
   it("resolves singleton documents too", () => {

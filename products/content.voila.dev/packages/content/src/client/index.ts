@@ -7,6 +7,8 @@ export {
   type ClientOptions,
   type CollectionClient,
   type ContentClient,
+  type DraftFilter,
+  type DraftSystemFields,
   type ListPage,
   type ListParams,
   type LookupValue,

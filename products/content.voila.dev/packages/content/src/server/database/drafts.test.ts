@@ -90,6 +90,16 @@ describe("drafts workflow", () => {
     expect((await db.list("posts", { status: "any" })).documents).toHaveLength(1);
   });
 
+  it("status:scheduled lists only published rows with a future publishedAt", async () => {
+    const soon = await db.create("posts", { title: "Soon" });
+    const live = await db.create("posts", { title: "Live" });
+    await db.create("posts", { title: "Draft" });
+    await db.publish("posts", soon.id as string, { at: Date.now() + 60_000 });
+    await db.publish("posts", live.id as string);
+    const scheduled = await db.list("posts", { status: "scheduled" });
+    expect(scheduled.documents.map((d) => d.id)).toEqual([soon.id]);
+  });
+
   it("unpublish returns a row to draft", async () => {
     const created = await db.create("posts", { title: "Hello" });
     await db.publish("posts", created.id as string);
