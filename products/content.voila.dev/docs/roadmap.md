@@ -132,7 +132,7 @@ TanStack Start build, outside the unit-test/CI loop). ✅ (pending that sign-off
 
 - [ ] Media: R2/S3 storage, image/video transforms, signed URLs
 - [ ] i18n: localized content + admin translation
-- [~] Drafts, scheduled publishing — **done** end to end:
+- [x] Drafts, scheduled publishing — **done** end to end:
       `defineCollection({ drafts: true })` adds `status` + `publishedAt`;
       `Database.list({ status })` scopes to live published rows (a future
       `publishedAt` is scheduled, not yet live); `publish`/`unpublish` over
@@ -146,7 +146,19 @@ TanStack Start build, outside the unit-test/CI loop). ✅ (pending that sign-off
       design*: go-live is evaluated at query time (`publishedAt <= now`), so
       scheduled rows flip live with zero infrastructure — a cron only becomes
       necessary when webhooks need a discrete "went live" event (see below).
-      Still open: full **version history** (revisions).
+      **Version history** is done too: `defineCollection({ revisions: true })`
+      snapshots every content write (create / update / publish / unpublish) into
+      the engine-owned `voila_revisions` table (emitted by `deriveSchema`, so
+      `voila migrate generate` ships it automatically); history lists newest-first
+      with cursor pagination and `restoreRevision` re-applies a snapshot's
+      content fields through the normal update path (appending a new revision —
+      linear history, publish state untouched). Exposed across Database
+      (`listRevisions`/`getRevision`/`restoreRevision`), REST
+      (`…/:id/revisions[/:rev[/restore]]` — reads authorize as `read`, restore as
+      a CSRF-checked `update`), the typed client
+      (`revisions`/`revision`/`restoreRevision`), and `@voila/content-ui`'s
+      `RevisionHistory` block. Unlike `drafts`, the flag is runtime-only — it
+      adds no columns to the collection's table, so row types are unchanged.
 - [ ] Role-based access (per-collection, per-field)
 - [ ] Search (D1 FTS5 / Postgres FTS), audit log, import/export (JSON/CSV)
 - [ ] Webhooks, background tasks, cron
