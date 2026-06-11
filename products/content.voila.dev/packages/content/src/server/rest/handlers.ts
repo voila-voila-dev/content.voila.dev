@@ -10,12 +10,15 @@
 // soft-deleted rows; that scoping lives in `Database`.
 
 import type { NormalizedConfig } from "../../config/config";
+import { localeChain } from "../../config/i18n";
+import { localizeDocument } from "../../config/localize";
 import type { Field, FieldsMap } from "../../config/schema/fields";
 import type { Principal } from "../auth/principal";
-import type { Database } from "../database/types";
+import type { Database, Document } from "../database/types";
 import {
   ApiError,
   type ApiFailure,
+  badRequest,
   errorResponse,
   fail,
   fieldNotUnique,
@@ -56,6 +59,40 @@ export function requireCollection(config: NormalizedConfig, slug: string): Colle
 }
 
 /**
+ * Resolve a `?locale=` request parameter against the config: absent → `null`
+ * (full records), known → the fallback chain a read resolves through, unknown
+ * or un-configured → 400. Localization is read-side only — writes, their
+ * echoes, and revision snapshots always speak full per-locale records.
+ */
+export function resolveReadLocale(
+  config: NormalizedConfig,
+  url: URL,
+): ReadonlyArray<string> | null {
+  const locale = url.searchParams.get("locale");
+  if (locale === null) return null;
+  const i18n = config.i18n;
+  if (!i18n || !(i18n.locales as ReadonlyArray<string>).includes(locale)) {
+    fail(
+      badRequest({
+        field: "locale",
+        reason: i18n ? `unknown locale "${locale}"` : "i18n is not configured",
+        ...(i18n ? { locales: i18n.locales } : {}),
+      }),
+    );
+  }
+  return localeChain(i18n, locale);
+}
+
+// Apply an optional locale chain to a (possibly redacted) row.
+function localizeRow(
+  entry: CollectionLike,
+  row: Document,
+  chain: ReadonlyArray<string> | null,
+): Document {
+  return chain === null ? row : (localizeDocument(entry.fields, row, chain) as Document);
+}
+
+/**
  * Run a handler body, mapping both channels to a wire response. A thrown
  * `ApiError` carries a typed `ApiFailure`; any other throw (driver bug,
  * programming error) folds to a generic `INTERNAL` 500 so internals never leak.
@@ -79,43 +116,49 @@ export function handleList(
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
     const query = parseListQuery(url, entry);
+    const chain = resolveReadLocale(ctx.config, url);
     const result = await ctx.database.list(entry.slug, query);
     const access = readAccessContext(entry.slug, principal);
-    const data = result.documents.map((row) => redactDocument(entry, row, access));
+    const data = result.documents.map((row) =>
+      localizeRow(entry, redactDocument(entry, row, access), chain),
+    );
     return Response.json({ data, nextCursor: result.nextCursor });
   });
 }
 
-/** `GET /:collection/:id` — find by primary key. */
+/** `GET /:collection/:id` — find by primary key. `url` carries `?locale=`. */
 export function handleFindById(
   ctx: RestContext,
   slug: string,
   id: string,
   principal: Principal | null = null,
+  url?: URL,
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
+    const chain = url === undefined ? null : resolveReadLocale(ctx.config, url);
     const row = await ctx.database.get(entry.slug, id);
     if (row === null) fail(notFound(entry.slug));
-    return Response.json({
-      data: redactDocument(entry, row, readAccessContext(entry.slug, principal, id)),
-    });
+    const redacted = redactDocument(entry, row, readAccessContext(entry.slug, principal, id));
+    return Response.json({ data: localizeRow(entry, redacted, chain) });
   });
 }
 
-/** `GET /:collection/by/:field/:value` — find by a unique field. */
+/** `GET /:collection/by/:field/:value` — find by a unique field. `url` carries `?locale=`. */
 export function handleFindByField(
   ctx: RestContext,
   slug: string,
   fieldName: string,
   rawValue: string,
   principal: Principal | null = null,
+  url?: URL,
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
     const field = entry.fields[fieldName] as Field | undefined;
     if (!field) fail(unknownField(entry.slug, fieldName));
     if (field.meta.unique !== true) fail(fieldNotUnique(entry.slug, fieldName));
+    const chain = url === undefined ? null : resolveReadLocale(ctx.config, url);
     const access = readAccessContext(entry.slug, principal);
     // Looking a row up *by* a read-denied field would confirm the field's
     // values one probe at a time — deny the lookup itself.
@@ -125,6 +168,6 @@ export function handleFindByField(
     const value = coerceFieldValue(field, rawValue);
     const row = await ctx.database.findOne(entry.slug, fieldName, value);
     if (row === null) fail(notFound(entry.slug));
-    return Response.json({ data: redactDocument(entry, row, access) });
+    return Response.json({ data: localizeRow(entry, redactDocument(entry, row, access), chain) });
   });
 }

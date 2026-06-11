@@ -21,6 +21,7 @@ export {
 export { type PublishState, publishStatus } from "./lib/publish-status";
 export { type FormValidation, validateFields } from "./lib/validate";
 export { ListView, type ListViewProps } from "./list-view";
+export { LocalizedFieldEditor, type LocalizedFieldEditorProps } from "./localized-field";
 export { PublishControls, type PublishControlsProps } from "./publish-controls";
 export {
   defaultEditRegistry,

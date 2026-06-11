@@ -10,6 +10,7 @@ import { buttonVariants, cn, Label } from "@voila/ui";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { humanize } from "./lib/humanize";
 import { validateFields } from "./lib/validate";
+import { LocalizedFieldEditor } from "./localized-field";
 import { defaultEditRegistry, type EditRegistry, resolveEditWidget } from "./registry/edit";
 
 export interface CollectionFormProps {
@@ -20,6 +21,12 @@ export interface CollectionFormProps {
   readonly fields?: ReadonlyArray<string>;
   /** Override edit widgets per kind/name. */
   readonly registry?: EditRegistry;
+  /**
+   * The project's locales (`config.i18n.locales`). When set, localized fields
+   * render one input per locale (admin translation); without it they fall back
+   * to the kind's plain widget editing the raw record.
+   */
+  readonly locales?: ReadonlyArray<string>;
   /** Called with the decoded, validated values when the form is submitted. */
   readonly onSubmit: (values: Record<string, unknown>) => void | Promise<void>;
   readonly submitLabel?: string;
@@ -37,6 +44,7 @@ export function CollectionForm({
   defaultValues,
   fields,
   registry = defaultEditRegistry,
+  locales,
   onSubmit,
   submitLabel = "Save",
   error,
@@ -78,13 +86,14 @@ export function CollectionForm({
       {keys.map((key) => {
         const field = collection.fields[key];
         if (!field) return null;
-        const Widget = resolveEditWidget(field.meta, registry);
         const id = `${collection.slug}-${key}`;
         const fieldError = errors[key];
         const required = field.meta.required === true;
+        const localized = field.meta.localized === true && locales !== undefined;
+        const Widget = localized ? null : resolveEditWidget(field.meta, registry);
         return (
           <div key={key} className="space-y-1.5">
-            <Label htmlFor={id}>
+            <Label htmlFor={localized ? `${id}-${locales?.[0]}` : id}>
               {field.meta.label ?? humanize(key)}
               {required ? (
                 <span aria-hidden className="ml-0.5 text-destructive">
@@ -92,14 +101,27 @@ export function CollectionForm({
                 </span>
               ) : null}
             </Label>
-            <Widget
-              value={values[key]}
-              onChange={(v) => handleChange(key, v)}
-              field={field}
-              id={id}
-              error={fieldError}
-              disabled={submitting}
-            />
+            {localized ? (
+              <LocalizedFieldEditor
+                field={field}
+                locales={locales ?? []}
+                value={values[key]}
+                onChange={(v) => handleChange(key, v)}
+                id={id}
+                registry={registry}
+                error={fieldError}
+                disabled={submitting}
+              />
+            ) : Widget ? (
+              <Widget
+                value={values[key]}
+                onChange={(v) => handleChange(key, v)}
+                field={field}
+                id={id}
+                error={fieldError}
+                disabled={submitting}
+              />
+            ) : null}
             {fieldError ? (
               <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
                 {fieldError}

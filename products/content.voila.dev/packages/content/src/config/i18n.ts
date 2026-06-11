@@ -10,3 +10,21 @@ export interface I18nConfig<Locales extends ReadonlyArray<Locale> = ReadonlyArra
   readonly defaultLocale: Locales[number];
   readonly fallback?: { readonly [K in Locales[number]]?: ReadonlyArray<Locales[number]> };
 }
+
+/**
+ * The ordered locales a per-locale read tries: the requested locale, its
+ * `fallback` entries, then `defaultLocale` — deduplicated, first hit wins.
+ * This is the one place fallback semantics live; REST's `?locale` and any
+ * host-side resolution share it.
+ */
+export function localeChain(i18n: I18nConfig, locale: string): ReadonlyArray<string> {
+  const chain: string[] = [locale];
+  const fallback = (i18n.fallback as Readonly<Record<string, ReadonlyArray<string>>> | undefined)?.[
+    locale
+  ];
+  for (const entry of fallback ?? []) {
+    if (!chain.includes(entry)) chain.push(entry);
+  }
+  if (!chain.includes(i18n.defaultLocale)) chain.push(i18n.defaultLocale);
+  return chain;
+}

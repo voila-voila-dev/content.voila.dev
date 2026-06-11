@@ -152,11 +152,13 @@ function matchRoute(ctx: RestContext, request: Request, basePath: string): Match
       return route("list", collection, undefined, (p) => handleList(ctx, collection, url, p));
     }
     if (segments.length === 2 && second !== undefined) {
-      return route("read", collection, second, (p) => handleFindById(ctx, collection, second, p));
+      return route("read", collection, second, (p) =>
+        handleFindById(ctx, collection, second, p, url),
+      );
     }
     if (segments.length === 4 && second === "by" && third !== undefined && fourth !== undefined) {
       return route("read", collection, undefined, (p) =>
-        handleFindByField(ctx, collection, third, fourth, p),
+        handleFindByField(ctx, collection, third, fourth, p, url),
       );
     }
     // Version history is a read of the document it belongs to, so the RBAC

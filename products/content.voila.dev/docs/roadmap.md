@@ -158,7 +158,26 @@ TanStack Start build, outside the unit-test/CI loop). ✅ (pending that sign-off
       deliberately out of engine scope* — store and serve video through the
       media pipeline, transcode with a dedicated service (Cloudflare Stream,
       Mux).
-- [ ] i18n: localized content + admin translation
+- [x] i18n: localized content + admin translation — **done**. Localized
+      fields (Phase 0: `localized: true` → per-locale records, locale-narrowed
+      by `defineConfig`) now *deliver*: `?locale=` on every read route (list,
+      find-by-id, find-by-unique-field) flattens localized fields to one
+      locale's value through the config's fallback graph (`localeChain`:
+      requested → `fallback[locale]` → `defaultLocale`; unknown or
+      un-configured locale → 400). The typed client mirrors it with overloads —
+      `client.posts.list({ locale: "fr-FR" })` returns `InferLocalizedDoc` rows
+      (localized fields flattened, `locale` argument typed to the config's
+      locales tuple), no-locale calls keep full records (the locale brand now
+      survives `defineConfig` narrowing so the types can tell). Pure helpers
+      (`localeChain`, `localizeDocument`) are client-safe for host-side
+      resolution. Admin translation: `CollectionForm` takes
+      `locales` (`config.i18n.locales`) and renders localized fields one input
+      per locale (`LocalizedFieldEditor` — the inner field's own edit widget
+      per locale, merged back into the record). Writes stay full-record by
+      design (the narrowed validator wants every locale; the form edits all
+      locales side by side) — per-locale PATCH merging can come later if a
+      workflow needs it; write echoes and revision snapshots are deliberately
+      un-localized (the admin needs every locale).
 - [x] Drafts, scheduled publishing — **done** end to end:
       `defineCollection({ drafts: true })` adds `status` + `publishedAt`;
       `Database.list({ status })` scopes to live published rows (a future

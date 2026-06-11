@@ -11,6 +11,7 @@ export {
   type DraftSystemFields,
   type ListPage,
   type ListParams,
+  type LocaleOption,
   type LookupValue,
   makeClient,
   type OrderKey,

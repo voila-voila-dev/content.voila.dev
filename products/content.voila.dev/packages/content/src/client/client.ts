@@ -7,7 +7,8 @@
 // to typed data, and any error envelope becomes a typed `ContentClientError`.
 
 import type { NormalizedConfig } from "../config/config";
-import type { InferDoc, InferDrafts } from "../config/schema/infer";
+import type { I18nConfig } from "../config/i18n";
+import type { InferDoc, InferDrafts, InferLocalizedDoc } from "../config/schema/infer";
 import { type ApiFailure, ContentClientError } from "./errors";
 
 /** System columns the server stamps on every row, on top of the declared fields. */
@@ -93,16 +94,39 @@ export interface RevisionPage<Doc, Drafts extends boolean = false> {
   readonly nextCursor: string | null;
 }
 
+/** A read scoped to one locale — localized fields flatten to that locale's value. */
+export interface LocaleOption<L extends string = string> {
+  readonly locale: L;
+}
+
 /**
  * The per-collection method surface, typed from the collection's document shape.
  * `Drafts` mirrors the collection's `drafts` flag: when `true`, every returned
- * row carries the `status`/`publishedAt` draft columns.
+ * row carries the `status`/`publishedAt` draft columns. `LDoc` is the
+ * locale-flattened row shape (`InferLocalizedDoc`) a `{ locale }` read returns;
+ * `L` is the union of the config's locales, so a typo in a `locale` argument
+ * fails to compile.
  */
-export interface CollectionClient<Doc, Drafts extends boolean = false> {
+export interface CollectionClient<
+  Doc,
+  Drafts extends boolean = false,
+  LDoc = Doc,
+  L extends string = string,
+> {
+  /** Page through live rows for one locale — localized fields flattened. */
+  list(params: ListParams<Doc> & LocaleOption<L>): Promise<ListPage<LDoc, Drafts>>;
   /** Page through live rows (keyset pagination). */
   list(params?: ListParams<Doc>): Promise<ListPage<Doc, Drafts>>;
+  /** Fetch one row by id for one locale, or `null` if missing/soft-deleted. */
+  find(id: string, opts: LocaleOption<L>): Promise<Stored<LDoc, Drafts> | null>;
   /** Fetch one row by id, or `null` if it's missing or soft-deleted. */
   find(id: string): Promise<Stored<Doc, Drafts> | null>;
+  /** Fetch the row matching a unique field for one locale, or `null` if none match. */
+  findBy(
+    field: keyof Doc & string,
+    value: LookupValue,
+    opts: LocaleOption<L>,
+  ): Promise<Stored<LDoc, Drafts> | null>;
   /** Fetch the row matching a unique field, or `null` if none match. */
   findBy(field: keyof Doc & string, value: LookupValue): Promise<Stored<Doc, Drafts> | null>;
   /** Create a row from a full field payload; returns the stored row. */
@@ -127,11 +151,19 @@ export interface CollectionClient<Doc, Drafts extends boolean = false> {
   restoreRevision(id: string, rev: number): Promise<Stored<Doc, Drafts>>;
 }
 
+// The union of a config's selected locales — what a `locale` read argument
+// accepts. A config without `i18n` keeps the wide `Locale` union (the server
+// rejects the parameter at runtime with a 400).
+type ConfigLocale<C extends NormalizedConfig> =
+  NonNullable<C["i18n"]> extends I18nConfig<infer Locales> ? Locales[number] : string;
+
 /** The typed client surface: one `CollectionClient` per configured collection. */
 export type ContentClient<C extends NormalizedConfig> = {
   readonly [Slug in keyof C["collections"] & string]: CollectionClient<
     InferDoc<C, Slug>,
-    InferDrafts<C, Slug>
+    InferDrafts<C, Slug>,
+    InferLocalizedDoc<C, Slug>,
+    ConfigLocale<C>
   >;
 };
 
@@ -162,7 +194,7 @@ function trimBase(base: string): string {
   return base.endsWith("/") ? base.slice(0, -1) : base;
 }
 
-function listQuery<Doc>(params: ListParams<Doc> | undefined): string {
+function listQuery<Doc>(params: (ListParams<Doc> & { locale?: string }) | undefined): string {
   if (!params) return "";
   const qs = new URLSearchParams();
   if (params.limit !== undefined) qs.set("limit", String(params.limit));
@@ -170,8 +202,14 @@ function listQuery<Doc>(params: ListParams<Doc> | undefined): string {
   if (params.order !== undefined) qs.set("order", params.order);
   if (params.cursor !== undefined) qs.set("cursor", params.cursor);
   if (params.status !== undefined) qs.set("status", params.status);
+  if (params.locale !== undefined) qs.set("locale", params.locale);
   const query = qs.toString();
   return query ? `?${query}` : "";
+}
+
+// `?locale=` suffix for the single-row reads.
+function localeQuery(opts: { locale?: string } | undefined): string {
+  return opts?.locale === undefined ? "" : `?locale=${enc(opts.locale)}`;
 }
 
 function jsonBody(data: unknown): RequestInit {
@@ -206,7 +244,7 @@ function makeCollectionClient(
   };
 
   const impl: CollectionClient<unknown> = {
-    async list(params) {
+    async list(params?: ListParams<unknown> & { locale?: string }) {
       const res = await fetchImpl(`${root}${listQuery(params)}`);
       const body = (await res.json()) as Envelope;
       if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL);
@@ -215,9 +253,12 @@ function makeCollectionClient(
         nextCursor: body.nextCursor ?? null,
       };
     },
-    find: (id) => sendMaybe<Stored<unknown>>(`${root}/${enc(id)}`),
-    findBy: (field, value) =>
-      sendMaybe<Stored<unknown>>(`${root}/by/${enc(field)}/${enc(String(value))}`),
+    find: (id, opts?: { locale?: string }) =>
+      sendMaybe<Stored<unknown>>(`${root}/${enc(id)}${localeQuery(opts)}`),
+    findBy: (field, value, opts?: { locale?: string }) =>
+      sendMaybe<Stored<unknown>>(
+        `${root}/by/${enc(field)}/${enc(String(value))}${localeQuery(opts)}`,
+      ),
     create: (data) => send<Stored<unknown>>(root, { method: "POST", ...jsonBody(data) }),
     update: (id, data) =>
       send<Stored<unknown>>(`${root}/${enc(id)}`, { method: "PATCH", ...jsonBody(data) }),

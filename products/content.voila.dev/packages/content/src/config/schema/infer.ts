@@ -5,6 +5,7 @@
 import type { NormalizedConfig } from "../config";
 import type { Collection } from "./collection";
 import type { Field } from "./fields/_base";
+import type { LocalizedMarker } from "./fields/_localized";
 import type { FieldsMap } from "./fields/_map";
 import type { Singleton } from "./singleton";
 
@@ -37,12 +38,35 @@ type Expand<T> = T extends Date
  * Resolve a field map to its document shape: each field collapses to the value
  * type `T` it carries (`Field<T>`), expanded one level for readable hovers.
  * Localized fields are already narrowed to the project's selected locales by
- * `defineConfig`, so the brand and wide `Record<Locale, T>` wrapper never leak
- * through here.
+ * `defineConfig` (the locale brand rides along on the field, not its value
+ * type), so a localized field surfaces as its per-locale record here.
  */
 export type InferFields<Fields extends FieldsMap> = {
   readonly [K in keyof Fields]: Expand<FieldType<Fields[K]>>;
 };
+
+/**
+ * Like {@link InferFields}, but localized fields flatten to their single-locale
+ * value (possibly `undefined` — a locale may have no value even after the
+ * fallback chain). The shape of a `?locale=` read.
+ */
+export type InferLocalizedFields<Fields extends FieldsMap> = {
+  readonly [K in keyof Fields]: Fields[K] extends LocalizedMarker<infer T>
+    ? Expand<T> | undefined
+    : Expand<FieldType<Fields[K]>>;
+};
+
+/**
+ * The TypeScript shape of a `Slug` document fetched with a `locale` — every
+ * localized field resolved to one locale's value. Companion to {@link InferDoc}.
+ */
+export type InferLocalizedDoc<
+  C extends NormalizedConfig,
+  Slug extends keyof C["collections"] & string,
+> =
+  C["collections"][Slug] extends Collection<string, infer Fields>
+    ? InferLocalizedFields<Fields>
+    : never;
 
 /**
  * The TypeScript shape of a document in the `Slug` collection of `C`.

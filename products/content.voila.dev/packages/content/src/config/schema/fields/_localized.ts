@@ -22,10 +22,12 @@ export type Localized<T> = Field<{ readonly [K in Locale]?: T }> & LocalizedMark
 
 /**
  * Replace a localized field with one keyed by `L` (the project's selected
- * locales). Non-localized fields pass through unchanged.
+ * locales). Non-localized fields pass through unchanged. The brand survives
+ * the narrowing so per-locale resolution (`InferLocalizedFields`, the typed
+ * client's `locale` reads) can still tell localized fields apart downstream.
  */
 export type NarrowField<F, L extends Locale> =
-  F extends LocalizedMarker<infer T> ? Field<{ readonly [K in L]: T }> : F;
+  F extends LocalizedMarker<infer T> ? Field<{ readonly [K in L]: T }> & LocalizedMarker<T> : F;
 
 export type NarrowFields<FM, L extends Locale> = {
   readonly [K in keyof FM]: NarrowField<FM[K], L>;
