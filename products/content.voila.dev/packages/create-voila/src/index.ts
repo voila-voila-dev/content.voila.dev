@@ -7,6 +7,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { basename, isAbsolute, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { slugify } from "@voila/content";
 import { scaffold } from "./scaffold";
 
 /** A user-facing failure — `bin.ts` prints the message and exits non-zero. */
@@ -19,14 +20,10 @@ export class CreateError extends Error {
 
 export { scaffold, TEMPLATE_DIR } from "./scaffold";
 
-/** Normalize a directory name into a valid npm package name. */
+/** Normalize a directory name into a valid npm package name — the canonical
+ *  `slugify` (every slug output is also a valid package name). */
 export function toPackageName(input: string): string {
-  const cleaned = input
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/^[-_.]+|[-_.]+$/g, "");
-  return cleaned.length > 0 ? cleaned : "voila-app";
+  return slugify(input) || "voila-app";
 }
 
 export async function run(argv: ReadonlyArray<string>): Promise<void> {

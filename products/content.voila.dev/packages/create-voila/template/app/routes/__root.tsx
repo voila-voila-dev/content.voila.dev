@@ -1,5 +1,7 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import { themeInitScript } from "@voila/content-ui";
+import { type ReactNode, useState } from "react";
 import appCss from "../styles.css?url";
 
 export const Route = createRootRoute({
@@ -19,13 +21,26 @@ function RootComponent() {
 }
 
 function RootDocument({ children }: { children: ReactNode }) {
+  // One QueryClient per document. Creating it in state (rather than at module
+  // scope) keeps each SSR request isolated — a server-shared client would leak
+  // one visitor's cached data into the next. The admin pages read and mutate
+  // content through this client with `@tanstack/react-query`.
+  const [queryClient] = useState(
+    () => new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: 1 } } }),
+  );
+
   return (
-    <html lang="en">
+    // The theme class is applied to <html> before hydration, hence the
+    // suppressed warning. The inline script keeps a dark-mode visitor from
+    // seeing a flash of the light theme on load.
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static engine-owned script */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
-        {children}
+        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
         <Scripts />
       </body>
     </html>

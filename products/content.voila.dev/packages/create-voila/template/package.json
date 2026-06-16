@@ -6,19 +6,24 @@
     "dev": "vite dev",
     "build": "vite build",
     "start": "node .output/server/index.mjs",
-    "migrate:generate": "voila migrate generate",
+    "migrate:generate": "voila migrate generate --auth",
     "migrate:apply": "voila migrate apply"
   },
   "dependencies": {
-    "@tanstack/react-router": "^1.0.0",
-    "@tanstack/react-start": "^1.0.0",
+    "@tanstack/react-query": "^5.100.14",
+    "@tanstack/react-router": "~1.170.15",
+    "@tanstack/react-start": "~1.168.25",
     "@voila/content": "^0.1.0",
+    "better-auth": "^1.6.12",
     "@voila/content-ui": "^0.1.0",
     "@voila/ui": "^0.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^22.5.0",
+    "@vitejs/plugin-react": "^5.0.0",
     "@voila/content-cli": "^0.1.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",
