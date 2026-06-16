@@ -10,10 +10,22 @@
     "access": "public"
   },
   "scripts": {
-    "test": "bun test"
+    "test": "bun test",
+    "check:items": "tsc -p tsconfig.items.json"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^15.11.7",
+    "@testing-library/react": "^16.1.0",
     "@types/bun": "^1.3.14",
-    "@voila/typescript-config": "workspace:*"
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@voila/content": "workspace:*",
+    "@voila/content-ui": "workspace:*",
+    "@voila/rich-text-editor": "workspace:*",
+    "@voila/typescript-config": "workspace:*",
+    "@voila/ui": "workspace:*",
+    "happy-dom": "^15.11.7",
+    "react": "catalog:",
+    "react-dom": "catalog:"
   }
 }

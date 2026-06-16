@@ -142,7 +142,7 @@ describe("resolve", () => {
     expect(() => resolve(clash, ["n"])).toThrow(/Conflicting versions for "x".*\^1.0.0.*\^2.0.0/);
   });
 
-  test("errors when two items write the same target from different sources", () => {
+  test("errors when two unrelated items write the same target from different sources", () => {
     const clash: Registry = {
       items: [
         { name: "m", type: "lib", title: "", description: "", files: [{ path: "shared.ts" }] },
@@ -151,12 +151,34 @@ describe("resolve", () => {
           type: "lib",
           title: "",
           description: "",
-          registryDependencies: ["m"],
           files: [{ path: "other.ts", target: "shared.ts" }],
         },
       ],
     };
-    expect(() => resolve(clash, ["n"])).toThrow(/Two items write "shared.ts"/);
+    expect(() => resolve(clash, ["m", "n"])).toThrow(/Two items write "shared.ts"/);
+  });
+
+  test("lets a dependent override a file it inherits from a dependency", () => {
+    // The "flavored override" seam: `n` depends on `m` and overwrites the file
+    // `m` owns. The dependent's source wins; no conflict.
+    const override: Registry = {
+      items: [
+        { name: "m", type: "lib", title: "", description: "", files: [{ path: "widgets.ts" }] },
+        {
+          name: "n",
+          type: "field",
+          title: "",
+          description: "",
+          registryDependencies: ["m"],
+          files: [{ path: "widgets.flavored.ts", target: "widgets.ts" }],
+        },
+      ],
+    };
+    const files = resolve(override, ["n"]).files;
+    expect(files.map((f) => f.path)).toEqual(["widgets.flavored.ts"]);
+    expect(files.map((f) => f.target)).toEqual(["widgets.ts"]);
+    // Resolving both together (the integrity check's "resolve all" case) is fine.
+    expect(() => resolve(override, ["m", "n"])).not.toThrow();
   });
 
   test("a shared target from the same source is fine (deduped)", () => {

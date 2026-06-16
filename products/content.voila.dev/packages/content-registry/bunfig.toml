@@ -1,8 +1,11 @@
 # Coverage config for the package-aggregate gate (`scripts/coverage-gate`).
 # `bun test --coverage` (run from this dir) emits lcov scoped to this package's
-# own `src/` — the `../**` ignore keeps sibling packages out of the report. The
-# registry core is pure Node (fs/path), so no happy-dom preload is needed.
+# own `src/` — the `../**` ignore keeps sibling packages out of the report.
+# Preloads the shared setup (happy-dom + preserved native fetch/Request) so the
+# vended-widget component tests under `src/items/` get a DOM, same as the root
+# `bun test`; the pure fs/path resolver tests are unaffected.
 [test]
+preload = ["../../../../test/setup.ts"]
 coverageReporter = ["lcov"]
 coverageDir = "coverage"
 coveragePathIgnorePatterns = ["../**"]

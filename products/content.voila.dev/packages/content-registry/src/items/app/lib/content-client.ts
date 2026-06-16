@@ -1,14 +1,44 @@
-// The typed REST client for your content, inferred from `content.config.ts` —
-// no codegen. Import `client` anywhere in the app and every collection method is
-// fully typed from your fields:
+// The typed REST client, inferred from `content.config.ts` — no codegen. Every
+// collection method is typed from your fields:
 //
 //   const page = await client.posts.list({ orderBy: "createdAt" });
 //   const post = await client.posts.create({ title: "Hi", slug: "hi" });
 //
-// This file is yours — change the `baseUrl` if you mount the admin API
-// elsewhere, or wrap `client` with your own fetch (auth headers, retries).
+// The wrapped `fetch` does two things the secure admin needs: it mirrors the
+// `voila_csrf` cookie into the `x-csrf-token` header on writes (the engine's
+// double-submit check), and it bounces an expired/absent session (401) to the
+// login page.
 
-import { makeClient } from "@voila/content/client";
+import { type Fetch, makeClient } from "@voila/content/client";
 import config from "../../content.config";
 
-export const client = makeClient(config, { baseUrl: "/admin/api" });
+const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function readCsrfToken(): string | undefined {
+  if (typeof document === "undefined") return undefined;
+  return document.cookie.match(/(?:^|;\s*)voila_csrf=([^;]+)/)?.[1];
+}
+
+const authedFetch: Fetch = async (input, init) => {
+  const method = (init?.method ?? "GET").toUpperCase();
+  let nextInit = init;
+  if (MUTATING.has(method)) {
+    const token = readCsrfToken();
+    if (token) {
+      const headers = new Headers(init?.headers);
+      headers.set("x-csrf-token", token);
+      nextInit = { ...init, headers };
+    }
+  }
+  const response = await fetch(input, nextInit);
+  if (
+    response.status === 401 &&
+    typeof window !== "undefined" &&
+    !window.location.pathname.startsWith("/admin/login")
+  ) {
+    window.location.assign("/admin/login");
+  }
+  return response;
+};
+
+export const client = makeClient(config, { baseUrl: "/admin/api", fetch: authedFetch });

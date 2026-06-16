@@ -47,13 +47,29 @@ describe("registry catalog integrity", () => {
     expect(plan.items.map((i) => i.name)).toEqual([
       "content-client",
       "admin-shell",
+      "admin-auth",
       "admin-routes",
     ]);
     expect(plan.dependencies).toMatchObject({ "@voila/content": expect.any(String) });
-    expect(plan.files.map((f) => fileTarget(f))).toContain("app/components/admin-layout.tsx");
+    const targets = plan.files.map((f) => fileTarget(f));
+    expect(targets).toContain("app/components/admin-layout.tsx");
+    // The auth slice (login page + session guard helper) rides along by default.
+    expect(targets).toContain("app/routes/admin_.login.tsx");
+    expect(targets).toContain("app/lib/auth.ts");
+    expect(plan.dependencies).toMatchObject({ "@tanstack/react-start": expect.any(String) });
   });
 
   test("listItems can scope the catalog by type", () => {
     expect(listItems(registry, "shell").map((i) => i.name)).toEqual(["admin-shell"]);
+  });
+
+  test("rich-text-editor installs the widgets seam first and overrides its file", () => {
+    const plan = resolve(registry, ["rich-text-editor"]);
+    expect(plan.items.map((i) => i.name)).toEqual(["widgets", "rich-text-editor"]);
+    // The seam file is owned by `widgets` but overwritten by the rich-text
+    // flavored source (same target, dependent wins).
+    const widgetsFile = plan.files.find((f) => fileTarget(f) === "app/lib/widgets.ts");
+    expect(widgetsFile?.path).toBe("app/lib/widgets.rich-text.ts");
+    expect(plan.dependencies).toMatchObject({ "@voila/rich-text-editor": expect.any(String) });
   });
 });

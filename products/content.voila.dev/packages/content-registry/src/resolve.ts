@@ -81,8 +81,31 @@ export function resolve(registry: Registry, names: ReadonlyArray<string>): Resol
   return {
     items: ordered,
     dependencies: mergeDependencies(ordered),
-    files: mergeFiles(ordered),
+    files: mergeFiles(ordered, transitiveDeps(registry)),
   };
+}
+
+/**
+ * Map of item name → the set of items it depends on, directly or transitively.
+ * Used to allow an item to override a file it inherits from a dependency (the
+ * "flavored override" seam) while still rejecting collisions between unrelated
+ * items. Safe to walk eagerly: `resolve` rejects cycles before this runs.
+ */
+function transitiveDeps(registry: Registry): Map<string, Set<string>> {
+  const cache = new Map<string, Set<string>>();
+  function deps(name: string): Set<string> {
+    const hit = cache.get(name);
+    if (hit) return hit;
+    const set = new Set<string>();
+    cache.set(name, set);
+    for (const dep of getItem(registry, name)?.registryDependencies ?? []) {
+      set.add(dep);
+      for (const d of deps(dep)) set.add(d);
+    }
+    return set;
+  }
+  for (const item of registry.items) deps(item.name);
+  return cache;
 }
 
 /** Merge npm deps across items; clashing version ranges for one package error. */
@@ -100,20 +123,31 @@ function mergeDependencies(items: ReadonlyArray<RegistryItem>): Record<string, s
   return merged;
 }
 
-/** Collect files across items; the same target from different sources errors. */
-function mergeFiles(items: ReadonlyArray<RegistryItem>): RegistryFile[] {
-  const byTarget = new Map<string, RegistryFile>();
+/**
+ * Collect files across items, deduped by install target. The same target from
+ * two different sources is a conflict and errors — *unless* the later item
+ * depends (transitively) on the one it collides with, in which case it is a
+ * deliberate override and the dependent's file wins. `items` is dependency-first,
+ * so the overriding item is always the current one.
+ */
+function mergeFiles(
+  items: ReadonlyArray<RegistryItem>,
+  deps: Map<string, Set<string>>,
+): RegistryFile[] {
+  const byTarget = new Map<string, { file: RegistryFile; owner: string }>();
   for (const item of items) {
     for (const file of item.files) {
       const target = fileTarget(file);
       const existing = byTarget.get(target);
-      if (existing !== undefined && existing.path !== file.path) {
-        throw new RegistryError(
-          `Two items write "${target}" from different sources ("${existing.path}" and "${file.path}").`,
-        );
+      if (existing !== undefined && existing.file.path !== file.path) {
+        if (!deps.get(item.name)?.has(existing.owner)) {
+          throw new RegistryError(
+            `Two items write "${target}" from different sources ("${existing.file.path}" and "${file.path}").`,
+          );
+        }
       }
-      byTarget.set(target, file);
+      byTarget.set(target, { file, owner: item.name });
     }
   }
-  return [...byTarget.values()];
+  return [...byTarget.values()].map((entry) => entry.file);
 }

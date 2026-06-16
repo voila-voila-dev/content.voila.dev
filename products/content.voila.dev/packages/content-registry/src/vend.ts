@@ -4,6 +4,10 @@
 // left untouched unless `overwrite` is set — vended files are the app's own
 // code, so `voila add` never clobbers local edits by default. Kept fs-only and
 // separate from the resolver so it can be unit-tested against a temp dir.
+//
+// `read` and `transform` let other writers reuse the same loop: create-voila
+// vends its app template through here, reading from its own template directory
+// and substituting `{{projectName}}` placeholders on the way out.
 
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -16,6 +20,10 @@ export interface VendOptions {
   readonly cwd: string;
   /** Overwrite a target that already exists (default: skip it). */
   readonly overwrite?: boolean;
+  /** Read a file's source text. Defaults to the registry's own `src/items/`. */
+  readonly read?: (file: RegistryFile) => Promise<string>;
+  /** Transform source before writing (e.g. placeholder substitution). */
+  readonly transform?: (contents: string, file: RegistryFile) => string;
 }
 
 export interface VendResult {
@@ -31,6 +39,7 @@ export async function vendFiles(
   files: ReadonlyArray<RegistryFile>,
   options: VendOptions,
 ): Promise<VendResult> {
+  const read = options.read ?? readItemFile;
   const written: string[] = [];
   const skipped: string[] = [];
 
@@ -41,7 +50,8 @@ export async function vendFiles(
       skipped.push(target);
       continue;
     }
-    const contents = await readItemFile(file);
+    const source = await read(file);
+    const contents = options.transform ? options.transform(source, file) : source;
     await mkdir(dirname(dest), { recursive: true });
     await writeFile(dest, contents, "utf8");
     written.push(target);

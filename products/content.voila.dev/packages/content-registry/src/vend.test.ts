@@ -47,6 +47,27 @@ describe("vendFiles", () => {
     expect(readFileSync(dest, "utf8")).toContain("makeClient");
   });
 
+  test("reads from a custom source when `read` is given", async () => {
+    const result = await vendFiles([{ path: "anywhere/made-up.ts" }], {
+      cwd: dir,
+      read: async (file) => `// source for ${file.path}\n`,
+    });
+    expect(result.written).toEqual(["anywhere/made-up.ts"]);
+    expect(readFileSync(join(dir, "anywhere/made-up.ts"), "utf8")).toBe(
+      "// source for anywhere/made-up.ts\n",
+    );
+  });
+
+  test("applies `transform` to the source before writing", async () => {
+    await vendFiles([{ path: "app/lib/content-client.ts" }], {
+      cwd: dir,
+      transform: (contents) => contents.replaceAll("makeClient", "makeTestClient"),
+    });
+    const written = readFileSync(join(dir, "app/lib/content-client.ts"), "utf8");
+    expect(written).toContain("makeTestClient");
+    expect(written).not.toContain("makeClient(config");
+  });
+
   test("writes multiple files in one call", async () => {
     const result = await vendFiles(
       [{ path: "app/lib/content-client.ts" }, { path: "app/components/admin-layout.tsx" }],

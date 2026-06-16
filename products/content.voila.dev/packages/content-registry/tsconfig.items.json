@@ -1,0 +1,24 @@
+{
+  // The vended widget sources are the most complex files in the registry and
+  // must typecheck before they reach a consumer app (unlike the layout-only
+  // items, they carry real logic). This config checks the framework-agnostic
+  // widget + seam files against their declared item dependencies (added as this
+  // package's devDeps). It is separate from the build tsconfig, which excludes
+  // `src/items/**` because those files ship as text and import the app's own
+  // modules. Run via `bun check:items`; wired into the root `check`.
+  "extends": "@voila/typescript-config/tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "types": ["react", "react-dom"],
+    "noEmit": true
+  },
+  "include": [
+    "items-globals.d.ts",
+    "src/items/app/components/widgets/**/*",
+    "src/items/app/lib/widgets.ts",
+    "src/items/app/lib/widgets.rich-text.ts"
+  ],
+  // Tests run under Bun (`bun:test`), not this app-facing config — they are
+  // covered by `bun test`. Typecheck only the shippable vended sources here.
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}

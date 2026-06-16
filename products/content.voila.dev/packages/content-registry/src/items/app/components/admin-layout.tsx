@@ -1,20 +1,52 @@
-// The admin shell for your app — the sidebar (nav built from your config), the
-// header bar, and the content area that your admin pages render into. This is
-// vended source: own it. Edit the branding, add header actions (a user menu, a
-// theme toggle), or swap the plain `<a>` nav links for your router's `<Link>`
-// via `renderLink`.
+// The admin shell — sidebar (nav from your config), header bar, and the content
+// area your admin pages render into. Own this file: edit branding, add header
+// actions, or swap the nav links for TanStack `<Link>` via `renderLink`. The
+// sidebar footer shows the signed-in user and a sign-out button.
 
+import { Link } from "@tanstack/react-router";
 import { AdminShell } from "@voila/content-ui";
 import type { ReactNode } from "react";
 import config from "../../content.config";
+import type { SessionUser } from "../lib/auth";
 
-export function AdminLayout({ children }: { children: ReactNode }): ReactNode {
-  // The current path highlights the active collection in the sidebar. On the
-  // server (SSR) there's no `window`; the client fills it in on hydration.
+async function signOut(): Promise<void> {
+  await fetch("/admin/api/auth/sign-out", { method: "POST" }).catch(() => {});
+  window.location.assign("/admin/login");
+}
+
+function SidebarFooter({ user }: { user: SessionUser }): ReactNode {
+  return (
+    <div className="flex flex-col gap-1 p-2 text-sm">
+      <span className="truncate text-muted-foreground" title={user.email ?? undefined}>
+        {user.email ?? "Signed in"}
+      </span>
+      <button
+        type="button"
+        onClick={signOut}
+        className="text-left font-medium text-primary hover:underline"
+      >
+        Sign out
+      </button>
+    </div>
+  );
+}
+
+export function AdminLayout({
+  children,
+  user,
+}: {
+  children: ReactNode;
+  user?: SessionUser;
+}): ReactNode {
   const currentPath = typeof window === "undefined" ? undefined : window.location.pathname;
 
   return (
-    <AdminShell config={config} currentPath={currentPath}>
+    <AdminShell
+      config={config}
+      currentPath={currentPath}
+      renderLink={(item) => <Link to={item.href} />}
+      sidebarFooter={user ? <SidebarFooter user={user} /> : undefined}
+    >
       {children}
     </AdminShell>
   );
