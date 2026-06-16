@@ -1,5 +1,10 @@
 import type { Descendant, TElement, TText, Value } from "platejs";
 
+// Markdown ⇄ Plate round-trip for the `markdown` field kind lives next door (it
+// pulls in the Plate markdown serializer + a headless editor); re-exported here
+// so `@voila/rich-text-editor/serialize` is the one serialization entry point.
+export { fromMarkdown, type MarkdownFlavor, type MarkdownOptions, toMarkdown } from "./markdown.ts";
+
 /**
  * Returns the document unchanged. The editor's value is already JSON (a Slate
  * node tree), so this is the canonical `json` output — provided as a named

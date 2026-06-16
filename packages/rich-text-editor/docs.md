@@ -69,10 +69,15 @@ field.
 
 ## E1 — Core editing UX
 
-- [ ] Fixed toolbar (block type, marks, alignment, lists, link, more menu)
-- [ ] Floating/selection toolbar (marks + turn-into on selection)
+- [x] Fixed toolbar (block type, marks, lists) — `<RichTextToolbar>`, capability-driven
+      via `deriveToolbar`; alignment / link / more-menu still pending below
+- [x] Floating/selection toolbar (turn-into + marks + lists on selection) —
+      `<RichTextFloatingToolbar>`, same `deriveToolbar` model + shared
+      `ToolbarSurface` as the fixed bar; appears over a non-collapsed selection
+      and follows it (Plate floating hooks), capability-gated, `role="toolbar"`
 - [ ] Slash command menu (`/heading`, `/list`, `/quote`, …) via `@platejs/slash-command`
-- [ ] Autoformat: markdown shortcuts (`# `, `- `, `> `, `` ` ``, `**`, `1.`) via `@platejs/autoformat`
+- [x] Autoformat: markdown shortcuts (`# `, `- `, `> `, `` ` ``, `**`, `1.`) — feature-owned
+      `inputRules` wired in `derivePlugins` (the v53 model; `@platejs/autoformat` is deprecated)
 - [ ] Block placeholder ("Type / for commands") on empty blocks
 - [ ] Remaining marks: highlight, superscript, subscript, kbd (`@platejs/basic-styles`)
 - [ ] Font color / background color (`@platejs/basic-styles`)
@@ -182,8 +187,9 @@ matching Potion's drag-handle UX.
 | Lists (bulleted/numbered)          |   ✅   |  ✅   |
 | Links + mentions                   |   ✅   |  ✅ (mention factory) |
 | HTML / JSON / plaintext export     |   ✅   |  ✅   |
-| Slash menu + autoformat            |   ✅   |  E1   |
-| Toolbars (fixed + floating)        |   ✅   |  E1   |
+| Autoformat (markdown shortcuts)    |   ✅   |  ✅   |
+| Slash menu                         |   ✅   |  E1   |
+| Toolbars (fixed / floating)        |   ✅   |  ✅ fixed + floating |
 | Code blocks, tables, media, math   |   ✅   |  E2   |
 | Markdown / DOCX interop            |   ✅   |  E3   |
 | AI menu + copilot                  |   ✅   |  E4   |

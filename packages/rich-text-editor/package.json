@@ -7,6 +7,7 @@
   ],
   "exports": {
     ".": "./src/index.ts",
+    "./content": "./src/content/index.ts",
     "./mention": "./src/mention.ts",
     "./nodes": "./src/nodes/index.ts",
     "./serialize": "./src/serialize.ts",
@@ -19,20 +20,34 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@platejs/autoformat": "^53.0.0",
     "@platejs/basic-nodes": "^53.0.0",
+    "@platejs/floating": "^53.0.0",
     "@platejs/link": "^53.0.3",
     "@platejs/list-classic": "^53.0.0",
+    "@platejs/markdown": "^53.0.0",
     "@platejs/mention": "^53.0.0",
-    "platejs": "^53.0.5"
+    "platejs": "^53.0.5",
+    "remark-gfm": "^4.0.1"
   },
   "peerDependencies": {
+    "@voila/content": "^0.1.0",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
+  "peerDependenciesMeta": {
+    "@voila/content": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^15.11.7",
+    "@testing-library/react": "^16.1.0",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
+    "@voila/content": "workspace:*",
     "@voila/typescript-config": "workspace:*",
+    "happy-dom": "^15.11.7",
     "react": "catalog:",
     "react-dom": "catalog:"
   }

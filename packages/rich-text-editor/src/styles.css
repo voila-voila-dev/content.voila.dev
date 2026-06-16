@@ -51,3 +51,93 @@
   padding: 0.1em 0.3em;
   border-radius: 0.25rem;
 }
+
+/* Preserved nodes the editor can't edit (a table, media, a future kind): shown
+   read-only so the writer knows the content is intact but not editable here. */
+.voila-rich-text-unsupported {
+  margin: 0.5em 0;
+  border: 1px dashed rgba(127, 127, 127, 0.4);
+  border-radius: 0.375rem;
+  background: rgba(127, 127, 127, 0.06);
+}
+
+.voila-rich-text-unsupported-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+  padding: 0.25em 0.5em;
+  user-select: none;
+}
+
+/* Fixed formatting toolbar (`<RichTextToolbar>`). Token-driven where the host
+   provides @voila/ui CSS variables, with neutral fallbacks so the editor still
+   looks right standalone. */
+.voila-rich-text-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-bottom: 1px solid var(--border, rgba(127, 127, 127, 0.25));
+}
+
+.voila-rich-text-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+.voila-rich-text-toolbar-group + .voila-rich-text-toolbar-group::before {
+  content: "";
+  align-self: stretch;
+  width: 1px;
+  margin: 0.125rem 0.25rem;
+  background: var(--border, rgba(127, 127, 127, 0.25));
+}
+
+.voila-rich-text-toolbar-button {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+.voila-rich-text-toolbar-button:hover {
+  background: var(--accent, rgba(127, 127, 127, 0.12));
+}
+.voila-rich-text-toolbar-button:focus-visible {
+  outline: 2px solid var(--ring, #2563eb);
+  outline-offset: 1px;
+}
+.voila-rich-text-toolbar-button[data-active] {
+  background: var(--accent, rgba(127, 127, 127, 0.18));
+  border-color: var(--border, rgba(127, 127, 127, 0.35));
+  font-weight: 600;
+}
+.voila-rich-text-toolbar-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Floating/selection toolbar (`<RichTextFloatingToolbar>`). Shares the group +
+   button classes with the fixed toolbar; differs only in chrome — a popover
+   that floats over the selection (position/offset come from the floating hook's
+   inline style, applied on top of these). */
+.voila-rich-text-floating-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  z-index: 50;
+  padding: 0.25rem;
+  border: 1px solid var(--border, rgba(127, 127, 127, 0.25));
+  border-radius: 0.5rem;
+  background: var(--popover, var(--background, #fff));
+  color: var(--popover-foreground, var(--foreground, inherit));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
