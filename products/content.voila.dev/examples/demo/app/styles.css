@@ -1,0 +1,5 @@
+/* Pulls in Tailwind v4 plus the @voila/ui design tokens (light + dark) and the
+ * utilities derived from them (bg-background, text-foreground, …). Restyle by
+ * overriding any token on :root or .dark in this file. */
+@import "@voila/ui/tailwind";
+@import "@voila/content-ui/tailwind";
