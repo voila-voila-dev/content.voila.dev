@@ -1,7 +1,6 @@
 {
   "name": "@voila/content-cli",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
   "bin": {
     "voila": "./src/cli/bin.ts"
@@ -9,6 +8,9 @@
   "exports": {
     ".": "./src/cli/index.ts",
     "./sql": "./src/sql/index.ts"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "test": "bun test"

@@ -12,8 +12,8 @@ zero runtime dependencies beyond `@voila/content` — built on `bun:sqlite`,
 voila migrate generate --config content.config.ts --name init --dialect sqlite
 
 # Apply pending migrations
-voila migrate apply --target sqlite   --db file:./local.db
-voila migrate apply --target d1-local --db my-database   # delegates to wrangler
+voila migrate apply --target sqlite   --db file:./local.db   # --db defaults to file:./local.db
+voila migrate apply --target d1-local --db my-database       # delegates to wrangler
 ```
 
 - `generate` — derives one table per collection/singleton (`deriveSchema` reads

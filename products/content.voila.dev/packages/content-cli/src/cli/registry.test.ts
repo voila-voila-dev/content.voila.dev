@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -13,6 +13,13 @@ const voila = (...args: Array<string>) => {
     stdout: proc.stdout.toString(),
     stderr: proc.stderr.toString(),
   };
+};
+
+/** Make `dir` pass the host check, with the create-voila `app/` layout. */
+const makeHost = (dir: string, viteConfig = 'tanstackStart({ srcDirectory: "app" })') => {
+  writeFileSync(join(dir, "package.json"), '{ "name": "host" }\n');
+  writeFileSync(join(dir, "content.config.ts"), "export default { collections: {} };\n");
+  writeFileSync(join(dir, "vite.config.ts"), `export default { plugins: [${viteConfig}] };\n`);
 };
 
 describe("voila list (subprocess)", () => {
@@ -50,6 +57,7 @@ describe("voila add (subprocess)", () => {
 
   beforeEach(() => {
     app = mkdtempSync(join(tmpdir(), "voila-add-"));
+    makeHost(app);
   });
   afterEach(() => {
     rmSync(app, { recursive: true, force: true });
@@ -105,6 +113,42 @@ describe("voila add (subprocess)", () => {
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr).toContain("Usage: voila add");
   });
+
+  it("refuses to vend into a directory that is not a voila app", () => {
+    const bare = mkdtempSync(join(tmpdir(), "voila-bare-"));
+    try {
+      const result = voila("add", "content-client", "--cwd", bare, "--no-install");
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain("doesn't look like a voila app");
+      expect(result.stderr).toContain("content.config.ts");
+      expect(existsSync(join(bare, "app/lib/content-client.ts"))).toBe(false);
+    } finally {
+      rmSync(bare, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses a --cwd that does not exist", () => {
+    const result = voila("add", "content-client", "--cwd", join(app, "nope"), "--no-install");
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toContain("Directory not found");
+  });
+
+  it("vends into src/ when the host's vite config says srcDirectory: src", () => {
+    makeHost(app, 'tanstackStart({ srcDirectory: "src" })');
+    const result = voila("add", "admin-routes", "--cwd", app, "--no-install");
+    expect(result.exitCode).toBe(0);
+    expect(existsSync(join(app, "src/routes/admin.tsx"))).toBe(true);
+    expect(existsSync(join(app, "src/lib/content-client.ts"))).toBe(true);
+    expect(existsSync(join(app, "app/routes/admin.tsx"))).toBe(false);
+    expect(result.stdout).toContain("+ src/routes/admin.tsx");
+  });
+
+  it("defaults to src/ when tanstackStart() is configured without srcDirectory", () => {
+    makeHost(app, "tanstackStart()");
+    const result = voila("add", "content-client", "--cwd", app, "--no-install", "--dry-run");
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("src/lib/content-client.ts");
+  });
 });
 
 describe("voila diff (subprocess)", () => {
@@ -112,6 +156,7 @@ describe("voila diff (subprocess)", () => {
 
   beforeEach(() => {
     app = mkdtempSync(join(tmpdir(), "voila-diff-cli-"));
+    makeHost(app);
   });
   afterEach(() => {
     rmSync(app, { recursive: true, force: true });
@@ -149,5 +194,24 @@ describe("voila diff (subprocess)", () => {
     // every catalog file is missing in an empty app
     expect(result.stdout).toContain("missing");
     expect(result.stdout).toContain("app/routes/admin.tsx");
+  });
+
+  it("refuses to diff against a directory that is not a voila app", () => {
+    const bare = mkdtempSync(join(tmpdir(), "voila-bare-"));
+    try {
+      const result = voila("diff", "--cwd", bare);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toContain("doesn't look like a voila app");
+    } finally {
+      rmSync(bare, { recursive: true, force: true });
+    }
+  });
+
+  it("diffs against the host's source directory", () => {
+    makeHost(app, 'tanstackStart({ srcDirectory: "src" })');
+    voila("add", "content-client", "--cwd", app, "--no-install");
+    const result = voila("diff", "content-client", "--cwd", app);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("Everything is up to date.");
   });
 });

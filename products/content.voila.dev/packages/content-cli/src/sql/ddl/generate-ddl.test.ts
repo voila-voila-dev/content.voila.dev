@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 // schema-descriptor core, shared with the runtime `Database`). This goldens test
 // owns DDL *rendering* (`generateDDL`) and reaches the single shared fixture by
 // its workspace path so there's no duplicate "every field kind" config to drift.
+import { defineCollection, defineConfig, fields } from "@voila/content";
 import { type Dialect, deriveSchema } from "@voila/content/sql";
 import { allFieldsConfig } from "../../../../content/src/sql/all-fields.fixture";
 import { generateDDL } from "./generate-ddl";
@@ -37,5 +38,36 @@ describe("generateDDL (goldens)", () => {
 
   it("matches the postgres golden", () => {
     assertGolden("postgres", generateDDL(tables, "postgres"));
+  });
+});
+
+describe("generateDDL — full-text search", () => {
+  const config = defineConfig({
+    branding: { name: "Acme" },
+    collections: {
+      articles: defineCollection({
+        slug: "articles",
+        search: true,
+        fields: { title: fields.string({ required: true }) },
+      }),
+    },
+  });
+  const search = deriveSchema(config).filter((t) => t.name === "voila_search");
+
+  it("renders an FTS5 virtual table on SQLite (no separate index)", () => {
+    const sql = generateDDL(search, "sqlite");
+    expect(sql).toContain(
+      'CREATE VIRTUAL TABLE "voila_search" USING fts5(collection UNINDEXED, doc_id UNINDEXED, content);',
+    );
+    expect(sql).not.toContain("CREATE INDEX");
+  });
+
+  it("renders a table + GIN expression index on Postgres", () => {
+    const sql = generateDDL(search, "postgres");
+    expect(sql).toContain('CREATE TABLE "voila_search"');
+    expect(sql).toContain(
+      `CREATE INDEX "voila_search_content_idx" ON "voila_search" USING gin (to_tsvector('simple', "content"));`,
+    );
+    expect(sql).not.toContain("VIRTUAL TABLE");
   });
 });

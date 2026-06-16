@@ -4,6 +4,8 @@
 // `--overwrite`), and installs the npm packages they need. The catalog,
 // dependency resolution, and file vending live in `@voila/content-registry`;
 // this file parses flags, formats output, and drives the package manager.
+// Both `add` and `diff` first check `--cwd` is a voila app and remap targets
+// to its source directory (see `./host`).
 
 import { existsSync } from "node:fs";
 import { isAbsolute, join, resolve as resolvePath } from "node:path";
@@ -20,6 +22,7 @@ import {
   resolve as resolvePlan,
   vendFiles,
 } from "@voila/content-registry";
+import { resolveSrcDirectory, retargetFiles, validateHost } from "./host";
 import { CliError } from "./index";
 
 const TYPES = ["shell", "route", "block", "field", "lib"] as const;
@@ -69,11 +72,13 @@ export async function runAdd(args: ReadonlyArray<string>): Promise<void> {
   const plan = resolvePlan(registry, positionals);
   const cwdArg = values.cwd as string;
   const cwd = isAbsolute(cwdArg) ? cwdArg : resolvePath(process.cwd(), cwdArg);
+  validateHost(cwd);
+  const files = retargetFiles(plan.files, resolveSrcDirectory(cwd));
   const deps = Object.entries(plan.dependencies);
 
   if (values["dry-run"] as boolean) {
     console.log("Would write:");
-    for (const file of plan.files) console.log(`  ${fileTarget(file)}`);
+    for (const file of files) console.log(`  ${fileTarget(file)}`);
     if (deps.length > 0) {
       console.log("Would install:");
       for (const [pkg, range] of deps) console.log(`  ${pkg}@${range}`);
@@ -81,7 +86,7 @@ export async function runAdd(args: ReadonlyArray<string>): Promise<void> {
     return;
   }
 
-  const result = await vendFiles(plan.files, { cwd, overwrite: values.overwrite as boolean });
+  const result = await vendFiles(files, { cwd, overwrite: values.overwrite as boolean });
   for (const target of result.written) console.log(`  + ${target}`);
   for (const target of result.skipped) {
     console.log(`  · ${target} (exists — pass --overwrite to replace)`);
@@ -108,15 +113,17 @@ export async function runDiff(args: ReadonlyArray<string>): Promise<void> {
 
   const cwdArg = values.cwd as string;
   const cwd = isAbsolute(cwdArg) ? cwdArg : resolvePath(process.cwd(), cwdArg);
+  validateHost(cwd);
 
   // Named items diff their resolved plan; with no names, diff the whole catalog.
-  const files: ReadonlyArray<RegistryFile> =
+  const planned: ReadonlyArray<RegistryFile> =
     positionals.length > 0
       ? resolvePlan(registry, positionals).files
       : resolvePlan(
           registry,
           registry.items.map((item) => item.name),
         ).files;
+  const files = retargetFiles(planned, resolveSrcDirectory(cwd));
 
   console.log(formatDiffs(await diffFiles(files, { cwd })));
 }

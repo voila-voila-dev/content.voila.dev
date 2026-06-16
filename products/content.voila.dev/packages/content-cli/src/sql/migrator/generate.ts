@@ -6,7 +6,7 @@
 // step is what makes regeneration safe.
 
 import { mkdir, readdir, writeFile } from "node:fs/promises";
-import type { NormalizedConfig } from "@voila/content";
+import { type NormalizedConfig, slugify } from "@voila/content";
 import { authTablesSql, type Dialect, deriveSchema } from "@voila/content/sql";
 import { generateDDL } from "../ddl/generate-ddl";
 import { formatMigrationId, nextMigrationId } from "./loader";
@@ -24,14 +24,9 @@ export interface GenerateMigrationOpts {
   readonly auth?: boolean;
 }
 
-function slugify(name: string): string {
-  return (
-    name
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "") || "migration"
-  );
+/** The canonical `slugify` with snake_case separators (migration filenames). */
+function migrationSlug(name: string): string {
+  return slugify(name).replace(/-/g, "_") || "migration";
 }
 
 /**
@@ -52,7 +47,7 @@ export async function generateMigration(opts: GenerateMigrationOpts): Promise<st
 
   const existing = await readdir(opts.dir);
   const id = formatMigrationId(nextMigrationId(existing));
-  const filename = `${id}_${slugify(opts.name)}.sql`;
+  const filename = `${id}_${migrationSlug(opts.name)}.sql`;
   const path = `${opts.dir}/${filename}`;
 
   const collectionsDdl = generateDDL(deriveSchema(opts.config), opts.dialect);
