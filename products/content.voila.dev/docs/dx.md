@@ -52,6 +52,43 @@ That's it. You now have list views, detail editors, create/edit forms, a
 sidebar, and auth — for **every** collection and singleton — and you wrote zero
 table columns and zero form fields.
 
+## Auth & security (secure by default)
+
+A scaffolded app ships **locked down**, not open. The `/admin/api` mount is wired
+with all three protections out of the box (`app/lib/server.ts`):
+
+- **Authentication** — magic-link sign-in (Better Auth). Every content request
+  must carry a valid session or it's a `401`. `GET /admin/*` is guarded too: a
+  signed-out visitor is redirected to `/admin/login` before any UI renders.
+- **CSRF** — a signed double-submit token. Mutating requests (`POST/PATCH/
+  DELETE`) without a valid `x-csrf-token` are `403`. The typed client mirrors the
+  `voila_csrf` cookie into the header automatically; you don't manage it.
+- **Access control** — **first-user-wins**: the first account to complete
+  sign-in claims the admin. Any later email can authenticate but is denied
+  (`403`) on every collection. No allowlist to maintain.
+
+```bash
+# .env (create-voila writes one with a generated secret; .env is git-ignored)
+VOILA_AUTH_SECRET=…        # signs sessions, magic-link tokens, and the CSRF token
+VOILA_BASE_URL=http://localhost:3000
+# RESEND_API_KEY + VOILA_AUTH_FROM → real email; otherwise links print to the terminal
+```
+
+In dev, magic links are printed to the server terminal (`[voila/auth] magic
+link …`) — no mail provider needed. Set `RESEND_API_KEY` and `VOILA_AUTH_FROM`
+to send real email in production. `voila migrate generate --auth` (the default
+`migrate:generate` script) provisions the Better Auth tables alongside your
+content tables.
+
+**Threat model.** The session cookie is `HttpOnly` + `SameSite=Lax`, which alone
+blocks cross-site state-changing requests; the signed CSRF token is defense in
+depth. The real security boundary is the REST mount (`auth` + `csrf` + `access`)
+— the login page and route guard are UX on top of it. To harden further: swap
+first-user-wins for a real RBAC policy (the `access` hook takes any predicate),
+move secrets to your platform's secret store, and serve over HTTPS so cookies
+are `Secure`. To open a read-only public API, mount a second handler without
+`auth` on a different path — never by dropping `auth` from the admin mount.
+
 ## Why you write so little UI
 
 Two UI packages do the composition for you:

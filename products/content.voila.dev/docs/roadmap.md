@@ -52,8 +52,9 @@ seam was co-designed with the server/client that consumes them.
       `createRestHandler` dispatcher.
 - [x] Write path (`@voila/content/server`): create / update / soft-delete /
       restore over the runtime `Database`, with field-by-field Standard Schema
-      validation (422 `VALIDATION` envelope carrying `{ path, message }` issues)
-      and unique-violation → 409 `CONFLICT`. Routed through the same
+      validation (422 `VALIDATION`) and unique-violation → 409 `CONFLICT`. Every
+      field-addressable error (`VALIDATION`, `CONFLICT`, field-level `FORBIDDEN`)
+      carries the same `issues: [{ path, message }]` shape. Routed through the same
       `createRestHandler` dispatcher (`POST`/`PATCH`/`DELETE` + `POST …/restore`).
 - [x] Typed client inferred from config (`@voila/content/client`): `makeClient(config,
       { baseUrl })` → one accessor per collection with `list` / `find` / `findBy` /
@@ -222,7 +223,27 @@ TanStack Start build, outside the unit-test/CI loop). ✅ (pending that sign-off
       (+ `canReadField`/`canWriteField`) lets an admin UI drive the existing
       `fields`/`columns` props of the content-ui blocks from the same rules —
       no UI fork needed.
-- [ ] Search (D1 FTS5 / Postgres FTS), audit log, import/export (JSON/CSV)
+- [x] Full-text search — **done** for SQLite/D1 (FTS5); Postgres FTS DDL renders
+      but isn't driven (no live pg client yet, mirroring the rest of the
+      Postgres-is-DDL-only status). `defineCollection({ search: true })`
+      auto-indexes the text-bearing fields
+      (string/slug/markdown/code/enum/select/multiSelect/richText);
+      `search: ["title", "body"]` names them explicitly. Like `revisions`, the flag
+      is runtime-only — the index lives in the engine-owned `voila_search` store
+      (an FTS5 virtual table, emitted by `deriveSchema`/`voila migrate generate`
+      whenever a collection opts in), so collection row shapes are unchanged. The
+      runtime `Database` keeps the index in sync on every write (create/update
+      re-index, soft-delete/hard-delete drop, restore re-index — localized fields
+      index every locale, rich text flattens to leaf text) and exposes
+      `search(collection, query, { limit?, status? })`: it ranks candidate ids via
+      bm25 (`ORDER BY rank`) then loads the real rows through the normal read
+      scoping, so visibility (soft-delete + draft `status`, default `published`)
+      never depends on the index. REST adds `GET /:collection/search?q=…` (a
+      `read`, redaction + `?locale=` like any other read; ranked `{ data }`, no
+      cursor); the typed client adds `client.<slug>.search(query, params?)` (with
+      the `{ locale }` overload); `@voila/content-ui` adds a presentational
+      `SearchInput` wired into `ListView` for search-enabled collections.
+- [ ] Audit log, import/export (JSON/CSV)
 - [ ] Webhooks, background tasks, cron
 - [ ] Live preview (Cloudflare Durable Object channel)
 - [ ] MCP server over the config for AI agents
