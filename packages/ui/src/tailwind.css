@@ -22,6 +22,12 @@
 @import "tailwindcss";
 @import "./styles.css";
 
+/* Tailwind v4 defaults `dark:` to the `prefers-color-scheme` media query;
+ * our theming is class-driven (the admin toggles `.dark` on <html>), so
+ * `dark:` utilities must follow the class or they'd disagree with the
+ * tokens whenever the user's choice differs from the OS preference. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Resolved relative to this file → works from workspace or node_modules. */
 @source ".";
 
@@ -78,5 +84,11 @@
   ::after,
   ::before {
     @apply border-border;
+  }
+
+  /* Without this, page text and the document background fall back to the
+   * browser defaults (black on white) and never react to the `.dark` tokens. */
+  body {
+    @apply bg-background text-foreground;
   }
 }
