@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { defineCollection, fields } from "@voila/content";
-import { DetailView } from "./detail-view";
+import { DetailView, documentTitle } from "./detail-view";
 
 afterEach(cleanup);
 
@@ -55,6 +55,18 @@ describe("DetailView", () => {
     expect(screen.getByRole("heading", { name: "Blog Post" })).toBeDefined();
   });
 
+  test("titles with the document's titleField value when the collection declares one", () => {
+    const titled = defineCollection({ ...posts, titleField: "title" });
+    render(<DetailView collection={titled} doc={doc} />);
+    expect(screen.getByRole("heading", { name: "Hello" })).toBeDefined();
+  });
+
+  test("falls back to the collection label when the titleField value is blank", () => {
+    const titled = defineCollection({ ...posts, titleField: "title" });
+    render(<DetailView collection={titled} doc={{ ...doc, title: "   " }} />);
+    expect(screen.getByRole("heading", { name: "Blog Post" })).toBeDefined();
+  });
+
   test("an explicit title and actions render in the header", () => {
     render(
       <DetailView
@@ -76,5 +88,22 @@ describe("DetailView", () => {
     // title present, views/published empty → em-dash placeholders.
     expect(within(definitions[0] as HTMLElement).getByText("Only title")).toBeDefined();
     expect((definitions[1] as HTMLElement).textContent).toBe("—");
+  });
+});
+
+describe("documentTitle", () => {
+  const titled = defineCollection({ ...posts, titleField: "views" });
+
+  test("returns undefined without a titleField", () => {
+    expect(documentTitle(posts, doc)).toBeUndefined();
+  });
+
+  test("stringifies a numeric title value", () => {
+    expect(documentTitle(titled, doc)).toBe("1200");
+  });
+
+  test("returns undefined for a missing or non-scalar value", () => {
+    expect(documentTitle(titled, { views: undefined })).toBeUndefined();
+    expect(documentTitle(titled, { views: { nested: true } })).toBeUndefined();
   });
 });

@@ -8,6 +8,7 @@
 import type { NormalizedConfig } from "@voila/content";
 import type { ReactElement, ReactNode } from "react";
 import { buildNav } from "./lib/nav";
+import { Empty } from "./widgets/display";
 import { StatCard } from "./widgets/stat-card";
 
 export interface DashboardProps {
@@ -25,11 +26,7 @@ export interface DashboardProps {
 
 function formatCount(counts: DashboardProps["counts"], slug: string): ReactNode {
   const n = counts?.[slug];
-  return typeof n === "number" ? (
-    n.toLocaleString()
-  ) : (
-    <span className="text-muted-foreground">—</span>
-  );
+  return typeof n === "number" ? n.toLocaleString() : <Empty />;
 }
 
 export function Dashboard({

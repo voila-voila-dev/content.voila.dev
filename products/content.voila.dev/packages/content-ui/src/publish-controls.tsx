@@ -7,11 +7,12 @@
 
 import { Button } from "@voila/ui";
 import type { ReactNode } from "react";
+import type { Doc } from "./lib/doc";
 import { publishStatus } from "./lib/publish-status";
 import { StatusBadge } from "./widgets/status-badge";
 
 export interface PublishControlsProps {
-  readonly doc: Record<string, unknown>;
+  readonly doc: Doc;
   readonly onPublish: () => void | Promise<void>;
   readonly onUnpublish: () => void | Promise<void>;
   /** Disable the action (e.g. while a request is in flight). */

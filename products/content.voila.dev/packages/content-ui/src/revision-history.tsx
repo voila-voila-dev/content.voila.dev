@@ -9,6 +9,7 @@
 
 import { Badge, Button } from "@voila/ui";
 import type { ReactNode } from "react";
+import type { Doc } from "./lib/doc";
 import { StatusBadge } from "./widgets/status-badge";
 
 /** One history entry, as the typed client returns it. */
@@ -16,7 +17,7 @@ export interface RevisionHistoryItem {
   readonly rev: number;
   /** Epoch-ms time the snapshot was taken. */
   readonly createdAt: number;
-  readonly doc: Record<string, unknown>;
+  readonly doc: Doc;
 }
 
 export interface RevisionHistoryProps {

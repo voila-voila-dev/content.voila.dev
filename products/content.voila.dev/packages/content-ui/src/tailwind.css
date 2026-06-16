@@ -1,0 +1,15 @@
+/*
+ * @voila/content-ui — Tailwind v4 source registration.
+ *
+ * Import from an app's entry stylesheet, after `@voila/ui/tailwind`:
+ *
+ *     @import "@voila/ui/tailwind";
+ *     @import "@voila/content-ui/tailwind";
+ *
+ * Tailwind only auto-scans the app's own files, so without this the classes
+ * used inside this package's components (e.g. the theme toggle's `dark:hidden`)
+ * are never generated unless something in the app happens to repeat them.
+ */
+
+/* Resolved relative to this file → works from workspace or node_modules. */
+@source ".";

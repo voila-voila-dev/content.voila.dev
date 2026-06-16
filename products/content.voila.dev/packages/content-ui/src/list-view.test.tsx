@@ -71,6 +71,18 @@ describe("ListView", () => {
     expect(screen.getByText("Loading…")).toBeDefined();
   });
 
+  test("loading an empty list shows Loading… in the table, never the empty message", () => {
+    render(<ListView collection={posts} rows={[]} loading emptyMessage="No records." />);
+    expect(screen.getAllByText("Loading…")).toHaveLength(1);
+    expect(screen.queryByText("No records.")).toBeNull();
+  });
+
+  test("an empty list without loading shows the empty message only", () => {
+    render(<ListView collection={posts} rows={[]} />);
+    expect(screen.getByText("No records.")).toBeDefined();
+    expect(screen.queryByText("Loading…")).toBeNull();
+  });
+
   test("shows Load more only when there's a cursor and a handler", () => {
     const onLoadMore = mock();
     const { rerender } = render(
@@ -127,5 +139,32 @@ describe("ListView status filter", () => {
   test("hidden when no onStatusChange handler is wired", () => {
     render(<ListView collection={drafted} rows={[]} />);
     expect(screen.queryByRole("tab")).toBeNull();
+  });
+});
+
+describe("ListView search box", () => {
+  const searchable = defineCollection({
+    slug: "articles",
+    search: true,
+    fields: { title: fields.string() },
+  });
+
+  test("shows the search box for a search-enabled collection and reports typing", () => {
+    const onSearchChange = mock();
+    render(
+      <ListView collection={searchable} rows={[]} searchValue="" onSearchChange={onSearchChange} />,
+    );
+    fireEvent.change(screen.getByRole("searchbox"), { target: { value: "fox" } });
+    expect(onSearchChange).toHaveBeenCalledWith("fox");
+  });
+
+  test("hidden for a non-search collection even when wired", () => {
+    render(<ListView collection={posts} rows={rows} onSearchChange={() => {}} />);
+    expect(screen.queryByRole("searchbox")).toBeNull();
+  });
+
+  test("hidden when no onSearchChange handler is wired", () => {
+    render(<ListView collection={searchable} rows={[]} />);
+    expect(screen.queryByRole("searchbox")).toBeNull();
   });
 });

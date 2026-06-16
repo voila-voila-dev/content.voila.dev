@@ -10,6 +10,7 @@ import { Sidebar } from "@voila/ui";
 import type { ReactElement, ReactNode } from "react";
 import { AppSidebar } from "./app-sidebar";
 import type { NavItem } from "./lib/nav";
+import { ThemeToggle } from "./theme-toggle";
 
 export interface AdminShellProps {
   readonly config: NormalizedConfig;
@@ -54,9 +55,10 @@ export function AdminShell({
         <header className="flex h-14 items-center gap-2 border-b px-4">
           <Sidebar.Trigger />
           {title ? <h1 className="text-sm font-medium">{title}</h1> : null}
-          {headerActions ? (
-            <div className="ml-auto flex items-center gap-2">{headerActions}</div>
-          ) : null}
+          <div className="ml-auto flex items-center gap-2">
+            {headerActions}
+            <ThemeToggle />
+          </div>
         </header>
         <div className="flex-1 p-4">{children}</div>
       </Sidebar.Inset>

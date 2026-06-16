@@ -1,7 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { render } from "@testing-library/react";
 import type { FieldMetaBase } from "@voila/content";
-import { BooleanDisplay, DateDisplay, JsonDisplay, NumberDisplay, TextDisplay } from "./display";
+import {
+  BooleanDisplay,
+  DateDisplay,
+  JsonDisplay,
+  MultilineTextDisplay,
+  NumberDisplay,
+  RichTextValueDisplay,
+  TextDisplay,
+} from "./display";
 
 function meta(kind: string): FieldMetaBase {
   return { kind };
@@ -16,6 +24,24 @@ describe("TextDisplay", () => {
   test("renders an em-dash for empty values", () => {
     for (const v of [null, undefined, ""]) {
       const { container } = render(<TextDisplay value={v} meta={meta("string")} />);
+      expect(container.textContent).toBe("—");
+    }
+  });
+});
+
+describe("MultilineTextDisplay", () => {
+  test("keeps line breaks instead of collapsing them", () => {
+    const { container } = render(
+      <MultilineTextDisplay value={"# Title\n\nBody"} meta={meta("markdown")} />,
+    );
+    const span = container.querySelector("span") as HTMLSpanElement;
+    expect(span.textContent).toBe("# Title\n\nBody");
+    expect(span.className).toContain("whitespace-pre-wrap");
+  });
+
+  test("renders an em-dash for empty values", () => {
+    for (const v of [null, undefined, ""]) {
+      const { container } = render(<MultilineTextDisplay value={v} meta={meta("markdown")} />);
       expect(container.textContent).toBe("—");
     }
   });
@@ -57,6 +83,14 @@ describe("BooleanDisplay", () => {
       render(<BooleanDisplay value={null} meta={meta("boolean")} />).container.textContent,
     ).toBe("—");
   });
+
+  test("uses muted badge variants, never the solid primary", () => {
+    const yes = render(<BooleanDisplay value={true} meta={meta("boolean")} />).container;
+    const no = render(<BooleanDisplay value={false} meta={meta("boolean")} />).container;
+    expect(yes.querySelector(".bg-secondary")).not.toBeNull();
+    expect(yes.querySelector(".bg-primary")).toBeNull();
+    expect(no.querySelector(".bg-primary")).toBeNull();
+  });
 });
 
 describe("DateDisplay", () => {
@@ -88,6 +122,36 @@ describe("DateDisplay", () => {
     );
     expect(
       render(<DateDisplay value="not-a-date" meta={meta("datetime")} />).container.textContent,
+    ).toBe("—");
+  });
+});
+
+describe("RichTextValueDisplay", () => {
+  test("flattens a node tree to plain text, blocks space-joined", () => {
+    const value = [
+      { id: "1", type: "heading-1", children: [{ text: "Title" }] },
+      {
+        id: "2",
+        type: "paragraph",
+        children: [{ text: "Hello " }, { text: "world", bold: true }],
+      },
+    ];
+    const { container } = render(<RichTextValueDisplay value={value} meta={meta("richText")} />);
+    expect(container.textContent).toBe("Title Hello world");
+    expect(container.querySelector("span")?.className).toContain("whitespace-pre-wrap");
+  });
+
+  test("renders an em-dash for non-array / empty documents", () => {
+    expect(
+      render(<RichTextValueDisplay value={null} meta={meta("richText")} />).container.textContent,
+    ).toBe("—");
+    expect(
+      render(
+        <RichTextValueDisplay
+          value={[{ id: "1", type: "paragraph", children: [{ text: "" }] }]}
+          meta={meta("richText")}
+        />,
+      ).container.textContent,
     ).toBe("—");
   });
 });

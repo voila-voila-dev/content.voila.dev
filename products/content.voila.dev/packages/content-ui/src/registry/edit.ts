@@ -8,13 +8,14 @@ import {
   BooleanInput,
   DateInput,
   type EditWidget,
+  MonospaceTextareaInput,
   NumberInput,
   SelectInput,
-  TextareaInput,
   TextInput,
   UnsupportedInput,
 } from "../widgets/edit";
 import { mergeMaps } from "./merge";
+import { resolveWidget } from "./resolve";
 
 export type EditRegistry = Readonly<Record<string, EditWidget>>;
 
@@ -24,8 +25,8 @@ export const defaultEditRegistry: EditRegistry = {
   slug: TextInput,
   id: TextInput,
   color: TextInput,
-  code: TextareaInput,
-  markdown: TextareaInput,
+  code: MonospaceTextareaInput,
+  markdown: MonospaceTextareaInput,
   number: NumberInput,
   position: NumberInput,
   boolean: BooleanInput,
@@ -46,5 +47,5 @@ export function mergeEditRegistry(overrides?: EditRegistry): EditRegistry {
  * then the `meta.kind`, then the honest `UnsupportedInput` fallback.
  */
 export function resolveEditWidget(meta: FieldMetaBase, registry: EditRegistry): EditWidget {
-  return (meta.widget && registry[meta.widget]) || registry[meta.kind] || UnsupportedInput;
+  return resolveWidget(meta, registry, UnsupportedInput);
 }

@@ -5,6 +5,7 @@
 
 import { Badge } from "@voila/ui";
 import type { ReactNode } from "react";
+import type { Doc } from "../lib/doc";
 import { type PublishState, publishStatus } from "../lib/publish-status";
 
 type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
@@ -19,7 +20,7 @@ const PRESENTATION: Record<
 };
 
 export interface StatusBadgeProps {
-  readonly doc: Record<string, unknown>;
+  readonly doc: Doc;
   /** Reference time for the scheduled/published split; defaults to now. */
   readonly now?: number;
 }

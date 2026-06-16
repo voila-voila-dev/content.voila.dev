@@ -10,10 +10,13 @@ import {
   DateDisplay,
   type DisplayWidget,
   JsonDisplay,
+  MultilineTextDisplay,
   NumberDisplay,
+  RichTextValueDisplay,
   TextDisplay,
 } from "../widgets/display";
 import { mergeMaps } from "./merge";
+import { resolveWidget } from "./resolve";
 
 export type DisplayRegistry = Readonly<Record<string, DisplayWidget>>;
 
@@ -26,8 +29,9 @@ export const defaultDisplayRegistry: DisplayRegistry = {
   slug: TextDisplay,
   id: TextDisplay,
   color: TextDisplay,
-  code: TextDisplay,
-  markdown: TextDisplay,
+  code: MultilineTextDisplay,
+  markdown: MultilineTextDisplay,
+  richText: RichTextValueDisplay,
   enum: TextDisplay,
   select: TextDisplay,
   duration: TextDisplay,
@@ -53,5 +57,5 @@ export function resolveDisplayWidget(
   meta: FieldMetaBase,
   registry: DisplayRegistry,
 ): DisplayWidget {
-  return (meta.widget && registry[meta.widget]) || registry[meta.kind] || JsonDisplay;
+  return resolveWidget(meta, registry, JsonDisplay);
 }

@@ -4,7 +4,8 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./tailwind": "./src/tailwind.css"
   },
   "publishConfig": {
     "access": "public"
@@ -13,6 +14,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.7",
     "@voila/content": "workspace:*",
     "@voila/ui": "workspace:*"
   },

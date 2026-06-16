@@ -8,6 +8,7 @@
 import type { Field } from "@voila/content";
 import { Badge } from "@voila/ui";
 import type { ReactNode } from "react";
+import type { Doc } from "./lib/doc";
 import { type EditRegistry, resolveEditWidget } from "./registry/edit";
 
 export interface LocalizedFieldEditorProps {
@@ -20,14 +21,17 @@ export interface LocalizedFieldEditorProps {
   readonly onChange: (value: unknown) => void;
   /** DOM id prefix; each locale's control gets `${id}-${locale}`. */
   readonly id: string;
+  /** id of the field's form label; each locale's widget is labelled by it plus
+   *  the locale badge (`aria-labelledby`), e.g. "Published en". */
+  readonly labelId?: string;
   readonly registry: EditRegistry;
   readonly error?: string;
   readonly disabled?: boolean;
 }
 
-function asRecord(value: unknown): Readonly<Record<string, unknown>> {
+function asRecord(value: unknown): Readonly<Doc> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Readonly<Record<string, unknown>>)
+    ? (value as Readonly<Doc>)
     : {};
 }
 
@@ -37,6 +41,7 @@ export function LocalizedFieldEditor({
   value,
   onChange,
   id,
+  labelId,
   registry,
   error,
   disabled,
@@ -51,7 +56,11 @@ export function LocalizedFieldEditor({
     <div className="space-y-2">
       {locales.map((locale) => (
         <div key={locale} className="flex items-start gap-2">
-          <Badge variant="outline" className="mt-1.5 shrink-0 font-mono text-xs">
+          <Badge
+            id={`${id}-${locale}-label`}
+            variant="outline"
+            className="mt-1.5 shrink-0 font-mono text-xs"
+          >
             {locale}
           </Badge>
           <div className="min-w-0 flex-1">
@@ -60,6 +69,7 @@ export function LocalizedFieldEditor({
               onChange={(v) => onChange({ ...record, [locale]: v })}
               field={inner}
               id={`${id}-${locale}`}
+              labelId={labelId ? `${labelId} ${id}-${locale}-label` : `${id}-${locale}-label`}
               error={error}
               disabled={disabled}
             />

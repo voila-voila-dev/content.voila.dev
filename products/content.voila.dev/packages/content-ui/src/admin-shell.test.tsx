@@ -52,6 +52,15 @@ describe("AdminShell", () => {
     expect(screen.getByRole("link", { name: "Posts" }).getAttribute("data-active")).toBe("true");
   });
 
+  test("renders a theme toggle in the header bar", () => {
+    render(
+      <AdminShell config={config}>
+        <span>body</span>
+      </AdminShell>,
+    );
+    expect(screen.getByRole("button", { name: "Toggle theme" })).toBeDefined();
+  });
+
   test("renders a sidebar footer when provided", () => {
     render(
       <AdminShell config={config} sidebarFooter={<span>Sign out</span>}>

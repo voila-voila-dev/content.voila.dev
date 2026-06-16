@@ -16,8 +16,9 @@ export interface DisplayWidgetProps {
 /** A read-only renderer for a single field value. */
 export type DisplayWidget = (props: DisplayWidgetProps) => ReactNode;
 
-/** Shared empty marker so blank cells read the same everywhere. */
-function Empty() {
+/** Shared empty marker (muted em-dash) so blank values read the same
+ *  everywhere — table cells, detail rows, dashboard counts. */
+export function Empty(): ReactNode {
   return <span className="text-muted-foreground">—</span>;
 }
 
@@ -30,6 +31,16 @@ export function TextDisplay({ value }: DisplayWidgetProps): ReactNode {
   return <span>{String(value)}</span>;
 }
 
+/**
+ * Multi-line source text (markdown, code) — preserves line breaks and
+ * indentation instead of letting HTML whitespace collapsing flatten the body
+ * into one line in DataTable/DetailView.
+ */
+export function MultilineTextDisplay({ value }: DisplayWidgetProps): ReactNode {
+  if (isEmpty(value)) return <Empty />;
+  return <span className="whitespace-pre-wrap break-words">{String(value)}</span>;
+}
+
 export function NumberDisplay({ value }: DisplayWidgetProps): ReactNode {
   if (value === null || value === undefined) return <Empty />;
   const n = typeof value === "number" ? value : Number(value);
@@ -39,7 +50,9 @@ export function NumberDisplay({ value }: DisplayWidgetProps): ReactNode {
 
 export function BooleanDisplay({ value }: DisplayWidgetProps): ReactNode {
   if (value === null || value === undefined) return <Empty />;
-  return <Badge variant={value ? "default" : "secondary"}>{value ? "Yes" : "No"}</Badge>;
+  // Muted variants on purpose — a solid-primary badge reads as a button, too
+  // heavy for a plain value in a table cell.
+  return <Badge variant={value ? "secondary" : "outline"}>{value ? "Yes" : "No"}</Badge>;
 }
 
 /** Coerce the values a date field round-trips to (Date, epoch ms, ISO string). */
@@ -62,6 +75,29 @@ export function DateDisplay({ value, meta }: DisplayWidgetProps): ReactNode {
         ? d.toLocaleTimeString()
         : d.toLocaleString();
   return <time dateTime={d.toISOString()}>{text}</time>;
+}
+
+/** Concatenate a rich-text node's leaf text (children joined without spaces, so
+ *  marks split across leaves don't gain gaps). */
+function nodeText(node: unknown): string {
+  if (node === null || typeof node !== "object") return "";
+  const n = node as { text?: unknown; children?: unknown };
+  if (typeof n.text === "string") return n.text;
+  if (Array.isArray(n.children)) return n.children.map(nodeText).join("");
+  return "";
+}
+
+/**
+ * Flatten a `richText` value (the engine's node tree) to plain text — a small,
+ * dependency-free walk (no platejs import) so list cells / detail rows can read
+ * the document out of the box. The vended `rich-text-editor` item replaces this
+ * with a faithful read-only render of the formatted content.
+ */
+export function RichTextValueDisplay({ value }: DisplayWidgetProps): ReactNode {
+  if (!Array.isArray(value)) return <Empty />;
+  const text = value.map(nodeText).join(" ").replace(/\s+/g, " ").trim();
+  if (text === "") return <Empty />;
+  return <span className="whitespace-pre-wrap break-words">{text}</span>;
 }
 
 /** Fallback for arrays/objects/unknown kinds — compact, never throws. */

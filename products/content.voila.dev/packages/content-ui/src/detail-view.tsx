@@ -8,18 +8,20 @@
 import type { Collection } from "@voila/content";
 import type { ReactNode } from "react";
 import { FieldRenderer } from "./field-renderer";
-import { humanize } from "./lib/humanize";
+import type { Doc } from "./lib/doc";
+import { getFieldLabel, humanize } from "./lib/humanize";
 import type { DisplayRegistry } from "./registry/registry";
 
 export interface DetailViewProps {
   readonly collection: Collection;
   /** The document to display (e.g. `client.<slug>.find(id)`). */
-  readonly doc: Record<string, unknown>;
+  readonly doc: Doc;
   /** Field keys to show, in order. Defaults to all non-hidden fields. */
   readonly fields?: readonly string[];
   /** Override display widgets per kind/name. */
   readonly registry?: DisplayRegistry;
-  /** Header title. Defaults to the collection label, else the humanized slug. */
+  /** Header title. Defaults to the document's `titleField` value (when the
+   *  collection declares one), then the collection label / humanized slug. */
   readonly title?: ReactNode;
   readonly description?: ReactNode;
   /** Header actions (e.g. Edit / Delete); rendered on the right. */
@@ -31,6 +33,16 @@ interface Row {
   readonly label: string;
 }
 
+/** The document's own name: the `titleField` value when the collection declares
+ *  one and the document holds a non-empty scalar there. */
+export function documentTitle(collection: Collection, doc: Doc): string | undefined {
+  if (collection.titleField === undefined) return undefined;
+  const value = doc[collection.titleField];
+  if (typeof value === "string") return value.trim() === "" ? undefined : value;
+  if (typeof value === "number") return String(value);
+  return undefined;
+}
+
 /** Explicit `fields` (filtered to known keys) or every non-hidden field, in order. */
 function resolveRows(collection: Collection, fields?: readonly string[]): Row[] {
   const keys = fields ?? Object.keys(collection.fields);
@@ -39,7 +51,7 @@ function resolveRows(collection: Collection, fields?: readonly string[]): Row[] 
     const field = collection.fields[key];
     if (!field) continue;
     if (fields === undefined && field.meta.hidden) continue;
-    out.push({ key, label: field.meta.label ?? humanize(key) });
+    out.push({ key, label: getFieldLabel(key, field) });
   }
   return out;
 }
@@ -53,7 +65,8 @@ export function DetailView({
   description,
   actions,
 }: DetailViewProps): ReactNode {
-  const heading = title ?? collection.label ?? humanize(collection.slug);
+  const heading =
+    title ?? documentTitle(collection, doc) ?? collection.label ?? humanize(collection.slug);
   const rows = resolveRows(collection, fields);
 
   return (

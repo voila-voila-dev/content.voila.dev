@@ -6,10 +6,11 @@
 // every error at once.
 
 import type { Field } from "@voila/content";
+import type { Doc } from "./doc";
 
 export interface FormValidation {
   /** Decoded values for the fields that validated (empty optionals omitted). */
-  readonly values: Record<string, unknown>;
+  readonly values: Doc;
   /** Field key → first error message, for the fields that failed. */
   readonly errors: Readonly<Record<string, string>>;
 }
@@ -21,10 +22,10 @@ function isEmpty(value: unknown): boolean {
 
 export function validateFields(
   fields: Readonly<Record<string, Field>>,
-  values: Readonly<Record<string, unknown>>,
+  values: Readonly<Doc>,
   keys?: ReadonlyArray<string>,
 ): FormValidation {
-  const out: Record<string, unknown> = {};
+  const out: Doc = {};
   const errors: Record<string, string> = {};
   for (const name of keys ?? Object.keys(fields)) {
     const field = fields[name];

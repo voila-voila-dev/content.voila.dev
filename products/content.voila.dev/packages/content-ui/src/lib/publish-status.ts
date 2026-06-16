@@ -4,12 +4,11 @@
 // yet live — the same distinction `Database.list` makes. Returns `null` when the
 // row has no `status` at all (a non-draft collection), so callers render nothing.
 
+import type { Doc } from "./doc";
+
 export type PublishState = "draft" | "published" | "scheduled";
 
-export function publishStatus(
-  doc: Record<string, unknown>,
-  now: number = Date.now(),
-): PublishState | null {
+export function publishStatus(doc: Doc, now: number = Date.now()): PublishState | null {
   const status = doc.status;
   if (status !== "draft" && status !== "published") return null;
   if (status === "draft") return "draft";

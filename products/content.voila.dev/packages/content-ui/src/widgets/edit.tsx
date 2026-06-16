@@ -15,6 +15,13 @@ export interface EditWidgetProps {
   readonly field: Field;
   /** DOM id for `<label htmlFor>` association. */
   readonly id: string;
+  /**
+   * Space-separated id(s) of the labeling element(s), for `aria-labelledby` on
+   * widgets whose focusable control can't be named through `<label htmlFor>`
+   * (the Switch — Base UI moves `id` onto its hidden checkbox, so `htmlFor`
+   * never reaches the visible `role="switch"` element).
+   */
+  readonly labelId?: string;
   readonly error?: string;
   readonly disabled?: boolean;
 }
@@ -67,6 +74,32 @@ export function TextareaInput({
   );
 }
 
+/**
+ * Markdown/code editor stand-in until the rich-text registry item lands: a
+ * monospace textarea tall enough to draft multi-paragraph content (the default
+ * `Textarea` min-height is ~3 rows).
+ */
+export function MonospaceTextareaInput({
+  value,
+  onChange,
+  id,
+  error,
+  disabled,
+  field,
+}: EditWidgetProps): ReactNode {
+  return (
+    <Textarea
+      id={id}
+      className="min-h-40 font-mono"
+      value={typeof value === "string" ? value : ""}
+      placeholder={field.meta.description}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      {...aria(id, error)}
+    />
+  );
+}
+
 interface NumberMetaShape {
   readonly min?: number;
   readonly max?: number;
@@ -104,14 +137,25 @@ export function NumberInput({
   );
 }
 
-export function BooleanInput({ value, onChange, id, disabled }: EditWidgetProps): ReactNode {
+export function BooleanInput({
+  value,
+  onChange,
+  id,
+  labelId,
+  disabled,
+}: EditWidgetProps): ReactNode {
+  // The block wrapper drops the inline-flex switch onto its own line below the
+  // (inline) label, so the form's vertical spacing applies between them.
   return (
-    <Switch
-      id={id}
-      checked={value === true}
-      disabled={disabled}
-      onCheckedChange={(c) => onChange(c)}
-    />
+    <div>
+      <Switch
+        id={id}
+        aria-labelledby={labelId}
+        checked={value === true}
+        disabled={disabled}
+        onCheckedChange={(c) => onChange(c)}
+      />
+    </div>
   );
 }
 
@@ -177,14 +221,12 @@ export function SelectInput({
  * input rather than silently dropping or corrupting the value.
  */
 export function UnsupportedInput({ id, field, disabled }: EditWidgetProps): ReactNode {
-  return (
-    <Input
-      id={id}
-      value={`No editor for "${field.meta.kind}" yet`}
-      disabled={disabled ?? true}
-      readOnly
-    />
-  );
+  // richText advertises its own fix: the registry item that vends a real editor.
+  const message =
+    field.meta.kind === "richText"
+      ? "Rich text — run `voila add rich-text-editor`"
+      : `No editor for "${field.meta.kind}" yet`;
+  return <Input id={id} value={message} disabled={disabled ?? true} readOnly />;
 }
 
 const DATE_INPUT_TYPE: Record<string, string> = {
@@ -196,10 +238,18 @@ const DATE_INPUT_TYPE: Record<string, string> = {
 /** Format the stored value into what the native control expects to display. */
 function dateInputValue(kind: string, value: unknown): string {
   if (kind === "datetime") {
-    if (!(value instanceof Date) || Number.isNaN(value.getTime())) return "";
+    // The stored/REST form is epoch ms; a JSON-echoed `Date` arrives as an
+    // ISO string; the widget itself emits a `Date`. Coerce all three.
+    const date =
+      value instanceof Date
+        ? value
+        : typeof value === "number" || typeof value === "string"
+          ? new Date(value)
+          : null;
+    if (date === null || Number.isNaN(date.getTime())) return "";
     // datetime-local wants local "YYYY-MM-DDTHH:mm" (no zone, no seconds).
     const pad = (n: number) => String(n).padStart(2, "0");
-    return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
   // `date` and `time` store ISO strings already in the control's format.
   return typeof value === "string" ? value : "";

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { humanize } from "./humanize";
+import { fields } from "@voila/content";
+import { getFieldLabel, humanize } from "./humanize";
 
 describe("humanize", () => {
   test("splits camelCase into title-cased words", () => {
@@ -22,5 +23,15 @@ describe("humanize", () => {
 
   test("collapses repeated separators and trims", () => {
     expect(humanize("__a__b__")).toBe("A B");
+  });
+});
+
+describe("getFieldLabel", () => {
+  test("prefers the field's explicit meta.label", () => {
+    expect(getFieldLabel("publishedAt", fields.string({ label: "Go-live" }))).toBe("Go-live");
+  });
+
+  test("falls back to the humanized key", () => {
+    expect(getFieldLabel("publishedAt", fields.string())).toBe("Published At");
   });
 });

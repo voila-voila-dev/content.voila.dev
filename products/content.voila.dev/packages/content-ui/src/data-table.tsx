@@ -3,28 +3,37 @@
 // `defineConfig`) and its `rows`; columns default to every non-hidden field in
 // declaration order, or pass an explicit `columns` list of field keys. Each
 // cell renders through `FieldRenderer`, so the widget registry decides how a
-// value is shown. Rows become clickable when `onRowClick` is set; `ListView`
-// wraps this with a header, pagination, and loading/error chrome.
+// value is shown. Rows become clickable when `onRowClick` is set — the first
+// cell then carries a visually-hidden "Open …" button (the row-link pattern),
+// so assistive tech gets a named, keyboard-activatable control while pointer
+// users keep the whole-row click target. `ListView` wraps this with a header,
+// pagination, and loading/error chrome.
 
 import type { Collection, Field } from "@voila/content";
 import { Table } from "@voila/ui";
-import type { KeyboardEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { documentTitle } from "./detail-view";
 import { FieldRenderer } from "./field-renderer";
-import { humanize } from "./lib/humanize";
+import type { Doc } from "./lib/doc";
+import { getFieldLabel } from "./lib/humanize";
 import type { DisplayRegistry } from "./registry/registry";
 
 export interface DataTableProps {
   readonly collection: Collection;
-  readonly rows: readonly Record<string, unknown>[];
+  readonly rows: readonly Doc[];
   /** Field keys to show, in order. Defaults to all non-hidden fields. */
   readonly columns?: readonly string[];
   /** Override display widgets per kind/name. */
   readonly registry?: DisplayRegistry;
   /** Stable React key for a row; defaults to `row.id` then the index. */
-  readonly rowKey?: (row: Record<string, unknown>, index: number) => string;
-  /** When set, rows become clickable (and keyboard-activatable via Enter/Space). */
-  readonly onRowClick?: (row: Record<string, unknown>, index: number) => void;
+  readonly rowKey?: (row: Doc, index: number) => string;
+  /** When set, rows become clickable; each row also gets a visually-hidden
+   *  "Open …" button (named from `titleField`) for keyboard/AT activation. */
+  readonly onRowClick?: (row: Doc, index: number) => void;
+  /** While true, an empty `rows` shows the loading message instead of `emptyMessage`. */
+  readonly loading?: boolean;
   readonly emptyMessage?: string;
+  readonly loadingMessage?: string;
   readonly caption?: string;
 }
 
@@ -43,12 +52,12 @@ function resolveColumns(collection: Collection, columns?: readonly string[]): Co
     const field = collection.fields[key];
     if (!field) continue;
     if (columns === undefined && field.meta.hidden) continue;
-    out.push({ key, label: field.meta.label ?? humanize(key), field });
+    out.push({ key, label: getFieldLabel(key, field), field });
   }
   return out;
 }
 
-function defaultRowKey(row: Record<string, unknown>, index: number): string {
+function defaultRowKey(row: Doc, index: number): string {
   const id = row.id;
   return typeof id === "string" || typeof id === "number" ? String(id) : String(index);
 }
@@ -60,51 +69,57 @@ export function DataTable({
   registry,
   rowKey = defaultRowKey,
   onRowClick,
+  loading = false,
   emptyMessage = "No records.",
+  loadingMessage = "Loading…",
   caption,
 }: DataTableProps): ReactNode {
   const cols = resolveColumns(collection, columns);
 
-  // Enter/Space activate a focused clickable row, matching native button keys.
-  function handleRowKey(
-    event: KeyboardEvent<HTMLTableRowElement>,
-    row: Record<string, unknown>,
-    index: number,
-  ) {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onRowClick?.(row, index);
-    }
-  }
-
+  // Explicit ARIA roles on top of the native elements: Chrome's layout-table
+  // heuristic can demote a styled table and drop row/columnheader semantics
+  // from the a11y tree; redundant roles pin them.
   return (
-    <Table.Root>
+    <Table.Root role="table">
       {caption ? <Table.Caption>{caption}</Table.Caption> : null}
-      <Table.Header>
-        <Table.Row>
+      <Table.Header role="rowgroup">
+        <Table.Row role="row">
           {cols.map((col) => (
-            <Table.Head key={col.key}>{col.label}</Table.Head>
+            <Table.Head key={col.key} role="columnheader" scope="col">
+              {col.label}
+            </Table.Head>
           ))}
         </Table.Row>
       </Table.Header>
-      <Table.Body>
+      <Table.Body role="rowgroup">
         {rows.length === 0 ? (
-          <Table.Row>
-            <Table.Cell colSpan={cols.length || 1} className="text-center text-muted-foreground">
-              {emptyMessage}
+          <Table.Row role="row">
+            <Table.Cell
+              role="cell"
+              colSpan={cols.length || 1}
+              className="text-center text-muted-foreground"
+            >
+              {loading ? loadingMessage : emptyMessage}
             </Table.Cell>
           </Table.Row>
         ) : (
           rows.map((row, index) => (
             <Table.Row
               key={rowKey(row, index)}
-              className={onRowClick ? "cursor-pointer" : undefined}
-              tabIndex={onRowClick ? 0 : undefined}
+              role="row"
+              className={onRowClick ? "cursor-pointer focus-within:bg-muted/50" : undefined}
               onClick={onRowClick ? () => onRowClick(row, index) : undefined}
-              onKeyDown={onRowClick ? (e) => handleRowKey(e, row, index) : undefined}
             >
-              {cols.map((col) => (
-                <Table.Cell key={col.key}>
+              {cols.map((col, colIndex) => (
+                <Table.Cell key={col.key} role="cell">
+                  {/* The row-link pattern: a hidden but focusable button whose
+                      native click bubbles to the row's onClick. Focus shows as
+                      the row highlight (focus-within above). */}
+                  {onRowClick && colIndex === 0 ? (
+                    <button type="button" className="sr-only">
+                      Open {documentTitle(collection, row) ?? `row ${index + 1}`}
+                    </button>
+                  ) : null}
                   <FieldRenderer field={col.field} value={row[col.key]} registry={registry} />
                 </Table.Cell>
               ))}

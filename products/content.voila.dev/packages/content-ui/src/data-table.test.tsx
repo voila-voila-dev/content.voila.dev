@@ -59,16 +59,37 @@ describe("DataTable", () => {
     expect(screen.getByText("Nothing here")).toBeDefined();
   });
 
+  test("shows the loading message instead of the empty message while loading", () => {
+    render(<DataTable collection={posts} rows={[]} loading emptyMessage="Nothing here" />);
+    expect(screen.getByText("Loading…")).toBeDefined();
+    expect(screen.queryByText("Nothing here")).toBeNull();
+  });
+
+  test("a custom loading message replaces the default", () => {
+    render(<DataTable collection={posts} rows={[]} loading loadingMessage="Fetching posts…" />);
+    expect(screen.getByText("Fetching posts…")).toBeDefined();
+  });
+
   test("renders a caption when given", () => {
     const { container } = render(<DataTable collection={posts} rows={rows} caption="All posts" />);
     expect(container.querySelector("caption")?.textContent).toBe("All posts");
   });
 
-  test("does not make rows interactive without onRowClick", () => {
+  test("pins explicit table semantics for the a11y tree", () => {
     const { container } = render(<DataTable collection={posts} rows={rows} />);
-    const body = container.querySelector("tbody");
-    const firstRow = body?.querySelector("tr");
-    expect(firstRow?.getAttribute("tabindex")).toBeNull();
+    expect(container.querySelector("table")?.getAttribute("role")).toBe("table");
+    expect(container.querySelector("thead")?.getAttribute("role")).toBe("rowgroup");
+    expect(container.querySelector("tbody")?.getAttribute("role")).toBe("rowgroup");
+    expect(container.querySelector("tbody tr")?.getAttribute("role")).toBe("row");
+    expect(container.querySelector("tbody td")?.getAttribute("role")).toBe("cell");
+    const th = container.querySelector("th");
+    expect(th?.getAttribute("role")).toBe("columnheader");
+    expect(th?.getAttribute("scope")).toBe("col");
+  });
+
+  test("does not make rows interactive without onRowClick", () => {
+    render(<DataTable collection={posts} rows={rows} />);
+    expect(screen.queryByRole("button")).toBeNull();
   });
 
   test("onRowClick fires with the row and index on click", () => {
@@ -81,26 +102,27 @@ describe("DataTable", () => {
     expect(onRowClick).toHaveBeenCalledTimes(1);
     expect(onRowClick.mock.calls[0]?.[0]).toEqual(rows[1]);
     expect(onRowClick.mock.calls[0]?.[1]).toBe(1);
-    expect((bodyRows[0] as Element).getAttribute("tabindex")).toBe("0");
   });
 
-  test("Enter and Space activate a focused row", () => {
+  test("clickable rows carry a hidden Open button named from titleField", () => {
     const onRowClick = mock();
-    const { container } = render(
-      <DataTable collection={posts} rows={rows} onRowClick={onRowClick} />,
-    );
-    const firstRow = container.querySelector("tbody tr") as Element;
-    fireEvent.keyDown(firstRow, { key: "Enter" });
-    fireEvent.keyDown(firstRow, { key: " " });
-    expect(onRowClick).toHaveBeenCalledTimes(2);
+    const titled = defineCollection({
+      slug: "posts",
+      titleField: "title",
+      fields: { title: fields.string() },
+    });
+    render(<DataTable collection={titled} rows={rows} onRowClick={onRowClick} />);
+    const button = screen.getByRole("button", { name: "Open Hello" });
+    // Activating the button (click, or Enter/Space — it's a native button)
+    // bubbles to the row's onClick: exactly one activation per press.
+    fireEvent.click(button);
+    expect(onRowClick).toHaveBeenCalledTimes(1);
+    expect(onRowClick.mock.calls[0]?.[0]).toEqual(rows[0]);
+    expect(onRowClick.mock.calls[0]?.[1]).toBe(0);
   });
 
-  test("other keys do not activate a row", () => {
-    const onRowClick = mock();
-    const { container } = render(
-      <DataTable collection={posts} rows={rows} onRowClick={onRowClick} />,
-    );
-    fireEvent.keyDown(container.querySelector("tbody tr") as Element, { key: "a" });
-    expect(onRowClick).not.toHaveBeenCalled();
+  test("the Open button falls back to the row number without a titleField", () => {
+    render(<DataTable collection={posts} rows={rows} onRowClick={mock()} />);
+    expect(screen.getByRole("button", { name: "Open row 2" })).toBeDefined();
   });
 });

@@ -4,6 +4,7 @@ import { fields } from "@voila/content";
 import {
   BooleanInput,
   DateInput,
+  MonospaceTextareaInput,
   NumberInput,
   SelectInput,
   selectOptions,
@@ -27,6 +28,38 @@ describe("TextareaInput", () => {
   });
 });
 
+describe("MonospaceTextareaInput", () => {
+  test("renders a tall monospace textarea and emits string changes", () => {
+    const onChange = mock();
+    const { container } = render(
+      <MonospaceTextareaInput
+        value={"# Title\n\nBody"}
+        onChange={onChange}
+        field={fields.markdown()}
+        id="m"
+      />,
+    );
+    const ta = container.querySelector("textarea") as HTMLTextAreaElement;
+    expect(ta.value).toBe("# Title\n\nBody");
+    expect(ta.className).toContain("font-mono");
+    expect(ta.className).toContain("min-h-40");
+    fireEvent.change(ta, { target: { value: "more" } });
+    expect(onChange).toHaveBeenCalledWith("more");
+  });
+
+  test("renders empty for a non-string value", () => {
+    const { container } = render(
+      <MonospaceTextareaInput
+        value={undefined}
+        onChange={mock()}
+        field={fields.markdown()}
+        id="m"
+      />,
+    );
+    expect((container.querySelector("textarea") as HTMLTextAreaElement).value).toBe("");
+  });
+});
+
 describe("UnsupportedInput", () => {
   test("renders a read-only note naming the kind", () => {
     const { container } = render(
@@ -40,6 +73,15 @@ describe("UnsupportedInput", () => {
     const input = container.querySelector("input") as HTMLInputElement;
     expect(input.value).toContain("array");
     expect(input.disabled).toBe(true);
+  });
+
+  test("advertises the rich-text-editor item for richText fields", () => {
+    const { container } = render(
+      <UnsupportedInput value={[]} onChange={mock()} field={fields.richText()} id="b" />,
+    );
+    expect((container.querySelector("input") as HTMLInputElement).value).toContain(
+      "voila add rich-text-editor",
+    );
   });
 });
 
@@ -90,6 +132,26 @@ describe("BooleanInput", () => {
     expect(sw.getAttribute("aria-checked")).toBe("true");
     fireEvent.click(sw);
     expect(onChange).toHaveBeenCalledWith(false);
+  });
+
+  test("is named by the labelling element via aria-labelledby", () => {
+    // Base UI puts `id` on the hidden checkbox, so `htmlFor` alone can't name
+    // the visible switch — the widget must reference the label element itself.
+    const { getByRole } = render(
+      <>
+        <span id="b-label">Published</span>
+        <BooleanInput
+          value={false}
+          onChange={mock()}
+          field={fields.boolean()}
+          id="b"
+          labelId="b-label"
+        />
+      </>,
+    );
+    expect(getByRole("switch", { name: "Published" }).getAttribute("aria-labelledby")).toBe(
+      "b-label",
+    );
   });
 });
 
@@ -152,6 +214,27 @@ describe("DateInput", () => {
     fireEvent.change(input, { target: { value: "2026-07-01T08:15" } });
     const arg = onChange.mock.calls[0]?.[0];
     expect(arg).toBeInstanceOf(Date);
+  });
+
+  test("datetime kind displays the stored epoch-ms and wire ISO forms", () => {
+    // REST reads return epoch ms; a JSON-echoed Date is an ISO string. Both
+    // must render, or the edit form shows existing values as blank.
+    const stored = new Date(2026, 5, 8, 10, 30);
+    for (const value of [stored.getTime(), stored.toISOString()]) {
+      const { container, unmount } = render(
+        <DateInput value={value} onChange={mock()} field={fields.datetime()} id="dt" />,
+      );
+      const input = container.querySelector("input") as HTMLInputElement;
+      expect(input.value).toBe("2026-06-08T10:30");
+      unmount();
+    }
+  });
+
+  test("datetime kind renders an unparseable value as empty", () => {
+    const { container } = render(
+      <DateInput value="not a date" onChange={mock()} field={fields.datetime()} id="dt" />,
+    );
+    expect((container.querySelector("input") as HTMLInputElement).value).toBe("");
   });
 
   test("time kind asks for seconds precision", () => {

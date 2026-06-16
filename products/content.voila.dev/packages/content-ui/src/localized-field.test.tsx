@@ -64,6 +64,37 @@ describe("LocalizedFieldEditor", () => {
     expect(onChange.mock.calls[0]?.[0]).toEqual({ "en-US": "Hello", "fr-FR": "Bonjour" });
   });
 
+  test("labels each locale's switch with the form label plus the locale badge", () => {
+    const flags = defineCollection({
+      slug: "flags",
+      fields: { published: fields.boolean({ localized: true }) },
+    });
+    const cfg = defineConfig({
+      branding: { name: "Test" },
+      i18n: { locales: ["en-US", "fr-FR"], defaultLocale: "en-US" },
+      collections: { flags },
+    });
+    render(
+      <>
+        <span id="flags-published-label">Published</span>
+        <LocalizedFieldEditor
+          field={cfg.collections.flags.fields.published}
+          locales={LOCALES}
+          value={{ "en-US": true }}
+          onChange={mock()}
+          id="flags-published"
+          labelId="flags-published-label"
+          registry={defaultEditRegistry}
+        />
+      </>,
+    );
+    expect(screen.getByText("en-US").id).toBe("flags-published-en-US-label");
+    const sw = screen.getByRole("switch", { name: "Published en-US" });
+    expect(sw.getAttribute("aria-labelledby")).toBe(
+      "flags-published-label flags-published-en-US-label",
+    );
+  });
+
   test("treats a non-record value as empty", () => {
     const { container } = render(
       <LocalizedFieldEditor

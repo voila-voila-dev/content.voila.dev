@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { FieldMetaBase } from "@voila/content";
-import { JsonDisplay, TextDisplay } from "../widgets/display";
+import { JsonDisplay, RichTextValueDisplay, TextDisplay } from "../widgets/display";
 import { defaultDisplayRegistry, mergeDisplayRegistry, resolveDisplayWidget } from "./registry";
 
 function meta(partial: Partial<FieldMetaBase> & { kind: string }): FieldMetaBase {
@@ -31,6 +31,12 @@ describe("resolveDisplayWidget", () => {
   test("falls back to JsonDisplay for unknown kinds", () => {
     expect(resolveDisplayWidget(meta({ kind: "relation" }), defaultDisplayRegistry)).toBe(
       JsonDisplay,
+    );
+  });
+
+  test("resolves richText to the plain-text flatten, not JsonDisplay", () => {
+    expect(resolveDisplayWidget(meta({ kind: "richText" }), defaultDisplayRegistry)).toBe(
+      RichTextValueDisplay,
     );
   });
 });
