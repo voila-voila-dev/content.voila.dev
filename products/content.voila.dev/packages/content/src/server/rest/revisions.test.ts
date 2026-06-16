@@ -6,8 +6,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { defineCollection, defineConfig, fields, type NormalizedConfig } from "@voila/content";
 import { deriveSchema } from "../../sql";
+import { makeBunSqliteDriver, type SqliteDriver } from "../database/bun-sqlite-driver";
 import { makeDatabase } from "../database/database";
-import { makeSqliteDriver, type SqliteDriver } from "../database/sqlite-driver";
 import type { Database, Revision } from "../database/types";
 import type { ApiFailure } from "./errors";
 import type { RestContext } from "./handlers";
@@ -44,7 +44,7 @@ let database: Database;
 let handle: (request: Request) => Promise<Response | null>;
 
 beforeEach(async () => {
-  const driver: SqliteDriver = makeSqliteDriver({ url: ":memory:" });
+  const driver: SqliteDriver = makeBunSqliteDriver({ url: ":memory:" });
   for (const statement of schemaStatements(config)) await driver.run(statement);
   database = makeDatabase(config, driver);
   const ctx: RestContext = { config, database };

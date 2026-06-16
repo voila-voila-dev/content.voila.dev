@@ -9,15 +9,21 @@
 // violation surfaced by `Database` becomes a typed `CONFLICT` (409); any other
 // driver throw folds to `INTERNAL` (500) like the read path.
 
-import type { Field, FieldAccessContext } from "../../config/schema/fields";
+import { type Field, type FieldAccessContext, slugify } from "../../config/schema/fields";
 import type { Issue } from "../../config/schema/std";
 import { validateSync } from "../../config/schema/std";
 import type { Principal } from "../auth/principal";
 import { DatabaseError } from "../database/database";
 import type { Document } from "../database/types";
 import { badRequest, conflict, fail, notFound, type ValidationIssue, validation } from "./errors";
-import { assertWritableFields, readAccessContext, redactDocument } from "./field-access";
-import { type RestContext, requireCollection, runHandler } from "./handlers";
+import { assertWritableFields } from "./field-access";
+import {
+  type RestContext,
+  requireCollection,
+  requireSingleton,
+  runHandler,
+  serializeRow,
+} from "./handlers";
 import type { CollectionLike } from "./query";
 
 // Columns the server owns. A client is free to send them (a round-tripped row,
@@ -88,6 +94,31 @@ export function validateWrite(
 }
 
 /**
+ * Fill missing slug fields on a create from their `from` source (the
+ * `slug({ from: "title" })` contract). A slug counts as missing when absent,
+ * `null`, or `""`; derivation only kicks in when the source value is a string
+ * that slugifies to something non-empty. Localized slugs are left alone —
+ * per-locale derivation isn't supported. Runs before the field-access check so
+ * a derived value passes the same gates as one the client typed.
+ */
+export function deriveSlugFields(entry: CollectionLike, data: Document): Document {
+  let out = data;
+  for (const [name, field] of Object.entries(entry.fields) as Array<[string, Field]>) {
+    const meta = field.meta as { kind: string; localized?: boolean; from?: string };
+    if (meta.kind !== "slug" || typeof meta.from !== "string" || meta.localized === true) continue;
+    const current = data[name];
+    if (current !== undefined && current !== null && current !== "") continue;
+    const source = data[meta.from];
+    if (typeof source !== "string") continue;
+    const derived = slugify(source);
+    if (derived === "") continue;
+    if (out === data) out = { ...data };
+    out[name] = derived;
+  }
+  return out;
+}
+
+/**
  * Read the request body as a write payload: a JSON object `{ data: {...} }`.
  * Malformed JSON or a missing/non-object `data` is a 400 `BAD_REQUEST` — the
  * field shapes themselves are checked later by `validateWrite`.
@@ -129,18 +160,43 @@ export function handleCreate(
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
-    const body = await parseWriteBody(request);
+    const body = deriveSlugFields(entry, await parseWriteBody(request));
     const access: FieldAccessContext = { principal, operation: "create", collection: entry.slug };
     // Field-level write rules run before schema validation: a denied field is a
     // 403 regardless of whether its value would have validated.
     assertWritableFields(entry, body, access);
     const values = validateWrite(entry, body, { partial: false });
     const row = await runWrite(entry.slug, () => ctx.database.create(entry.slug, values));
-    return Response.json(
-      { data: redactDocument(entry, row, readAccessContext(entry.slug, principal)) },
-      { status: 201 },
-    );
-  });
+    return Response.json({ data: serializeRow(entry, row, principal, null) }, { status: 201 });
+  }, ctx.onError);
+}
+
+/** `PUT /:singleton` (and `POST /:singleton`) — upsert the singleton's one
+ *  document from a full `{ data }` payload. The row is created on the first
+ *  write (`id = slug`) and replaced on every later one; a soft-deleted row
+ *  revives. Echoes the stored row as an object envelope. */
+export function handleSetSingleton(
+  ctx: RestContext,
+  slug: string,
+  request: Request,
+  principal: Principal | null = null,
+): Promise<Response> {
+  return runHandler(async () => {
+    const entry = requireSingleton(ctx.config, slug);
+    const body = deriveSlugFields(entry, await parseWriteBody(request));
+    // The document conceptually always exists (set just fills it in), so field
+    // rules and the route guard both see an `update` — even on the first write.
+    const access: FieldAccessContext = {
+      principal,
+      operation: "update",
+      collection: entry.slug,
+      documentId: entry.slug,
+    };
+    assertWritableFields(entry, body, access);
+    const values = validateWrite(entry, body, { partial: false });
+    const row = await runWrite(entry.slug, () => ctx.database.upsert(entry.slug, values));
+    return Response.json({ data: serializeRow(entry, row, principal, null, entry.slug) });
+  }, ctx.onError);
 }
 
 /** `PATCH /:collection/:id` — patch a live document from `{ data }`. Echoes the stored row. */
@@ -164,10 +220,8 @@ export function handleUpdate(
     const values = validateWrite(entry, body, { partial: true });
     const row = await runWrite(entry.slug, () => ctx.database.update(entry.slug, id, values));
     if (row === null) fail(notFound(entry.slug));
-    return Response.json({
-      data: redactDocument(entry, row, readAccessContext(entry.slug, principal, id)),
-    });
-  });
+    return Response.json({ data: serializeRow(entry, row, principal, null, id) });
+  }, ctx.onError);
 }
 
 /** `DELETE /:collection/:id` — soft-delete a live document. */
@@ -177,7 +231,7 @@ export function handleDelete(ctx: RestContext, slug: string, id: string): Promis
     const deleted = await ctx.database.softDelete(entry.slug, id);
     if (!deleted) fail(notFound(entry.slug));
     return Response.json({ data: { id } });
-  });
+  }, ctx.onError);
 }
 
 /** `POST /:collection/:id/restore` — clear `deletedAt` on a soft-deleted document. */
@@ -191,10 +245,8 @@ export function handleRestore(
     const entry = requireCollection(ctx.config, slug);
     const row = await ctx.database.restore(entry.slug, id);
     if (row === null) fail(notFound(entry.slug));
-    return Response.json({
-      data: redactDocument(entry, row, readAccessContext(entry.slug, principal, id)),
-    });
-  });
+    return Response.json({ data: serializeRow(entry, row, principal, null, id) });
+  }, ctx.onError);
 }
 
 /** Optional `{ at }` (epoch ms) on a publish body — a future value schedules go-live. */
@@ -245,10 +297,8 @@ export function handlePublish(
       ctx.database.publish(entry.slug, id, at !== undefined ? { at } : {}),
     );
     if (row === null) fail(notFound(entry.slug));
-    return Response.json({
-      data: redactDocument(entry, row, readAccessContext(entry.slug, principal, id)),
-    });
-  });
+    return Response.json({ data: serializeRow(entry, row, principal, null, id) });
+  }, ctx.onError);
 }
 
 /** `POST /:collection/:id/unpublish` — return a document to draft. */
@@ -262,8 +312,6 @@ export function handleUnpublish(
     const entry = requireCollection(ctx.config, slug);
     const row = await runPublish(entry.slug, () => ctx.database.unpublish(entry.slug, id));
     if (row === null) fail(notFound(entry.slug));
-    return Response.json({
-      data: redactDocument(entry, row, readAccessContext(entry.slug, principal, id)),
-    });
-  });
+    return Response.json({ data: serializeRow(entry, row, principal, null, id) });
+  }, ctx.onError);
 }

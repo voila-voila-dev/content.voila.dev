@@ -9,8 +9,8 @@ import { beforeEach, describe, expect, it } from "bun:test";
 import { defineCollection, defineConfig, fields, type NormalizedConfig } from "@voila/content";
 import { deriveSchema } from "../../sql";
 import { issueCsrfToken } from "../auth/csrf";
+import { makeBunSqliteDriver, type SqliteDriver } from "../database/bun-sqlite-driver";
 import { makeDatabase } from "../database/database";
-import { makeSqliteDriver, type SqliteDriver } from "../database/sqlite-driver";
 import { makeMediaStore } from "../media/store";
 import type { Storage } from "../storage";
 import { makeMemoryStorage } from "../storage";
@@ -51,7 +51,7 @@ let driver: SqliteDriver;
 let storage: Storage;
 
 beforeEach(async () => {
-  driver = makeSqliteDriver({ url: ":memory:" });
+  driver = makeBunSqliteDriver({ url: ":memory:" });
   for (const statement of schemaStatements(config)) await driver.run(statement);
   storage = makeMemoryStorage();
 });
@@ -299,6 +299,19 @@ describe("dispatch + guard", () => {
     const denied = await send(handle, `/_media/${uploaded.id}`, { method: "DELETE" });
     expect(denied.status).toBe(403);
     expect(seen).toEqual(["create:_media", "delete:_media"]);
+  });
+
+  it("reports an unexpected media failure to the mount-level onError", async () => {
+    const seen: unknown[] = [];
+    const handle = handler(
+      { store: { ...makeMediaStore(driver), list: () => Promise.reject(new Error("boom")) } },
+      { onError: (error) => seen.push(error) },
+    );
+    const response = await send(handle, "/_media");
+    expect(response.status).toBe(500);
+    expect((await errorOf(response)).code).toBe("INTERNAL");
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toBeInstanceOf(Error);
   });
 });
 

@@ -9,12 +9,11 @@ export {
   type TableInfo,
 } from "./database";
 export { coerceBindings, type SqlDriver, type SqlRow, type SqlValue } from "./driver";
-export {
-  makeSqliteDriver,
-  resolveSqliteUrl,
-  type SqliteDriver,
-  type SqliteDriverOpts,
-} from "./sqlite-driver";
+// The SQLite drivers bind to a runtime's built-in module (`bun:sqlite` /
+// `node:sqlite`) at module scope, so they are deliberately NOT re-exported
+// here — import `@voila/content/server/bun-sqlite` or `…/node-sqlite` instead.
+// Only the runtime-neutral pieces surface through the barrel.
+export { resolveSqliteUrl, type SqliteDriver, type SqliteDriverOpts } from "./sqlite";
 export type {
   Database,
   Document,

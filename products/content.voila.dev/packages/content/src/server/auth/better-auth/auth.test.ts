@@ -7,8 +7,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { defineCollection, defineConfig, fields, type NormalizedConfig } from "@voila/content";
 import { authTableStatements, deriveSchema } from "../../../sql";
+import { makeBunSqliteDriver, type SqliteDriver } from "../../database/bun-sqlite-driver";
 import { makeDatabase } from "../../database/database";
-import { makeSqliteDriver, type SqliteDriver } from "../../database/sqlite-driver";
 import type { RestContext } from "../../rest/handlers";
 import { createRestHandler } from "../../rest/router";
 import { type BetterAuthBridge, makeBetterAuth } from "./instance";
@@ -52,7 +52,7 @@ const capturingMailer: Mailer = {
 };
 
 beforeEach(async () => {
-  driver = makeSqliteDriver({ url: ":memory:" });
+  driver = makeBunSqliteDriver({ url: ":memory:" });
   for (const statement of authTableStatements) await driver.run(statement);
   for (const statement of contentSchema(config)) await driver.run(statement);
   await driver.run("INSERT INTO posts (id, title, created_at) VALUES (?, ?, ?)", [

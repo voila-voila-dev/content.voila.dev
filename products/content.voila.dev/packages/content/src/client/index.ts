@@ -9,6 +9,7 @@ export {
   type ContentClient,
   type DraftFilter,
   type DraftSystemFields,
+  type Fetch,
   type ListPage,
   type ListParams,
   type LocaleOption,
@@ -18,10 +19,17 @@ export {
   type Revision,
   type RevisionListParams,
   type RevisionPage,
+  type SingletonClient,
   type Stored,
   type SystemFields,
 } from "./client";
-export { type ApiFailure, ContentClientError, isContentClientError } from "./errors";
+export {
+  type ApiFailure,
+  ContentClientError,
+  isContentClientError,
+  issuesByField,
+  type ValidationIssue,
+} from "./errors";
 export {
   type MediaClient,
   type MediaItem,

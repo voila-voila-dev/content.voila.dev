@@ -6,10 +6,23 @@
 // classification all live here; the driver only runs strings + `?` params.
 
 import type { NormalizedConfig } from "../../config/config";
-import { type ColumnSchema, deriveSchema, REVISIONS_TABLE, type TableSchema } from "../../sql";
+import type { FieldsMap } from "../../config/schema/fields";
+import {
+  type ColumnSchema,
+  deriveSchema,
+  REVISIONS_TABLE,
+  SEARCH_TABLE,
+  type TableSchema,
+} from "../../sql";
 import { type CursorPosition, decodeCursor, encodeCursor } from "./cursor";
 import type { SqlDriver, SqlRow, SqlValue } from "./driver";
 import { and, buildInsert, buildUpdateSet, frag, or, quoteId, type Sql } from "./query";
+import {
+  buildSearchContent,
+  resolveSearchFields,
+  type SearchFieldInfo,
+  toMatchQuery,
+} from "./search-content";
 import type {
   Database,
   Document,
@@ -22,6 +35,8 @@ import type {
   Revision,
   RevisionListOpts,
   RevisionListResult,
+  SearchOpts,
+  SearchResult,
 } from "./types";
 
 const DEFAULT_LIMIT = 20;
@@ -65,6 +80,9 @@ export interface TableInfo {
   readonly drafts: boolean;
   /** True when the collection opted into version history. */
   readonly revisions: boolean;
+  /** Set for singleton tables: the fixed id (= slug) the DDL `CHECK` pins the
+   *  one row to. `create` uses it instead of minting a UUID. */
+  readonly singletonId: string | undefined;
 }
 
 // JSON columns render to Postgres `JSONB` regardless of dialect, so the postgres
@@ -132,6 +150,7 @@ export const indexTable = (table: TableSchema): TableInfo => {
     byField,
     drafts: table.drafts === true,
     revisions: table.revisions === true,
+    singletonId: table.singletonCheck?.id,
   };
 };
 
@@ -257,6 +276,33 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
     return table;
   };
 
+  // The searchable field set per collection slug, resolved from each
+  // collection's `search` opt against its fields. Only present for collections
+  // that opted in (and selected at least one field); drives both the
+  // index-sync-on-write and the `search` query.
+  const searchable = new Map<string, ReadonlyArray<SearchFieldInfo>>();
+  {
+    const collections = config.collections as Record<
+      string,
+      { fields: FieldsMap; search?: boolean | ReadonlyArray<string> }
+    >;
+    for (const [slug, collection] of Object.entries(collections)) {
+      const fields = resolveSearchFields(collection.fields, collection.search);
+      if (fields !== null && fields.length > 0) searchable.set(slug, fields);
+    }
+  }
+
+  const requireSearch = (
+    collection: string,
+  ): { readonly table: TableInfo; readonly fields: ReadonlyArray<SearchFieldInfo> } => {
+    const table = requireTable(collection);
+    const fields = searchable.get(collection);
+    if (fields === undefined) {
+      throw new DatabaseError({ message: `Collection "${collection}" is not search-enabled.` });
+    }
+    return { table, fields };
+  };
+
   // Run a read/write, wrapping any driver rejection as a `DatabaseError`.
   const exec = async <A>(message: string, fn: () => Promise<A>): Promise<A> => {
     try {
@@ -312,6 +358,34 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
     );
   };
 
+  // Drop a document's row(s) from the full-text index. No-op unless the
+  // collection opted into search.
+  const removeSearch = async (collection: string, id: string): Promise<void> => {
+    if (!searchable.has(collection)) return;
+    await exec(`Failed to de-index "${collection}/${id}".`, () =>
+      driver.run(
+        `DELETE FROM ${quoteId(SEARCH_TABLE)} WHERE ${quoteId("collection")} = ? AND ${quoteId("doc_id")} = ?`,
+        [collection, id],
+      ),
+    );
+  };
+
+  // Re-index a just-written row: delete the stale entry, then insert the fresh
+  // content (FTS5 has no in-place update). No-op unless the collection opted in.
+  const syncSearch = async (collection: string, doc: Document): Promise<void> => {
+    const fields = searchable.get(collection);
+    if (fields === undefined) return;
+    const id = String(doc.id);
+    await removeSearch(collection, id);
+    const content = buildSearchContent(fields, doc);
+    await exec(`Failed to index "${collection}/${id}".`, () =>
+      driver.run(
+        `INSERT INTO ${quoteId(SEARCH_TABLE)} (${quoteId("collection")}, ${quoteId("doc_id")}, ${quoteId("content")}) VALUES (?, ?, ?)`,
+        [collection, id, content],
+      ),
+    );
+  };
+
   // Re-read a row by id (ignoring soft-delete state) — the canonical row the
   // write methods echo back after a mutation.
   const reread = async (table: TableInfo, id: string): Promise<Document | null> => {
@@ -339,9 +413,13 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
     const keyword = direction === "asc" ? "ASC" : "DESC";
     const op = direction === "asc" ? ">" : "<";
 
-    const conditions: Array<Sql> = [frag(`${quoteId("deleted_at")} IS NULL`)];
+    // The cursor predicate is appended after this — the total count must cover
+    // every page, so it's computed against the cursor-free scope below.
+    const scopeConditions: Array<Sql> = [frag(`${quoteId("deleted_at")} IS NULL`)];
     const draftScope = draftPredicate(table, opts.status ?? "published");
-    if (draftScope !== null) conditions.push(draftScope);
+    if (draftScope !== null) scopeConditions.push(draftScope);
+
+    const conditions: Array<Sql> = [...scopeConditions];
     if (opts.cursor !== undefined) {
       const cursor = decodeCursor(opts.cursor);
       if (cursor !== null) {
@@ -410,7 +488,18 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
           })
         : null;
 
-    return { documents: page.map((row) => mapRow(table, row)), nextCursor };
+    const result: ListResult = { documents: page.map((row) => mapRow(table, row)), nextCursor };
+    if (opts.count !== true) return result;
+
+    const scope = and(scopeConditions);
+    const counted = await exec(`Failed to count "${collection}".`, () =>
+      driver.all(
+        `SELECT COUNT(*) AS ${quoteId("n")} FROM ${quoteId(table.name)} WHERE ${scope.text}`,
+        scope.params,
+      ),
+    );
+    // bigint smooths a future pg driver's `COUNT(*)` (Postgres returns BIGINT).
+    return { ...result, total: Number(counted[0]?.n ?? 0) };
   };
 
   const get = async (collection: string, id: string): Promise<Document | null> => {
@@ -448,7 +537,9 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
   const create = async (collection: string, values: Document): Promise<Document> => {
     const table = requireTable(collection);
     const now = Date.now();
-    const id = crypto.randomUUID();
+    // A singleton table's DDL pins its one row to `id = slug` via a CHECK
+    // constraint — a random UUID could never insert.
+    const id = table.singletonId ?? crypto.randomUUID();
     const row = encodeRow(table, {
       ...values,
       id,
@@ -467,6 +558,7 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
       throw new DatabaseError({ message: `Created "${collection}/${id}" vanished on read.` });
     }
     await snapshot(table, stored);
+    await syncSearch(collection, stored);
     return stored;
   };
 
@@ -488,7 +580,10 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
       ),
     );
     const stored = await reread(table, id);
-    if (stored !== null) await snapshot(table, stored);
+    if (stored !== null) {
+      await snapshot(table, stored);
+      await syncSearch(collection, stored);
+    }
     return stored;
   };
 
@@ -502,6 +597,9 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
         [Date.now(), id],
       ),
     );
+    // A soft-deleted row drops out of search; the read path also re-scopes, so
+    // this just keeps the index from carrying stale text.
+    await removeSearch(collection, id);
     return true;
   };
 
@@ -512,6 +610,7 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
     await exec(`Failed to purge "${collection}/${id}".`, () =>
       driver.run(`DELETE FROM ${quoteId(table.name)} WHERE ${quoteId("id")} = ?`, [id]),
     );
+    await removeSearch(collection, id);
     return true;
   };
 
@@ -526,7 +625,30 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
         [null, Date.now(), id],
       ),
     );
-    return reread(table, id);
+    const stored = await reread(table, id);
+    // A restored row rejoins the index with its current content.
+    if (stored !== null) await syncSearch(collection, stored);
+    return stored;
+  };
+
+  // Create-or-update the one row of a singleton table. Routed through `create`/
+  // `update` so system-column stamping and revision snapshots stay in one place.
+  const upsert = async (collection: string, values: Document): Promise<Document> => {
+    const table = requireTable(collection);
+    const id = table.singletonId;
+    if (id === undefined) {
+      throw new DatabaseError({ message: `Collection "${collection}" is not a singleton.` });
+    }
+    const existing = await reread(table, id);
+    if (existing === null) return create(collection, values);
+    // A soft-deleted singleton revives on write — there is no second row to
+    // create, so a set-after-delete must resurrect the one row.
+    if (existing.deletedAt !== null) await restore(collection, id);
+    const stored = await update(collection, id, values);
+    if (stored === null) {
+      throw new DatabaseError({ message: `Upserted "${collection}/${id}" vanished on read.` });
+    }
+    return stored;
   };
 
   // Flip a live row's publish state. Shared by `publish`/`unpublish`: both set
@@ -652,12 +774,56 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
     return update(collection, id, values);
   };
 
+  const search = async (
+    collection: string,
+    query: string,
+    opts: SearchOpts = {},
+  ): Promise<SearchResult> => {
+    const { table } = requireSearch(collection);
+    const limit = Math.min(Math.max(1, Math.trunc(opts.limit ?? DEFAULT_LIMIT)), MAX_LIMIT);
+    const match = toMatchQuery(query);
+    if (match === null) return { documents: [] };
+
+    // Rank candidate ids via FTS5 (bm25 `ORDER BY rank`), then load the real rows
+    // through the normal read scoping so visibility (soft-delete + draft status)
+    // never depends on the index being perfectly in sync.
+    const ranked = await exec(`Failed to search "${collection}".`, () =>
+      driver.all(
+        `SELECT ${quoteId("doc_id")} FROM ${quoteId(SEARCH_TABLE)} ` +
+          `WHERE ${quoteId(SEARCH_TABLE)} MATCH ? AND ${quoteId("collection")} = ? ` +
+          `ORDER BY rank LIMIT ${limit}`,
+        [match, collection],
+      ),
+    );
+    const ids = ranked.map((row) => String(row.doc_id));
+    if (ids.length === 0) return { documents: [] };
+
+    const conditions: Array<Sql> = [frag(`${quoteId("deleted_at")} IS NULL`)];
+    const draftScope = draftPredicate(table, opts.status ?? "published");
+    if (draftScope !== null) conditions.push(draftScope);
+    const placeholders = ids.map(() => "?").join(", ");
+    conditions.push(frag(`${quoteId("id")} IN (${placeholders})`, ids));
+    const where = and(conditions);
+    const rows = await exec(`Failed to load search results for "${collection}".`, () =>
+      driver.all(`SELECT * FROM ${quoteId(table.name)} WHERE ${where.text}`, where.params),
+    );
+
+    // SQL `IN (…)` doesn't preserve order — restore the bm25 ranking the index
+    // returned, dropping any id the read scoping filtered out.
+    const byId = new Map(rows.map((row) => [String(row.id), mapRow(table, row)]));
+    const documents = ids
+      .map((id) => byId.get(id))
+      .filter((doc): doc is Document => doc !== undefined);
+    return { documents };
+  };
+
   return {
     list,
     get,
     findOne,
     create,
     update,
+    upsert,
     softDelete,
     hardDelete,
     restore,
@@ -666,5 +832,6 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
     listRevisions,
     getRevision,
     restoreRevision,
+    search,
   };
 }

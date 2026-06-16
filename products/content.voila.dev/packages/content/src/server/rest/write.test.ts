@@ -7,11 +7,12 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { defineCollection, defineConfig, fields, type NormalizedConfig } from "@voila/content";
 import { deriveSchema } from "../../sql";
+import { makeBunSqliteDriver, type SqliteDriver } from "../database/bun-sqlite-driver";
 import { makeDatabase } from "../database/database";
-import { makeSqliteDriver, type SqliteDriver } from "../database/sqlite-driver";
 import type { ApiFailure } from "./errors";
 import type { RestContext } from "./handlers";
 import { createRestHandler } from "./router";
+import { deriveSlugFields } from "./write";
 
 const posts = defineCollection({
   slug: "posts",
@@ -50,7 +51,7 @@ let driver: SqliteDriver;
 let handle: (request: Request) => Promise<Response | null>;
 
 beforeEach(async () => {
-  driver = makeSqliteDriver({ url: ":memory:" });
+  driver = makeBunSqliteDriver({ url: ":memory:" });
   for (const statement of schemaStatements(config)) await driver.run(statement);
   const ctx: RestContext = { config, database: makeDatabase(config, driver) };
   handle = createRestHandler(ctx, { basePath: "/admin/api" });
@@ -172,7 +173,7 @@ describe("create — POST /:collection", () => {
     expect(await failureOf(response)).toMatchObject({
       code: "CONFLICT",
       collectionSlug: "posts",
-      field: "slug",
+      issues: [{ path: ["slug"], message: "Already in use." }],
     });
   });
 
@@ -252,7 +253,10 @@ describe("update — PATCH /:collection/:id", () => {
       body: { data: { slug: "taken" } },
     });
     expect(response.status).toBe(409);
-    expect(await failureOf(response)).toMatchObject({ code: "CONFLICT", field: "slug" });
+    expect(await failureOf(response)).toMatchObject({
+      code: "CONFLICT",
+      issues: [{ path: ["slug"], message: "Already in use." }],
+    });
   });
 });
 
@@ -345,5 +349,78 @@ describe("publish — non-draft collection + validation", () => {
     const response = await send("/admin/api/posts?status=bogus", { method: "GET" });
     expect(response.status).toBe(400);
     expect((await failureOf(response)).code).toBe("BAD_REQUEST");
+  });
+});
+
+// `slug({ from: "title" })` — a create derives a missing slug from its source.
+describe("create — slug derivation from `from`", () => {
+  const articles = defineCollection({
+    slug: "articles",
+    fields: {
+      title: fields.string({ required: true }),
+      slug: fields.slug({ from: "title" }),
+    },
+  });
+
+  describe("deriveSlugFields", () => {
+    it("fills a missing slug from the source field", () => {
+      expect(deriveSlugFields(articles, { title: "Hello World" })).toEqual({
+        title: "Hello World",
+        slug: "hello-world",
+      });
+    });
+
+    it("treats null and empty-string slugs as missing", () => {
+      expect(deriveSlugFields(articles, { title: "A B", slug: null })).toMatchObject({
+        slug: "a-b",
+      });
+      expect(deriveSlugFields(articles, { title: "A B", slug: "" })).toMatchObject({
+        slug: "a-b",
+      });
+    });
+
+    it("never overrides a client-sent slug", () => {
+      const data = { title: "Hello World", slug: "custom" };
+      expect(deriveSlugFields(articles, data)).toBe(data);
+    });
+
+    it("leaves the payload alone when the source is absent or unusable", () => {
+      const noSource = { slug: "" };
+      expect(deriveSlugFields(articles, noSource)).toBe(noSource);
+      const unusable = { title: "!!!" };
+      expect(deriveSlugFields(articles, unusable)).toBe(unusable);
+    });
+
+    it("skips localized slugs", () => {
+      const localized = defineCollection({
+        slug: "pages",
+        fields: {
+          title: fields.string(),
+          slug: fields.slug({ from: "title", localized: true }),
+        },
+      });
+      const data = { title: "Hello" };
+      expect(deriveSlugFields(localized, data)).toBe(data);
+    });
+  });
+
+  it("derives the slug end-to-end on POST and echoes it", async () => {
+    const cfg = defineConfig({ branding: { name: "Test" }, collections: { articles } });
+    const drv = makeBunSqliteDriver({ url: ":memory:" });
+    for (const statement of schemaStatements(cfg)) await drv.run(statement);
+    const h = createRestHandler(
+      { config: cfg, database: makeDatabase(cfg, drv) },
+      { basePath: "/admin/api" },
+    );
+    const response = await h(
+      new Request("https://x/admin/api/articles", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ data: { title: "Crème Brûlée 101" } }),
+      }),
+    );
+    expect(response?.status).toBe(201);
+    const body = (await response?.json()) as { data: { slug: string } };
+    expect(body.data.slug).toBe("creme-brulee-101");
   });
 });

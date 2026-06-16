@@ -27,6 +27,7 @@ export type {
   InferFields,
   InferLocalizedDoc,
   InferLocalizedFields,
+  InferLocalizedSingleton,
   InferSingleton,
 } from "./schema/infer";
 export type { Singleton, SingletonDef } from "./schema/singleton";

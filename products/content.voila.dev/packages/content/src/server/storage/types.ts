@@ -12,9 +12,16 @@ export interface StoragePutOpts {
   readonly contentType?: string;
 }
 
+// Bytes are `Uint8Array<ArrayBuffer>` (not the bare `Uint8Array`, which TS 5.7+
+// widens to `Uint8Array<ArrayBufferLike>`): storage objects are always backed by
+// a regular `ArrayBuffer`, never a `SharedArrayBuffer`, so a consumer compiling
+// this source under the DOM lib can hand `body` straight to `Response`/`fetch`
+// (whose `BodyInit`/`BufferSource` reject the shared-buffer-backed variant).
+type StorageBytes = Uint8Array<ArrayBuffer>;
+
 /** An object read back from storage. */
 export interface StorageObject {
-  readonly body: Uint8Array;
+  readonly body: StorageBytes;
   /** Byte length, when the backend reports it without reading the body. */
   readonly size?: number;
 }
@@ -23,7 +30,7 @@ export interface Storage {
   /** Stable adapter name used in logs and diagnostics. */
   readonly id: string;
   /** Write an object (overwrites an existing key). */
-  put(key: string, body: Uint8Array, opts?: StoragePutOpts): Promise<void>;
+  put(key: string, body: StorageBytes, opts?: StoragePutOpts): Promise<void>;
   /** Read an object, or `null` when the key doesn't exist. */
   get(key: string): Promise<StorageObject | null>;
   /** Remove an object. Deleting a missing key is a no-op. */

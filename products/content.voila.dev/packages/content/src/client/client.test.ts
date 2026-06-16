@@ -7,8 +7,8 @@
 
 import { beforeEach, describe, expect, it } from "bun:test";
 import { defineCollection, defineConfig, fields, type NormalizedConfig } from "@voila/content";
+import { makeBunSqliteDriver } from "../server/database/bun-sqlite-driver";
 import { makeDatabase } from "../server/database/database";
-import { makeSqliteDriver } from "../server/database/sqlite-driver";
 import { createRestHandler, type RestContext } from "../server/rest";
 import { deriveSchema } from "../sql";
 import {
@@ -53,7 +53,7 @@ function schemaStatements(cfg: NormalizedConfig): ReadonlyArray<string> {
 let client: ContentClient<typeof config>;
 
 beforeEach(async () => {
-  const driver = makeSqliteDriver({ url: ":memory:" });
+  const driver = makeBunSqliteDriver({ url: ":memory:" });
   for (const statement of schemaStatements(config)) await driver.run(statement);
   const ctx: RestContext = { config, database: makeDatabase(config, driver) };
   const handle = createRestHandler(ctx, { basePath: "/admin/api" });
@@ -87,8 +87,12 @@ describe("create", () => {
     expect((error as ContentClientError).status).toBe(409);
     expect((error as ContentClientError).failure).toMatchObject({
       code: "CONFLICT",
-      field: "slug",
+      issues: [{ path: ["slug"], message: "Already in use." }],
     });
+    // The opaque code alone isn't enough — the message names the field, and
+    // `issuesByField` hands a form the `{ field: message }` map directly.
+    expect((error as ContentClientError).message).toBe("CONFLICT (409): slug: Already in use.");
+    expect((error as ContentClientError).issuesByField()).toEqual({ slug: "Already in use." });
   });
 
   it("throws a typed VALIDATION when the payload is invalid", async () => {
@@ -96,6 +100,8 @@ describe("create", () => {
     const error = await client.posts.create({ slug: "no-title" } as never).catch((e) => e);
     expect((error as ContentClientError).status).toBe(422);
     expect((error as ContentClientError).failure.code).toBe("VALIDATION");
+    expect((error as ContentClientError).message).toBe("VALIDATION (422): title: Required.");
+    expect((error as ContentClientError).issuesByField()).toEqual({ title: "Required." });
   });
 });
 
@@ -129,6 +135,18 @@ describe("read", () => {
     });
     expect(second.data.map((d) => d.rank)).toEqual([3]);
     expect(second.nextCursor).toBeNull();
+  });
+
+  it("list returns the scope's total when count is requested, omits it otherwise", async () => {
+    for (const n of [1, 2, 3]) {
+      await client.posts.create({ title: `C${n}`, slug: `c${n}`, rank: n });
+    }
+    const counted = await client.posts.list({ limit: 1, count: true });
+    expect(counted.data).toHaveLength(1);
+    expect(counted.total).toBe(3);
+
+    const plain = await client.posts.list({ limit: 1 });
+    expect(plain.total).toBeUndefined();
   });
 });
 

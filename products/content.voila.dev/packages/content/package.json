@@ -6,6 +6,8 @@
     ".": "./src/index.ts",
     "./sql": "./src/sql/index.ts",
     "./server": "./src/server/index.ts",
+    "./server/bun-sqlite": "./src/server/database/bun-sqlite-driver.ts",
+    "./server/node-sqlite": "./src/server/database/node-sqlite-driver.ts",
     "./client": "./src/client/index.ts",
     "./better-auth": "./src/server/auth/better-auth/index.ts"
   },

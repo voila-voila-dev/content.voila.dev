@@ -5,8 +5,8 @@
 
 import { beforeEach, describe, expect, it } from "bun:test";
 import { defineCollection, defineConfig, fields, type NormalizedConfig } from "@voila/content";
+import { makeBunSqliteDriver } from "../server/database/bun-sqlite-driver";
 import { makeDatabase } from "../server/database/database";
-import { makeSqliteDriver } from "../server/database/sqlite-driver";
 import { makeMediaStore } from "../server/media/store";
 import { createRestHandler, type RestContext } from "../server/rest";
 import { makeMemoryStorage, type Storage } from "../server/storage";
@@ -44,7 +44,7 @@ let media: MediaClient;
 let storage: Storage;
 
 beforeEach(async () => {
-  const driver = makeSqliteDriver({ url: ":memory:" });
+  const driver = makeBunSqliteDriver({ url: ":memory:" });
   for (const statement of schemaStatements(config)) await driver.run(statement);
   storage = makeMemoryStorage();
   const ctx: RestContext = {

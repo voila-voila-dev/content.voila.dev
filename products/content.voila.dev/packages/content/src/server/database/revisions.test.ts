@@ -8,8 +8,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { defineCollection, defineConfig, fields, type NormalizedConfig } from "@voila/content";
 import { deriveSchema, REVISIONS_TABLE } from "../../sql";
+import { makeBunSqliteDriver, type SqliteDriver } from "./bun-sqlite-driver";
 import { DatabaseError, makeDatabase } from "./database";
-import { makeSqliteDriver, type SqliteDriver } from "./sqlite-driver";
 
 const posts = defineCollection({
   slug: "posts",
@@ -66,7 +66,7 @@ describe("revisions workflow", () => {
   let db: ReturnType<typeof makeDatabase>;
 
   beforeEach(async () => {
-    driver = makeSqliteDriver({ url: ":memory:" });
+    driver = makeBunSqliteDriver({ url: ":memory:" });
     db = makeDatabase(config, driver);
     await createTables(config, driver);
   });

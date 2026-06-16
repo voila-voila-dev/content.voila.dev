@@ -3,6 +3,7 @@
 // subpath (`@voila/content/better-auth`) so it's the *only* entry that pulls in
 // `better-auth`: hosts using the seam with their own auth never load it.
 
+export { firstUserAccess } from "./access";
 export { makeSqlAdapter } from "./adapter";
 export {
   type BetterAuthBridge,

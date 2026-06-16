@@ -17,9 +17,20 @@ describe("fields.datetime", () => {
     expect(decodeSync(f, d)).toBe(d);
   });
 
-  it("rejects non-finite numbers and other types", () => {
+  it("decodes an ISO-8601 string to a Date", () => {
+    const f = datetime();
+    // What `JSON.stringify(new Date(...))` puts on the wire from the client.
+    const decoded = decodeSync(f, "2026-06-08T10:30:00.000Z");
+    expect(decoded).toBeInstanceOf(Date);
+    expect(decoded.getTime()).toBe(Date.parse("2026-06-08T10:30:00.000Z"));
+    // Date-only ISO strings parse too (UTC midnight).
+    expect(decodeSync(f, "2026-06-08").getTime()).toBe(Date.parse("2026-06-08"));
+  });
+
+  it("rejects non-finite numbers, unparseable strings, and other types", () => {
     const f = datetime();
     expect(() => decodeSync(f, Number.NaN)).toThrow();
-    expect(() => decodeSync(f, "2026-06-08")).toThrow();
+    expect(() => decodeSync(f, "not a date")).toThrow();
+    expect(() => decodeSync(f, true)).toThrow();
   });
 });

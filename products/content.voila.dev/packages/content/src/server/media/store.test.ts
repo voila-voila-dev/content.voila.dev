@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { defineCollection, defineConfig, fields, type NormalizedConfig } from "@voila/content";
 import { deriveSchema } from "../../sql";
-import { makeSqliteDriver, type SqliteDriver } from "../database/sqlite-driver";
+import { makeBunSqliteDriver, type SqliteDriver } from "../database/bun-sqlite-driver";
 import { type MediaStore, makeMediaStore } from "./store";
 
 const posts = defineCollection({
@@ -40,7 +40,7 @@ let driver: SqliteDriver;
 let store: MediaStore;
 
 beforeEach(async () => {
-  driver = makeSqliteDriver({ url: ":memory:" });
+  driver = makeBunSqliteDriver({ url: ":memory:" });
   for (const statement of schemaStatements(config)) await driver.run(statement);
   store = makeMediaStore(driver);
 });

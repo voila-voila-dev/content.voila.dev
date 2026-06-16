@@ -7,8 +7,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { defineCollection, defineConfig, fields, type NormalizedConfig } from "@voila/content";
 import { deriveSchema } from "../../sql";
+import { makeBunSqliteDriver, type SqliteDriver } from "./bun-sqlite-driver";
 import { DatabaseError, makeDatabase } from "./database";
-import { makeSqliteDriver, type SqliteDriver } from "./sqlite-driver";
 
 const posts = defineCollection({
   slug: "posts",
@@ -65,7 +65,7 @@ const seedRows: ReadonlyArray<SeedRow> = [
 let driver: SqliteDriver;
 
 async function bootstrap(): Promise<ReturnType<typeof makeDatabase>> {
-  driver = makeSqliteDriver({ url: ":memory:" });
+  driver = makeBunSqliteDriver({ url: ":memory:" });
   for (const statement of schemaStatements(config)) await driver.run(statement);
   for (const row of seedRows) {
     await driver.run(
@@ -163,6 +163,25 @@ describe("Database.list", () => {
     const result = await db.list("posts", { limit: 2 });
     expect(result.documents).toHaveLength(2);
     expect(result.nextCursor).not.toBeNull();
+  });
+
+  it("computes the scope's total with count, independent of the page cursor", async () => {
+    const first = await db.list("posts", { limit: 2, count: true });
+    expect(first.documents).toHaveLength(2);
+    // All pages, soft-deleted p5 excluded.
+    expect(first.total).toBe(4);
+
+    const second = await db.list("posts", {
+      limit: 2,
+      cursor: first.nextCursor ?? undefined,
+      count: true,
+    });
+    expect(second.total).toBe(4);
+  });
+
+  it("omits total unless count is requested", async () => {
+    const result = await db.list("posts", { limit: 2 });
+    expect(result.total).toBeUndefined();
   });
 
   it("rejects an unknown collection with a DatabaseError", async () => {

@@ -109,3 +109,16 @@ export type InferSingleton<
   C extends NormalizedConfig,
   Slug extends keyof C["singletons"] & string,
 > = C["singletons"][Slug] extends Singleton<string, infer Fields> ? InferFields<Fields> : never;
+
+/**
+ * The TypeScript shape of a singleton document fetched with a `locale` — every
+ * localized field resolved to one locale's value. Companion to
+ * {@link InferLocalizedDoc} for `defineSingleton` slugs.
+ */
+export type InferLocalizedSingleton<
+  C extends NormalizedConfig,
+  Slug extends keyof C["singletons"] & string,
+> =
+  C["singletons"][Slug] extends Singleton<string, infer Fields>
+    ? InferLocalizedFields<Fields>
+    : never;

@@ -15,8 +15,8 @@ import {
 import { deriveSchema } from "../../sql";
 import type { Authenticator } from "../auth/authenticator";
 import type { Principal } from "../auth/principal";
+import { makeBunSqliteDriver, type SqliteDriver } from "../database/bun-sqlite-driver";
 import { makeDatabase } from "../database/database";
-import { makeSqliteDriver, type SqliteDriver } from "../database/sqlite-driver";
 import type { Database, Document, Revision } from "../database/types";
 import type { ApiFailure } from "./errors";
 import { readAccessContext, redactDocument } from "./field-access";
@@ -71,7 +71,7 @@ let handle: (request: Request) => Promise<Response | null>;
 let openHandle: (request: Request) => Promise<Response | null>;
 
 beforeEach(async () => {
-  const driver: SqliteDriver = makeSqliteDriver({ url: ":memory:" });
+  const driver: SqliteDriver = makeBunSqliteDriver({ url: ":memory:" });
   for (const statement of schemaStatements(config)) await driver.run(statement);
   database = makeDatabase(config, driver);
   const ctx: RestContext = { config, database };
@@ -151,7 +151,8 @@ describe("read redaction", () => {
     expect(res.status).toBe(403);
     const failure = await errorOf(res);
     expect(failure.code).toBe("FORBIDDEN");
-    if (failure.code === "FORBIDDEN") expect(failure.fields).toEqual(["secret"]);
+    if (failure.code === "FORBIDDEN")
+      expect(failure.issues).toEqual([{ path: ["secret"], message: "Not allowed." }]);
   });
 
   it("allows the same lookup for a caller who can read the field", async () => {
@@ -175,7 +176,7 @@ describe("write denial", () => {
     if (failure.code === "FORBIDDEN") {
       expect(failure.collectionSlug).toBe("posts");
       expect(failure.operation).toBe("create");
-      expect(failure.fields).toEqual(["locked"]);
+      expect(failure.issues).toEqual([{ path: ["locked"], message: "Not allowed." }]);
     }
   });
 
@@ -203,7 +204,7 @@ describe("write denial", () => {
     const failure = await errorOf(denied);
     if (failure.code === "FORBIDDEN") {
       expect(failure.operation).toBe("update");
-      expect(failure.fields).toEqual(["locked"]);
+      expect(failure.issues).toEqual([{ path: ["locked"], message: "Not allowed." }]);
     }
 
     const allowed = await send(`/posts/${id}`, {
@@ -251,7 +252,8 @@ describe("version history", () => {
     expect(denied.status).toBe(403);
     const failure = await errorOf(denied);
     expect(failure.code).toBe("FORBIDDEN");
-    if (failure.code === "FORBIDDEN") expect(failure.fields).toEqual(["locked"]);
+    if (failure.code === "FORBIDDEN")
+      expect(failure.issues).toEqual([{ path: ["locked"], message: "Not allowed." }]);
 
     const allowed = await send(`/posts/${id}/revisions/1/restore`, { method: "POST", as: "admin" });
     expect(allowed.status).toBe(200);

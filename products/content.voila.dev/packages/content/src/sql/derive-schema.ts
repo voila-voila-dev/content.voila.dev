@@ -168,6 +168,9 @@ export const REVISIONS_TABLE = "voila_revisions";
 /** Table name of the engine-owned media library (one table for all uploads). */
 export const MEDIA_TABLE = "voila_media";
 
+/** Table name of the engine-owned full-text index (one table for all collections). */
+export const SEARCH_TABLE = "voila_search";
+
 /**
  * The engine-owned media library: one row per uploaded file, keyed by the
  * storage object `key` the `Storage` seam wrote. Emitted only when the config
@@ -248,6 +251,44 @@ function revisionsTable(): TableSchema {
   };
 }
 
+/**
+ * The engine-owned full-text index, shared by every search-enabled collection:
+ * one row per indexed document, the searchable text concatenated into `content`.
+ * `(collection, doc_id)` identifies the source row; the runtime `Database` keeps
+ * it in sync on writes. Rendered as an FTS5 virtual table on SQLite/D1 (the only
+ * dialect the runtime drives) and as a table + GIN index on Postgres. Emitted
+ * only when at least one collection opted in.
+ */
+function searchTable(): TableSchema {
+  return {
+    name: SEARCH_TABLE,
+    columns: [
+      { name: "collection", fieldName: "collection", type: TEXT, notNull: true },
+      { name: "doc_id", fieldName: "docId", type: TEXT, notNull: true },
+      { name: "content", fieldName: "content", type: TEXT, notNull: true },
+    ],
+    indexes: [
+      {
+        name: `${SEARCH_TABLE}_content_idx`,
+        table: SEARCH_TABLE,
+        columns: ["content"],
+        unique: false,
+        using: "gin",
+        expression: `to_tsvector('simple', "content")`,
+      },
+    ],
+    fts: { module: "fts5", content: "content", unindexed: ["collection", "doc_id"] },
+    system: true,
+  };
+}
+
+/** True when a collection's `search` opt is enabled (boolean `true` or a
+ *  non-empty field list). */
+function searchEnabled(search: boolean | ReadonlyArray<string> | undefined): boolean {
+  if (search === undefined || search === false) return false;
+  return Array.isArray(search) ? search.length > 0 : true;
+}
+
 function buildTable(
   slug: string,
   fields: FieldsMap,
@@ -315,17 +356,24 @@ export function deriveSchema(config: NormalizedConfig): ReadonlyArray<TableSchem
   // field-bearing shape the deriver actually reads.
   const collections = config.collections as Record<
     string,
-    { fields: FieldsMap; drafts?: boolean; revisions?: boolean }
+    {
+      fields: FieldsMap;
+      drafts?: boolean;
+      revisions?: boolean;
+      search?: boolean | ReadonlyArray<string>;
+    }
   >;
   const singletons = config.singletons as Record<string, { fields: FieldsMap }>;
 
   const tables: TableSchema[] = [];
   let anyRevisions = false;
   let anyMedia = false;
+  let anySearch = false;
   for (const [slug, collection] of Object.entries(collections)) {
     const revisions = collection.revisions === true;
     anyRevisions ||= revisions;
     anyMedia ||= usesMedia(collection.fields);
+    anySearch ||= searchEnabled(collection.search);
     tables.push(
       buildTable(slug, collection.fields, { drafts: collection.drafts === true, revisions }),
     );
@@ -334,8 +382,9 @@ export function deriveSchema(config: NormalizedConfig): ReadonlyArray<TableSchem
     anyMedia ||= usesMedia(singleton.fields);
     tables.push(buildTable(slug, singleton.fields, { singletonId: slug }));
   }
-  // The shared revision + media stores ship only when something writes to them.
+  // The shared revision + media + search stores ship only when something uses them.
   if (anyRevisions) tables.push(revisionsTable());
   if (anyMedia) tables.push(mediaTable());
+  if (anySearch) tables.push(searchTable());
   return tables;
 }

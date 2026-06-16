@@ -51,6 +51,18 @@ describe("defineConfig", () => {
     expect(config.singletons.settings.slug).toBe("settings");
   });
 
+  it("carries titleField through to the normalized collection", () => {
+    const titled = defineCollection({
+      slug: "pages",
+      titleField: "name",
+      fields: { name: fields.string() },
+    });
+    const config = defineConfig({ branding: { name: "Acme" }, collections: { titled } });
+    expect(config.collections.titled.titleField).toBe("name");
+    // @ts-expect-error — titleField must name a declared field.
+    void defineCollection({ slug: "bad", titleField: "nope", fields: { name: fields.string() } });
+  });
+
   it("narrows localized fields' runtime schema to the selected locales", () => {
     const config = defineConfig({
       branding: { name: "Acme" },

@@ -8,26 +8,38 @@
 
 import type { NormalizedConfig } from "../config/config";
 import type { I18nConfig } from "../config/i18n";
-import type { InferDoc, InferDrafts, InferLocalizedDoc } from "../config/schema/infer";
+import type {
+  InferDoc,
+  InferDrafts,
+  InferLocalizedDoc,
+  InferLocalizedSingleton,
+  InferSingleton,
+} from "../config/schema/infer";
 import { type ApiFailure, ContentClientError } from "./errors";
 
+// `type` aliases rather than `interface`s on purpose: an object-literal type
+// alias carries an implicit index signature into an intersection, so a typed
+// `Stored<…>` stays assignable to the admin UI's loose `Record<string, unknown>`
+// document shape. An `interface` member would suppress that and break the
+// hand-off from the typed client to `@voila/content-ui`.
+
 /** System columns the server stamps on every row, on top of the declared fields. */
-export interface SystemFields {
+export type SystemFields = {
   readonly id: string;
   readonly createdAt: number;
   readonly updatedAt: number;
   readonly deletedAt: number | null;
-}
+};
 
 /**
  * Draft-workflow columns, present only on collections defined with
  * `drafts: true`. A `published` row whose `publishedAt` is still in the future
  * is scheduled, not yet live.
  */
-export interface DraftSystemFields {
+export type DraftSystemFields = {
   readonly status: "draft" | "published";
   readonly publishedAt: number | null;
-}
+};
 
 /**
  * A stored document: the declared field shape plus the system columns. When the
@@ -62,11 +74,15 @@ export interface ListParams<Doc> {
   readonly cursor?: string;
   /** Draft scoping; defaults to live published rows. Ignored for non-draft collections. */
   readonly status?: DraftFilter;
+  /** Also fetch the total row count for the same scope (`total` on the page). */
+  readonly count?: boolean;
 }
 
 export interface ListPage<Doc, Drafts extends boolean = false> {
   readonly data: ReadonlyArray<Stored<Doc, Drafts>>;
   readonly nextCursor: string | null;
+  /** Total rows in scope (all pages); present only when `count` was requested. */
+  readonly total?: number;
 }
 
 /**
@@ -92,6 +108,18 @@ export interface RevisionPage<Doc, Drafts extends boolean = false> {
   /** Revisions ordered newest-first. */
   readonly data: ReadonlyArray<Revision<Doc, Drafts>>;
   readonly nextCursor: string | null;
+}
+
+export interface SearchParams {
+  /** Max results (server clamps to 1–100; defaults to 20). */
+  readonly limit?: number;
+  /** Draft scoping; defaults to live published rows. Ignored for non-draft collections. */
+  readonly status?: DraftFilter;
+}
+
+export interface SearchPage<Doc, Drafts extends boolean = false> {
+  /** Matched rows, ordered most-relevant-first. */
+  readonly data: ReadonlyArray<Stored<Doc, Drafts>>;
 }
 
 /** A read scoped to one locale — localized fields flatten to that locale's value. */
@@ -149,6 +177,25 @@ export interface CollectionClient<
   /** Re-apply a past revision's content fields (appends a new revision — history
    *  stays linear); returns the stored row (revisions-enabled collections). */
   restoreRevision(id: string, rev: number): Promise<Stored<Doc, Drafts>>;
+  /** Full-text search the collection for one locale — localized fields flattened
+   *  (search-enabled collections). */
+  search(query: string, params: SearchParams & LocaleOption<L>): Promise<SearchPage<LDoc, Drafts>>;
+  /** Full-text search the collection, ranked by relevance (search-enabled collections). */
+  search(query: string, params?: SearchParams): Promise<SearchPage<Doc, Drafts>>;
+}
+
+/**
+ * The per-singleton method surface: the one document is fetched with `get`
+ * (`null` until the first write) and created-or-replaced with `set` (a full
+ * field payload — the server upserts the row pinned to `id = slug`).
+ */
+export interface SingletonClient<Doc, LDoc = Doc, L extends string = string> {
+  /** Fetch the document for one locale, or `null` if it hasn't been set yet. */
+  get(opts: LocaleOption<L>): Promise<Stored<LDoc> | null>;
+  /** Fetch the document, or `null` if it hasn't been set yet. */
+  get(): Promise<Stored<Doc> | null>;
+  /** Create-or-replace the document from a full field payload; returns the stored row. */
+  set(data: Doc): Promise<Stored<Doc>>;
 }
 
 // The union of a config's selected locales — what a `locale` read argument
@@ -157,7 +204,8 @@ export interface CollectionClient<
 type ConfigLocale<C extends NormalizedConfig> =
   NonNullable<C["i18n"]> extends I18nConfig<infer Locales> ? Locales[number] : string;
 
-/** The typed client surface: one `CollectionClient` per configured collection. */
+/** The typed client surface: one `CollectionClient` per configured collection,
+ *  plus one `SingletonClient` per configured singleton. */
 export type ContentClient<C extends NormalizedConfig> = {
   readonly [Slug in keyof C["collections"] & string]: CollectionClient<
     InferDoc<C, Slug>,
@@ -165,7 +213,22 @@ export type ContentClient<C extends NormalizedConfig> = {
     InferLocalizedDoc<C, Slug>,
     ConfigLocale<C>
   >;
+} & {
+  readonly [Slug in keyof C["singletons"] & string]: SingletonClient<
+    InferSingleton<C, Slug>,
+    InferLocalizedSingleton<C, Slug>,
+    ConfigLocale<C>
+  >;
 };
+
+/**
+ * The slice of `fetch` the client actually uses — its call signature only.
+ * Deriving it from `typeof fetch` keeps the arg/return types exact while
+ * dropping the static extras (Bun/undici add a `preconnect` method) a custom
+ * wrapper has no reason to implement. A plain `async (input, init) => …` is a
+ * valid `Fetch`; the global `fetch` is too.
+ */
+export type Fetch = (...args: Parameters<typeof fetch>) => ReturnType<typeof fetch>;
 
 export interface ClientOptions {
   /**
@@ -174,13 +237,14 @@ export interface ClientOptions {
    */
   readonly baseUrl: string;
   /** Fetch implementation; defaults to the global `fetch`. */
-  readonly fetch?: typeof fetch;
+  readonly fetch?: Fetch;
 }
 
 /** The on-the-wire envelope every endpoint returns (success or error). */
 interface Envelope {
   readonly data?: unknown;
   readonly nextCursor?: string | null;
+  readonly total?: number;
   readonly error?: ApiFailure;
 }
 
@@ -202,6 +266,7 @@ function listQuery<Doc>(params: (ListParams<Doc> & { locale?: string }) | undefi
   if (params.order !== undefined) qs.set("order", params.order);
   if (params.cursor !== undefined) qs.set("cursor", params.cursor);
   if (params.status !== undefined) qs.set("status", params.status);
+  if (params.count !== undefined) qs.set("count", params.count ? "1" : "0");
   if (params.locale !== undefined) qs.set("locale", params.locale);
   const query = qs.toString();
   return query ? `?${query}` : "";
@@ -216,13 +281,8 @@ function jsonBody(data: unknown): RequestInit {
   return { headers: { "content-type": "application/json" }, body: JSON.stringify({ data }) };
 }
 
-function makeCollectionClient(
-  slug: string,
-  base: string,
-  fetchImpl: typeof fetch,
-): CollectionClient<unknown> {
-  const root = `${base}/${enc(slug)}`;
-
+// The two request shapes every accessor builds on, closed over a fetch impl.
+function makeSenders(fetchImpl: Fetch) {
   // Run a request, unwrap the envelope's `data`, and raise a typed error on any
   // non-2xx. The lone `as T` is the wire→typed boundary: the row shape is the
   // `InferDoc` type the public surface maps each method to, validated server-side.
@@ -243,6 +303,17 @@ function makeCollectionClient(
     throw new ContentClientError(res.status, body.error ?? INTERNAL);
   };
 
+  return { send, sendMaybe };
+}
+
+function makeCollectionClient(
+  slug: string,
+  base: string,
+  fetchImpl: Fetch,
+): CollectionClient<unknown> {
+  const root = `${base}/${enc(slug)}`;
+  const { send, sendMaybe } = makeSenders(fetchImpl);
+
   const impl: CollectionClient<unknown> = {
     async list(params?: ListParams<unknown> & { locale?: string }) {
       const res = await fetchImpl(`${root}${listQuery(params)}`);
@@ -251,6 +322,7 @@ function makeCollectionClient(
       return {
         data: (body.data as ReadonlyArray<Stored<unknown>>) ?? [],
         nextCursor: body.nextCursor ?? null,
+        ...(body.total !== undefined ? { total: body.total } : {}),
       };
     },
     find: (id, opts?: { locale?: string }) =>
@@ -293,8 +365,32 @@ function makeCollectionClient(
     revision: (id, rev) => sendMaybe<Revision<unknown>>(`${root}/${enc(id)}/revisions/${rev}`),
     restoreRevision: (id, rev) =>
       send<Stored<unknown>>(`${root}/${enc(id)}/revisions/${rev}/restore`, { method: "POST" }),
+    async search(query, params?: SearchParams & { locale?: string }) {
+      const qs = new URLSearchParams({ q: query });
+      if (params?.limit !== undefined) qs.set("limit", String(params.limit));
+      if (params?.status !== undefined) qs.set("status", params.status);
+      if (params?.locale !== undefined) qs.set("locale", params.locale);
+      const res = await fetchImpl(`${root}/search?${qs.toString()}`);
+      const body = (await res.json()) as Envelope;
+      if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL);
+      return { data: (body.data as ReadonlyArray<Stored<unknown>>) ?? [] };
+    },
   };
   return impl;
+}
+
+function makeSingletonClient(
+  slug: string,
+  base: string,
+  fetchImpl: Fetch,
+): SingletonClient<unknown> {
+  const root = `${base}/${enc(slug)}`;
+  const { send, sendMaybe } = makeSenders(fetchImpl);
+  return {
+    // 404 NOT_FOUND just means the document hasn't been set yet → `null`.
+    get: (opts?: { locale?: string }) => sendMaybe<Stored<unknown>>(`${root}${localeQuery(opts)}`),
+    set: (data) => send<Stored<unknown>>(root, { method: "PUT", ...jsonBody(data) }),
+  };
 }
 
 /**
@@ -313,9 +409,12 @@ export function makeClient<C extends NormalizedConfig>(
 ): ContentClient<C> {
   const base = trimBase(options.baseUrl);
   const fetchImpl = options.fetch ?? globalThis.fetch;
-  const client: Record<string, CollectionClient<unknown>> = {};
+  const client: Record<string, CollectionClient<unknown> | SingletonClient<unknown>> = {};
   for (const slug of Object.keys(config.collections)) {
     client[slug] = makeCollectionClient(slug, base, fetchImpl);
+  }
+  for (const slug of Object.keys(config.singletons)) {
+    client[slug] = makeSingletonClient(slug, base, fetchImpl);
   }
   // The per-slug `CollectionClient<unknown>` accessors are re-viewed as their
   // config-derived `CollectionClient<InferDoc<…>>` types here — the single

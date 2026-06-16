@@ -7,8 +7,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { defineCollection, defineConfig, fields, type NormalizedConfig } from "@voila/content";
 import { deriveSchema } from "../../sql";
+import { makeBunSqliteDriver } from "./bun-sqlite-driver";
 import { DatabaseError, makeDatabase } from "./database";
-import { makeSqliteDriver } from "./sqlite-driver";
 import type { Document } from "./types";
 
 const posts = defineCollection({
@@ -48,7 +48,7 @@ let counter = 0;
 
 beforeEach(async () => {
   counter = 0;
-  const driver = makeSqliteDriver({ url: ":memory:" });
+  const driver = makeBunSqliteDriver({ url: ":memory:" });
   for (const statement of schemaStatements(config)) await driver.run(statement);
   db = makeDatabase(config, driver);
 });

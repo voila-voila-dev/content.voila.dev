@@ -42,6 +42,7 @@ export {
   isLocale,
   LOCALES,
   mediaVariantUrls,
+  slugify,
 } from "./config/schema/fields";
 // Rich-text elements + marks + extension helpers. Pass these to
 // `fields.richText({ elements, marks })` to restrict a field, or use
@@ -53,6 +54,7 @@ export type {
   InferFields,
   InferLocalizedDoc,
   InferLocalizedFields,
+  InferLocalizedSingleton,
   InferSingleton,
 } from "./config/schema/infer";
 export type { Singleton, SingletonDef } from "./config/schema/singleton";

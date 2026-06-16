@@ -32,12 +32,17 @@ export interface ListOpts {
   readonly direction?: OrderDirection;
   /** Draft scoping (draft-enabled collections only). Defaults to `published`. */
   readonly status?: DraftFilter;
+  /** Also compute the total row count for the same scope (one extra `COUNT(*)`,
+   *  cursor-independent). Off by default — most pages don't need it. */
+  readonly count?: boolean;
 }
 
 export interface ListResult {
   readonly documents: ReadonlyArray<Document>;
   /** Cursor for the next page, or `null` when the last page was returned. */
   readonly nextCursor: string | null;
+  /** Total rows in scope (all pages); present only when `count` was requested. */
+  readonly total?: number;
 }
 
 /** A primitive value usable as a `findOne` lookup key. */
@@ -56,6 +61,10 @@ export interface Database {
   /** Patch a live row's supplied `values` (bumps `updatedAt`); returns the stored row,
    *  or `null` if it's missing or soft-deleted. Unique violation → `conflict`. */
   update(collection: string, id: string, values: Document): Promise<Document | null>;
+  /** Create-or-update the one row of a singleton (`id` = the singleton's slug,
+   *  pinned by the table's CHECK constraint); a soft-deleted row revives. Returns
+   *  the stored row. Errors if the collection isn't a singleton. */
+  upsert(collection: string, values: Document): Promise<Document>;
   /** Soft-delete a live row (stamps `deletedAt`); `false` if it was already gone. */
   softDelete(collection: string, id: string): Promise<boolean>;
   /** Permanently remove a row regardless of soft-delete state; `false` if absent. */
@@ -87,6 +96,24 @@ export interface Database {
    *  revision or the live row is missing. Errors if the collection isn't
    *  revisions-enabled. */
   restoreRevision(collection: string, id: string, rev: number): Promise<Document | null>;
+  /** Full-text search a collection's live rows, ranked by relevance (bm25).
+   *  Results pass through the normal read scoping (soft-delete + `opts.status`
+   *  draft scoping). Returns rows newest-relevance-first. Errors if the
+   *  collection isn't search-enabled. */
+  search(collection: string, query: string, opts?: SearchOpts): Promise<SearchResult>;
+}
+
+export interface SearchOpts {
+  /** Max results. Clamped to 1–100; defaults to 20. */
+  readonly limit?: number;
+  /** Draft scoping for the matched rows (draft-enabled collections only).
+   *  Defaults to `published` — only live rows are searchable by default. */
+  readonly status?: DraftFilter;
+}
+
+export interface SearchResult {
+  /** Matched rows, ordered most-relevant-first. */
+  readonly documents: ReadonlyArray<Document>;
 }
 
 export interface PublishOpts {

@@ -14,8 +14,8 @@ import type { Principal } from "../auth/principal";
 import { DatabaseError } from "../database/database";
 import type { Revision, RevisionListOpts } from "../database/types";
 import { badRequest, conflict, fail, invalidCursor, notFound } from "./errors";
-import { assertRestorableFields, readAccessContext, redactDocument } from "./field-access";
-import { type RestContext, requireCollection, runHandler } from "./handlers";
+import { assertRestorableFields } from "./field-access";
+import { type RestContext, requireCollection, runHandler, serializeRow } from "./handlers";
 import type { CollectionLike } from "./query";
 import { parseLimit } from "./query";
 
@@ -55,14 +55,15 @@ async function runRevisions<A>(slug: string, fn: () => Promise<A>): Promise<A> {
 }
 
 // A revision snapshot is the full stored row as it stood, so it redacts like
-// any other serialization of the document.
+// any other serialization of the document. Snapshots always speak full
+// per-locale records — no locale chain.
 function redactRevision(
   entry: CollectionLike,
   revision: Revision,
   principal: Principal | null,
   id: string,
 ): Revision {
-  const doc = redactDocument(entry, revision.doc, readAccessContext(entry.slug, principal, id));
+  const doc = serializeRow(entry, revision.doc, principal, null, id);
   return doc === revision.doc ? revision : { ...revision, doc };
 }
 
@@ -82,7 +83,7 @@ export function handleListRevisions(
     );
     const data = result.revisions.map((r) => redactRevision(entry, r, principal, id));
     return Response.json({ data, nextCursor: result.nextCursor });
-  });
+  }, ctx.onError);
 }
 
 /** `GET /:collection/:id/revisions/:rev` — fetch one revision by number. */
@@ -101,7 +102,7 @@ export function handleGetRevision(
     );
     if (revision === null) fail(notFound(entry.slug));
     return Response.json({ data: redactRevision(entry, revision, principal, id) });
-  });
+  }, ctx.onError);
 }
 
 /** `POST /:collection/:id/revisions/:rev/restore` — re-apply a past revision's
@@ -123,8 +124,6 @@ export function handleRestoreRevision(
       ctx.database.restoreRevision(entry.slug, id, rev),
     );
     if (row === null) fail(notFound(entry.slug));
-    return Response.json({
-      data: redactDocument(entry, row, readAccessContext(entry.slug, principal, id)),
-    });
-  });
+    return Response.json({ data: serializeRow(entry, row, principal, null, id) });
+  }, ctx.onError);
 }

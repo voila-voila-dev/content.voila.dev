@@ -65,8 +65,8 @@ export interface ForbiddenError extends BaseError {
   /** The collection and operation the principal was denied, when known. */
   readonly collectionSlug?: string;
   readonly operation?: string;
-  /** Set when the denial is field-level: the fields the principal may not write. */
-  readonly fields?: ReadonlyArray<string>;
+  /** Set when the denial is field-level: one issue per field the principal may not touch. */
+  readonly issues?: ReadonlyArray<ValidationIssue>;
 }
 
 export interface CsrfError extends BaseError {
@@ -81,7 +81,12 @@ export interface TooLargeError extends BaseError {
   readonly size?: number;
 }
 
-/** One field-level validation failure: where it occurred and what was wrong. */
+/**
+ * One field-level failure: where it occurred and what was wrong. The shared
+ * currency of every field-addressable error — `VALIDATION`, `CONFLICT`, and
+ * field-level `FORBIDDEN` all carry `issues: ValidationIssue[]`, so a client
+ * needs one code path to map an error onto form fields.
+ */
 export interface ValidationIssue {
   /** Path to the offending value, field name first (e.g. `["title"]`, `["tags", 0]`). */
   readonly path: ReadonlyArray<string | number>;
@@ -97,8 +102,8 @@ export interface ValidationError extends BaseError {
 export interface ConflictError extends BaseError {
   readonly code: "CONFLICT";
   readonly collectionSlug: string;
-  /** The unique field that collided, when the driver names the column. */
-  readonly field?: string;
+  /** One issue per colliding unique field; empty when the driver doesn't name the column. */
+  readonly issues: ReadonlyArray<ValidationIssue>;
 }
 
 /** Every failure the read or write layer can produce. */
@@ -175,9 +180,11 @@ export function validation(
 }
 
 export function conflict(collectionSlug: string, field?: string): ConflictError {
-  return field === undefined
-    ? { code: "CONFLICT", collectionSlug }
-    : { code: "CONFLICT", collectionSlug, field };
+  return {
+    code: "CONFLICT",
+    collectionSlug,
+    issues: field === undefined ? [] : [{ path: [field], message: "Already in use." }],
+  };
 }
 
 /**
@@ -209,7 +216,9 @@ export function forbidden(
         ...error,
         collectionSlug,
         ...(operation === undefined ? {} : { operation }),
-        ...(fields === undefined ? {} : { fields }),
+        ...(fields === undefined
+          ? {}
+          : { issues: fields.map((field) => ({ path: [field], message: "Not allowed." })) }),
       };
 }
 

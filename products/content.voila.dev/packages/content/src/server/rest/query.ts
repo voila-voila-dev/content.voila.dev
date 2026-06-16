@@ -82,12 +82,14 @@ export interface ListQuery extends ListOpts {
   readonly cursor?: string;
   /** Draft scoping (draft-enabled collections); absent → published-only. */
   readonly status?: DraftFilter;
+  /** Compute the scope's total row count alongside the page (`?count=1`). */
+  readonly count?: boolean;
 }
 
 /**
- * Parse `?limit`, `?orderBy`, `?order`, `?cursor`, and `?status` for a list
- * request. Defaults: 25 rows (max 100), newest-first by `createdAt`, and — for
- * draft-enabled collections — only live published rows.
+ * Parse `?limit`, `?orderBy`, `?order`, `?cursor`, `?status`, and `?count` for
+ * a list request. Defaults: 25 rows (max 100), newest-first by `createdAt`,
+ * and — for draft-enabled collections — only live published rows.
  */
 export function parseListQuery(url: URL, collection: CollectionLike): ListQuery {
   const limit = parseLimit(url.searchParams.get("limit"));
@@ -107,13 +109,23 @@ export function parseListQuery(url: URL, collection: CollectionLike): ListQuery 
   }
 
   const status = parseStatus(url.searchParams.get("status"));
-  return { limit, orderBy, direction, cursor, status };
+  const count = parseCount(url.searchParams.get("count"));
+  return { limit, orderBy, direction, cursor, status, count };
 }
 
-function parseStatus(raw: string | null): DraftFilter | undefined {
+/** Parse a `?status` value into a draft filter, or `undefined` when absent.
+ *  Shared by the list and search routes. */
+export function parseStatus(raw: string | null): DraftFilter | undefined {
   if (raw === null) return undefined;
   if (raw === "published" || raw === "draft" || raw === "scheduled" || raw === "any") return raw;
   return fail(badRequest({ field: "status", expected: "published | draft | scheduled | any" }));
+}
+
+function parseCount(raw: string | null): boolean | undefined {
+  if (raw === null) return undefined;
+  if (raw === "1" || raw === "true") return true;
+  if (raw === "0" || raw === "false") return false;
+  return fail(badRequest({ field: "count", expected: "1 | 0 | true | false" }));
 }
 
 /** Parse a `?limit` value: 25 by default, integer, 1–100. Shared with the

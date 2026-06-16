@@ -4,8 +4,8 @@
 
 import { beforeEach, describe, expect, it } from "bun:test";
 import { defineCollection, defineConfig, fields, type NormalizedConfig } from "@voila/content";
+import { makeBunSqliteDriver } from "../server/database/bun-sqlite-driver";
 import { makeDatabase } from "../server/database/database";
-import { makeSqliteDriver } from "../server/database/sqlite-driver";
 import { createRestHandler, type RestContext } from "../server/rest";
 import { deriveSchema } from "../sql";
 import { type ContentClient, makeClient } from "./index";
@@ -42,7 +42,7 @@ function schemaStatements(cfg: NormalizedConfig): ReadonlyArray<string> {
 let client: ContentClient<typeof config>;
 
 beforeEach(async () => {
-  const driver = makeSqliteDriver({ url: ":memory:" });
+  const driver = makeBunSqliteDriver({ url: ":memory:" });
   for (const statement of schemaStatements(config)) await driver.run(statement);
   const ctx: RestContext = { config, database: makeDatabase(config, driver) };
   const handle = createRestHandler(ctx, { basePath: "/admin/api" });

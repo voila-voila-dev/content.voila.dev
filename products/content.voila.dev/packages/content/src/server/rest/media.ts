@@ -15,7 +15,7 @@ import type { MediaValue } from "../../config/schema/fields";
 import type { MediaListOpts, MediaRecord, MediaStore } from "../media/store";
 import type { Storage } from "../storage";
 import { badRequest, fail, notFound, tooLarge } from "./errors";
-import { runHandler } from "./handlers";
+import { type RestErrorHook, runHandler } from "./handlers";
 
 /** What the media routes need from the host: bytes + records + limits. */
 export interface MediaContext {
@@ -25,6 +25,8 @@ export interface MediaContext {
   readonly maxBytes?: number;
   /** Lifetime of backend-signed file URLs, in seconds. Default 900 (15 min). */
   readonly signedUrlExpiresIn?: number;
+  /** Observes unexpected errors before they fold to `INTERNAL` (see `RestErrorHook`). */
+  readonly onError?: RestErrorHook;
 }
 
 /** The reserved route segment (and the `collection` the RBAC hook sees). */
@@ -119,7 +121,7 @@ export function handleMediaUpload(
       alt: upload.alt,
     });
     return Response.json({ data: toMediaValue(record, basePath) }, { status: 201 });
-  });
+  }, media.onError);
 }
 
 /** `GET /_media` — page through the library, newest upload first. */
@@ -146,7 +148,7 @@ export function handleMediaList(
       data: result.records.map((record) => toMediaValue(record, basePath)),
       nextCursor: result.nextCursor,
     });
-  });
+  }, media.onError);
 }
 
 /** `GET /_media/:id` — fetch one record (metadata, not bytes). */
@@ -159,7 +161,7 @@ export function handleMediaGet(
     const record = await media.store.get(id);
     if (record === null) fail(notFound(MEDIA_SEGMENT));
     return Response.json({ data: toMediaValue(record, basePath) });
-  });
+  }, media.onError);
 }
 
 /** `GET /_media/:id/file` — the bytes: a 302 to a backend-signed URL when the
@@ -184,7 +186,7 @@ export function handleMediaFile(media: MediaContext, id: string): Promise<Respon
         "content-length": String(object.size ?? object.body.byteLength),
       },
     });
-  });
+  }, media.onError);
 }
 
 /** `DELETE /_media/:id` — remove the bytes and the record. */
@@ -195,5 +197,5 @@ export function handleMediaDelete(media: MediaContext, id: string): Promise<Resp
     await media.storage.delete(record.key);
     await media.store.delete(id);
     return Response.json({ data: { id } });
-  });
+  }, media.onError);
 }

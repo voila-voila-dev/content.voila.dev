@@ -2,7 +2,7 @@
 // runtime. The binding is supplied per-request by the Cloudflare runtime
 // (`env.DATABASE`), so the host builds the driver inside the request scope. D1
 // is SQLite under the hood, so row shapes and the read/write path are identical
-// to `makeSqliteDriver` — only the connection differs.
+// to `makeBunSqliteDriver` — only the connection differs.
 
 import { coerceBindings, type SqlDriver, type SqlRow, type SqlValue } from "./driver";
 

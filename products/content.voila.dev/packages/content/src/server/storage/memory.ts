@@ -5,7 +5,7 @@
 import type { Storage, StorageObject } from "./types";
 
 export function makeMemoryStorage(): Storage {
-  const objects = new Map<string, Uint8Array>();
+  const objects = new Map<string, Uint8Array<ArrayBuffer>>();
   return {
     id: "memory",
     async put(key, body) {

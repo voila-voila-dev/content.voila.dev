@@ -72,7 +72,7 @@ export { type SecretOpts, secret } from "./secret";
 // Selections
 export { type SelectOpts, select } from "./select";
 // Identifiers
-export { type SlugOpts, slug } from "./slug";
+export { type SlugMeta, type SlugOpts, slug, slugify } from "./slug";
 // Primitives
 export { type StringFormat, type StringOpts, string } from "./string";
 export { type TimeOpts, time } from "./time";

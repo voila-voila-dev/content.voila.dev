@@ -15,8 +15,11 @@ export { redactDocument } from "./field-access";
 export {
   handleFindByField,
   handleFindById,
+  handleGetSingleton,
   handleList,
   type RestContext,
+  type RestErrorHook,
+  serializeRow,
 } from "./handlers";
 export {
   handleMediaDelete,
@@ -38,6 +41,7 @@ export {
   handleDelete,
   handlePublish,
   handleRestore,
+  handleSetSingleton,
   handleUnpublish,
   handleUpdate,
   validateWrite,

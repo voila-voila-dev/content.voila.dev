@@ -6,7 +6,7 @@
 
 import { beforeEach, describe, expect, it } from "bun:test";
 import { authTableStatements } from "../../../sql/auth-schema";
-import { makeSqliteDriver } from "../../database/sqlite-driver";
+import { makeBunSqliteDriver } from "../../database/bun-sqlite-driver";
 import { makeSqlAdapter } from "./adapter";
 
 // The Better Auth adapter is opaquely typed; this test pokes it directly, so a
@@ -36,7 +36,7 @@ async function createUser(email: string, name: string, createdAt: Date, verified
 }
 
 beforeEach(async () => {
-  const driver = makeSqliteDriver({ url: ":memory:" });
+  const driver = makeBunSqliteDriver({ url: ":memory:" });
   for (const statement of authTableStatements) await driver.run(statement);
   adapter = makeSqlAdapter(driver)({});
   await createUser("alice@x.dev", "Alice", new Date(1000), true);

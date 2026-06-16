@@ -37,7 +37,10 @@ async function sha256Hex(payload: string): Promise<string> {
   return toHex(new Uint8Array(digest));
 }
 
-async function hmac(key: Uint8Array | string, payload: string): Promise<Uint8Array> {
+async function hmac(
+  key: Uint8Array<ArrayBuffer> | string,
+  payload: string,
+): Promise<Uint8Array<ArrayBuffer>> {
   const keyData = typeof key === "string" ? encoder.encode(key) : key;
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
@@ -146,7 +149,7 @@ export function makeS3Storage(opts: S3StorageOpts): Storage {
 
   return {
     id: "s3",
-    async put(key: string, body: Uint8Array, putOpts?: StoragePutOpts) {
+    async put(key: string, body: Uint8Array<ArrayBuffer>, putOpts?: StoragePutOpts) {
       const url = await sign("PUT", key, 300);
       const res = await fetchImpl(url, {
         method: "PUT",

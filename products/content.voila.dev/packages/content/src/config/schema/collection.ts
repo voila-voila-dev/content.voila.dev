@@ -2,6 +2,15 @@
 
 import type { FieldsMap } from "./fields";
 
+/**
+ * Opt a collection into full-text search. `true` auto-indexes the collection's
+ * text-bearing fields (string/slug/markdown/code/enum/select/multiSelect/richText);
+ * an array names the exact fields to index (any kind — values are stringified).
+ * Like `revisions`, it's runtime-only: it adds no columns to the collection's own
+ * table (the index lives in the engine-owned `voila_search` store).
+ */
+export type SearchOption = boolean | ReadonlyArray<string>;
+
 export interface CollectionDef<
   Slug extends string,
   Fields extends FieldsMap,
@@ -10,6 +19,16 @@ export interface CollectionDef<
   readonly kind: "collection";
   readonly slug: Slug;
   readonly label?: string;
+  /**
+   * Field whose value names a document (e.g. `"title"`). The admin UI uses it
+   * wherever one row needs a human heading — the detail page, breadcrumbs —
+   * falling back to the collection label when unset or empty.
+   *
+   * Held as plain `string` here (`keyof Fields` would make `Fields` invariant
+   * and break `Collection<…> extends Collection`); `defineCollection` checks
+   * the key against the declared fields at the authoring site.
+   */
+  readonly titleField?: string;
   /**
    * Opt into draft/published workflow. Adds `status` (`draft`/`published`) and a
    * nullable `publishedAt` (for scheduled publishing) to the table; `list`
@@ -29,6 +48,12 @@ export interface CollectionDef<
    * shapes are unchanged — so it isn't carried at the type level.
    */
   readonly revisions?: boolean;
+  /**
+   * Opt into full-text search (see {@link SearchOption}). Off by default. Like
+   * `revisions`, runtime-only — the index lives in the engine-owned
+   * `voila_search` store, so row shapes are unchanged and it isn't type-level.
+   */
+  readonly search?: SearchOption;
   readonly fields: Fields;
 }
 
@@ -45,16 +70,20 @@ export function defineCollection<
 >(def: {
   readonly slug: Slug;
   readonly label?: string;
+  readonly titleField?: keyof Fields & string;
   readonly drafts?: Drafts;
   readonly revisions?: boolean;
+  readonly search?: SearchOption;
   readonly fields: Fields;
 }): Collection<Slug, Fields, Drafts> {
   return {
     kind: "collection",
     slug: def.slug,
     label: def.label,
+    titleField: def.titleField,
     drafts: def.drafts,
     revisions: def.revisions,
+    search: def.search,
     fields: def.fields,
   };
 }

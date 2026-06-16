@@ -214,3 +214,48 @@ describe("voila_media", () => {
     expect(deriveSchema(config).some((t) => t.name === "voila_media")).toBe(false);
   });
 });
+
+describe("voila_search", () => {
+  const searchable = defineCollection({
+    slug: "articles",
+    search: true,
+    fields: { title: fields.string({ required: true }) },
+  });
+
+  it("ships an FTS table when a collection opts into search", () => {
+    const config = defineConfig({
+      branding: { name: "Acme" },
+      collections: { articles: searchable },
+    });
+    const search = deriveSchema(config).find((t) => t.name === "voila_search");
+    expect(search?.system).toBe(true);
+    expect(search?.fts).toEqual({
+      module: "fts5",
+      content: "content",
+      unindexed: ["collection", "doc_id"],
+    });
+    expect(search?.columns.map((c) => c.name)).toEqual(["collection", "doc_id", "content"]);
+    // The index is the Postgres-only GIN expression index (skipped on SQLite).
+    expect(search?.indexes[0]?.using).toBe("gin");
+  });
+
+  it("ships it for an explicit (non-empty) field list", () => {
+    const collection = defineCollection({
+      slug: "things",
+      search: ["name"],
+      fields: { name: fields.string() },
+    });
+    const config = defineConfig({
+      branding: { name: "Acme" },
+      collections: { things: collection },
+    });
+    expect(deriveSchema(config).some((t) => t.name === "voila_search")).toBe(true);
+  });
+
+  it("stays out of schemas with no (or empty) search opt-in", () => {
+    const off = defineCollection({ slug: "a", fields: { name: fields.string() } });
+    const empty = defineCollection({ slug: "b", search: [], fields: { name: fields.string() } });
+    const config = defineConfig({ branding: { name: "Acme" }, collections: { off, empty } });
+    expect(deriveSchema(config).some((t) => t.name === "voila_search")).toBe(false);
+  });
+});

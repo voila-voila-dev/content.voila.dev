@@ -4,7 +4,7 @@
 // from `deriveSchema` (same approach as the Database tests) so the suite stays
 // inside `@voila/content`.
 
-import { beforeEach, describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it, spyOn } from "bun:test";
 import {
   defineCollection,
   defineConfig,
@@ -13,10 +13,10 @@ import {
   type NormalizedConfig,
 } from "@voila/content";
 import { deriveSchema } from "../../sql";
+import { makeBunSqliteDriver, type SqliteDriver } from "../database/bun-sqlite-driver";
 import { makeDatabase } from "../database/database";
-import { makeSqliteDriver, type SqliteDriver } from "../database/sqlite-driver";
 import type { ApiFailure } from "./errors";
-import type { RestContext } from "./handlers";
+import { handleList, type RestContext } from "./handlers";
 import { createRestHandler } from "./router";
 
 const posts = defineCollection({
@@ -102,7 +102,7 @@ let driver: SqliteDriver;
 let handle: (request: Request) => Promise<Response | null>;
 
 beforeEach(async () => {
-  driver = makeSqliteDriver({ url: ":memory:" });
+  driver = makeBunSqliteDriver({ url: ":memory:" });
   // Create posts + settings, but deliberately not widgets.
   for (const statement of schemaStatements(config, new Set(["posts", "settings"]))) {
     await driver.run(statement);
@@ -128,7 +128,9 @@ beforeEach(async () => {
   ]);
 
   const ctx: RestContext = { config, database: makeDatabase(config, driver) };
-  handle = createRestHandler(ctx, { basePath: "/admin/api" });
+  // A no-op hook keeps the INTERNAL-path tests from logging through the default;
+  // the hook's own behavior is covered by the `onError` suite below.
+  handle = createRestHandler(ctx, { basePath: "/admin/api", onError: () => {} });
 });
 
 // Issue a GET and assert the dispatcher owned the route (non-null).
@@ -176,12 +178,44 @@ describe("list — GET /:collection", () => {
     expect(body.data.map((d) => d.title)).toEqual(["First", "Fourth", "Second", "Third"]);
   });
 
-  it("serves a singleton through the same routes", async () => {
-    const body = (await (await get("/admin/api/settings")).json()) as {
-      data: Array<{ siteName: string }>;
+  it("returns the scope's total with ?count=1, spanning every page", async () => {
+    const first = (await (await get("/admin/api/posts?limit=2&count=1")).json()) as {
+      data: Array<{ id: string }>;
+      nextCursor: string;
+      total: number;
     };
-    expect(body.data).toHaveLength(1);
-    expect(body.data[0]).toMatchObject({ id: "settings", siteName: "Voila" });
+    expect(first.data).toHaveLength(2);
+    // The total covers all pages and still excludes the soft-deleted row.
+    expect(first.total).toBe(4);
+
+    const second = (await (
+      await get(`/admin/api/posts?limit=2&count=1&cursor=${encodeURIComponent(first.nextCursor)}`)
+    ).json()) as { total: number };
+    expect(second.total).toBe(4);
+  });
+
+  it("omits total without ?count (and with ?count=0)", async () => {
+    expect("total" in ((await (await get("/admin/api/posts")).json()) as object)).toBe(false);
+    expect("total" in ((await (await get("/admin/api/posts?count=0")).json()) as object)).toBe(
+      false,
+    );
+  });
+
+  it("rejects a bad count value with 400 BAD_REQUEST", async () => {
+    const response = await get("/admin/api/posts?count=maybe");
+    expect(response.status).toBe(400);
+    expect(await failureOf(response)).toMatchObject({
+      code: "BAD_REQUEST",
+      details: { field: "count" },
+    });
+  });
+
+  it("serves a singleton as an object envelope, not a list", async () => {
+    const body = (await (await get("/admin/api/settings")).json()) as {
+      data: { siteName: string };
+    };
+    expect(Array.isArray(body.data)).toBe(false);
+    expect(body.data).toMatchObject({ id: "settings", siteName: "Voila" });
   });
 
   it("rejects an unknown collection with 404 UNKNOWN_COLLECTION", async () => {
@@ -320,5 +354,77 @@ describe("router", () => {
   it("decodes percent-encoded path segments", async () => {
     // The slug is plain, but the value arrives URL-encoded; it must decode to match.
     expect((await get("/admin/api/posts/by/slug/sec%6fnd")).status).toBe(200);
+  });
+});
+
+describe("onError", () => {
+  // `widgets` has no table, so any read throws inside the driver — the only
+  // path that folds to INTERNAL and should reach the hook.
+  const WIDGETS = "https://x/admin/api/widgets";
+
+  it("receives the cause when an unexpected throw folds to INTERNAL", async () => {
+    const seen: unknown[] = [];
+    const ctx: RestContext = { config, database: makeDatabase(config, driver) };
+    const handler = createRestHandler(ctx, {
+      basePath: "/admin/api",
+      onError: (error) => seen.push(error),
+    });
+    const response = await handler(new Request(WIDGETS));
+    expect(response?.status).toBe(500);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toBeInstanceOf(Error);
+  });
+
+  it("never fires for typed ApiFailures — they're expected control flow", async () => {
+    const seen: unknown[] = [];
+    const ctx: RestContext = { config, database: makeDatabase(config, driver) };
+    const handler = createRestHandler(ctx, {
+      basePath: "/admin/api",
+      onError: (error) => seen.push(error),
+    });
+    expect((await handler(new Request("https://x/admin/api/nope")))?.status).toBe(404);
+    expect((await handler(new Request("https://x/admin/api/posts?limit=0")))?.status).toBe(400);
+    expect(seen).toHaveLength(0);
+  });
+
+  it("prefers a hook set on the context over the mount option", async () => {
+    const calls: string[] = [];
+    const ctx: RestContext = {
+      config,
+      database: makeDatabase(config, driver),
+      onError: () => calls.push("ctx"),
+    };
+    const handler = createRestHandler(ctx, {
+      basePath: "/admin/api",
+      onError: () => calls.push("option"),
+    });
+    await handler(new Request(WIDGETS));
+    expect(calls).toEqual(["ctx"]);
+  });
+
+  it("defaults to console.error outside production", async () => {
+    const spy = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const ctx: RestContext = { config, database: makeDatabase(config, driver) };
+      const response = await handleList(ctx, "widgets", new URL(WIDGETS));
+      expect(response.status).toBe(500);
+      expect(spy).toHaveBeenCalledTimes(1);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("stays silent by default in production", async () => {
+    const spy = spyOn(console, "error").mockImplementation(() => {});
+    const nodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      const ctx: RestContext = { config, database: makeDatabase(config, driver) };
+      await handleList(ctx, "widgets", new URL(WIDGETS));
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      process.env.NODE_ENV = nodeEnv;
+      spy.mockRestore();
+    }
   });
 });

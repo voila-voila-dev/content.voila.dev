@@ -7,8 +7,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { defineCollection, defineConfig, fields, type NormalizedConfig } from "@voila/content";
 import { deriveSchema } from "../../sql";
+import { makeBunSqliteDriver } from "../database/bun-sqlite-driver";
 import { makeDatabase } from "../database/database";
-import { makeSqliteDriver } from "../database/sqlite-driver";
 import type { ApiFailure } from "../rest/errors";
 import type { RestContext } from "../rest/handlers";
 import { createRestHandler, type RestHandlerOptions } from "../rest/router";
@@ -65,7 +65,7 @@ const roleAccess: AccessControl = ({ principal, operation }) => {
 let ctx: RestContext;
 
 beforeEach(async () => {
-  const driver = makeSqliteDriver({ url: ":memory:" });
+  const driver = makeBunSqliteDriver({ url: ":memory:" });
   for (const statement of schemaStatements(config)) await driver.run(statement);
   await driver.run("INSERT INTO posts (id, title, slug, created_at) VALUES (?, ?, ?, ?)", [
     "p1",
