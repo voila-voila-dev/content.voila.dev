@@ -11,22 +11,34 @@
 //     back to markdown on change (`fromMarkdown`/`toMarkdown`), honoring the
 //     field's `flavor`. `mdx` can't round-trip, so it stays a raw textarea; for
 //     `commonmark`/`gfm` a toggle keeps the raw source one click away.
+//
+// This demo copy also wires the `/` slash menu and `@`-mentions — mentions need
+// a runtime source, so the items live here (your app owns this file). Swap the
+// static list for a query against your own users/posts.
 
 import type { rt } from "@voila/content";
 import type { EditWidgetProps } from "@voila/content-ui";
-import { RichTextEditor, RichTextFloatingToolbar, RichTextToolbar } from "@voila/rich-text-editor";
+import {
+  RichTextEditor,
+  RichTextFloatingToolbar,
+  RichTextImageButton,
+  RichTextToolbar,
+} from "@voila/rich-text-editor";
 import {
   deriveMarkdownPlugins,
   deriveMarkdownToolbar,
   derivePlugins,
   deriveToolbar,
   fromWire,
+  type MediaOptions,
+  type MentionItem,
   toWire,
 } from "@voila/rich-text-editor/content";
 import { fromMarkdown, type MarkdownFlavor, toMarkdown } from "@voila/rich-text-editor/serialize";
 import "@voila/rich-text-editor/styles.css";
 import { Button, Textarea } from "@voila/ui";
 import { type ReactNode, useMemo, useState } from "react";
+import { mediaClient } from "../../lib/content-client";
 
 /** The `richText` field's `meta` carries the allowed element/mark kinds. */
 interface RichTextMeta {
@@ -39,6 +51,26 @@ interface MarkdownMeta {
   readonly flavor?: MarkdownFlavor | "mdx";
   readonly description?: string;
 }
+
+/** People a writer can @-mention. In a real app, fetch these from a collection. */
+const MENTION_ITEMS: ReadonlyArray<MentionItem> = [
+  { value: "ada", label: "Ada Lovelace" },
+  { value: "alan", label: "Alan Turing" },
+  { value: "grace", label: "Grace Hopper" },
+  { value: "linus", label: "Linus Torvalds" },
+];
+
+/** Uploads an image through the `_media` pipeline; its `url` is stored on the
+ *  inserted image node. The editor stays data-agnostic — the host owns this. */
+const MEDIA: MediaOptions = {
+  upload: (file) =>
+    mediaClient.upload(file).then((m) => ({
+      url: m.url,
+      alt: m.alt,
+      width: m.width,
+      height: m.height,
+    })),
+};
 
 /** A stored richText value is an array of elements; anything else starts empty. */
 function asValue(value: unknown): rt.RichTextValue {
@@ -70,17 +102,21 @@ function RichTextValueInput({
   const meta = field.meta as RichTextMeta;
   const elements = meta.elements ?? [];
   const marks = meta.marks ?? [];
-  // `slash: true` wires the `/` command menu, gated to the field's allowed
-  // blocks. To enable @-mentions, pass `{ ..., mention: { source, items } }`.
-  // Images allowed by the field already render read-only; to let writers upload
-  // and insert them, pass `{ ..., media: { upload } }` (e.g. a `makeMediaClient`
-  // `upload`) and add `<RichTextImageButton upload={…} />` to the toolbar's
-  // `extra` slot — see this item's demo wiring.
+  // `slash` wires the `/` command menu (gated to the field's blocks); `mention`
+  // enables `@`-mentions when the field allows the `mention` element kind;
+  // `media` enables image upload + drop/paste when the field allows `image`.
   const { plugins, components } = useMemo(
-    () => derivePlugins(elements, marks, { slash: true }),
+    () =>
+      derivePlugins(elements, marks, {
+        slash: true,
+        mention: { source: "users", items: MENTION_ITEMS },
+        media: MEDIA,
+      }),
     [elements, marks],
   );
   const toolbar = useMemo(() => deriveToolbar(elements, marks), [elements, marks]);
+  // The insert-image control only appears when the field can hold images.
+  const canInsertImage = elements.includes("image");
   // `value` only seeds the editor's initial state — Plate owns it after mount and
   // doesn't re-read this, so live prop changes never fight the cursor. The form
   // remounts the widget per document, so the value at mount is the right one.
@@ -92,10 +128,13 @@ function RichTextValueInput({
       onChange={(next) => onChange(toWire(next))}
       plugins={plugins}
       components={components}
-      placeholder="Write something, or press / for commands…"
+      placeholder="Write something, or press / for commands, @ to mention…"
       toolbar={
         <>
-          <RichTextToolbar model={toolbar} />
+          <RichTextToolbar
+            model={toolbar}
+            extra={canInsertImage ? <RichTextImageButton upload={MEDIA.upload} /> : undefined}
+          />
           <RichTextFloatingToolbar model={toolbar} />
         </>
       }

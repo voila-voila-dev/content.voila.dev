@@ -39,4 +39,47 @@ describe("serialize", () => {
   test("toJson is the identity document", () => {
     expect(toJson(doc)).toBe(doc);
   });
+
+  test("a block image renders as a figure; its caption is the flattened text", () => {
+    const withImage: Value = [
+      {
+        type: "image",
+        url: "https://cdn.example.com/p.png?a=1&b=2",
+        alt: 'A "nice" photo',
+        caption: "Fig. 1",
+        children: [{ text: "" }],
+      },
+    ];
+    expect(toHtml(withImage)).toBe(
+      '<figure class="voila-rich-text-image">' +
+        '<img src="https://cdn.example.com/p.png?a=1&amp;b=2" alt="A &quot;nice&quot; photo" />' +
+        "<figcaption>Fig. 1</figcaption>" +
+        "</figure>",
+    );
+    expect(toPlainText(withImage)).toBe("Fig. 1");
+  });
+
+  test("an upload placeholder renders nothing statically", () => {
+    const withPlaceholder: Value = [
+      { type: "image_placeholder", filename: "x.png", children: [{ text: "" }] },
+    ];
+    expect(toHtml(withPlaceholder)).toBe("");
+    expect(toPlainText(withPlaceholder)).toBe("");
+  });
+
+  test("an inline mention renders as a labelled span, not the empty void child", () => {
+    const withMention: Value = [
+      {
+        type: "p",
+        children: [
+          { text: "Hi " },
+          { type: "mention", value: "ada", label: "Ada Lovelace", children: [{ text: "" }] },
+        ],
+      },
+    ];
+    expect(toHtml(withMention)).toBe(
+      '<p>Hi <span class="voila-rich-text-mention" data-mention="ada">@Ada Lovelace</span></p>',
+    );
+    expect(toPlainText(withMention)).toBe("Hi @Ada Lovelace");
+  });
 });

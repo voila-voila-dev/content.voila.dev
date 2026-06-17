@@ -412,15 +412,62 @@ prompt when the user has edited it. `voila diff` shows the change first.)
   remains one toggle away. (Markdown *display* stays the default multiline-text
   render — no detail-view formatting requirement in this phase.)
 
-**Phase 4 — Polish & growth (tracked, not blocking)**
-- [ ] Localized fields: `LocalizedFieldEditor` renders one editor per locale —
-      verify the widget behaves under multiple instances (Plate editor ids).
-- [ ] Slash menu + placeholder ("Type / for commands") once E1 completes.
-- [ ] Media elements wired to the `_media` upload pipeline (editor E2 ×
-      Phase 5 media) — the placeholder elements (`image-placeholder`, …) in
-      the engine defaults exist for exactly this.
-- [ ] Mention element ⇄ `mention()` factory with a documents/users source.
-- [ ] Dark mode + tokens audit of `styles.css` against `@voila/ui` variables.
+**Phase 4 — Polish & growth (tracked, not blocking)** — 5/5 done (2026-06-17).
+First `examples/demo` wiring of the editor: a `richText`
+`content` field + a localized `richText` `summary` field, the rich-text seam
+vended to `app/lib/widgets.ts` (pages now pass `registry`/`locales`), proven
+end-to-end in the browser (create → REST roundtrip → DetailView).
+- [x] Localized fields: `LocalizedFieldEditor` renders one editor per locale —
+      verified two independent editors (en-US/fr-FR) coexist. `RichTextEditor`
+      now threads its DOM `id` into `usePlateEditor({ id })` so multiple editors
+      on one page never share a Plate store (the localized fix).
+- [x] Slash menu + placeholder. `derivePlugins(…, { slash: true })` wires
+      `@platejs/slash-command`'s `SlashPlugin`/`SlashInputPlugin`; the menu's
+      commands are `deriveSlashItems(deriveToolbar(...))` (the field's blocks +
+      lists, capability-gated → never offers a block the field can't persist),
+      applied with the same transforms as the toolbar. Renders through a new
+      **shared `InlineCombobox`** (`combobox.tsx`, Ariakit + `@platejs/combobox`,
+      plate-ui pattern ported to plain `voila-rich-text-combobox*` classes — no
+      Tailwind/cva dep). Skipped when the field has no blocks. Placeholder
+      surfaced via the widget ("…press / for commands…").
+- [x] Media elements wired to the `_media` upload pipeline (editor E2 ×
+      Phase 5 media). New feature-owned `src/media.tsx` (mirrors `mention.tsx`):
+      `image` + `image-placeholder` block-void plugins, `mediaPlugins({ upload })`,
+      the `insertImageFiles` transform (placeholder while the bytes upload, then
+      the image — or the placeholder is removed on failure; matched back by a
+      transient `_uploadId` so it survives concurrent edits), drop/paste handlers,
+      and a `RichTextImageButton` toolbar control. The editor stays data-agnostic —
+      the host supplies `upload` (typically `mediaClient.upload`), exactly like
+      mention's `items`. `derivePlugins(…, { media })` gates it: images render
+      read-only whenever the field allows the `image` kind, and the insert UI
+      (placeholder + drop/paste + button) only when `upload` is supplied. `image`/
+      `image-placeholder` added to the wire adapter's `WIRE_TO_PLATE` so they
+      round-trip + validate (the engine validator strips the placeholder's
+      transient props); `serialize` renders an `<figure>` for the read-only
+      display. `RichTextToolbar` gained an `extra` slot for the image button.
+      Demo wired end-to-end: `coverImage: media()` field (provisions `voila_media`),
+      `makeFsStorage` + `makeMediaStore` media context on the server, a
+      `mediaClient` over the CSRF-aware fetch, and the demo widget passing
+      `media` + the button. `video`/`file`/`embed` follow the same pattern and
+      are additive (preserved opaquely until then).
+- [x] Mention element ⇄ `mention()` factory with a documents/users source.
+      `mentionPlugins({ source, items })` wires `MentionPlugin` +
+      `MentionInputPlugin` (combobox over the same `InlineCombobox`), inserting a
+      `mention` node shaped to the engine's `mention()` schema
+      (`source`/`value`/`label`); `mention` added to the wire adapter's
+      `WIRE_TO_PLATE` so it round-trips and validates (roundtrip + schema-loop
+      tests). `derivePlugins(…, { mention })` enables it only when the field
+      allows the `mention` kind *and* a source is supplied. `toHtml`/`toPlainText`
+      now render a mention inline (`@label`) for the read-only display. The demo
+      widget wires a static people source as the showcase.
+- [x] Dark mode + tokens audit of `styles.css` against `@voila/ui` variables.
+      The toolbar styles referenced HSL-*channel* tokens (`--border: 240 6% 90%`)
+      as raw color values — invalid CSS whenever the host's tokens were present.
+      Every token reference is now `hsl(var(--token, <neutral channels>))` (valid
+      standalone *and* themed), links get a dedicated `--rt-link`/`--rt-link-dark`
+      pair, code/mention/unsupported use `--muted`/`--accent`, and the new
+      combobox chrome is token-themed. Verified in the browser in dark mode
+      (popover, toolbar, mention pill, content all correct).
 
 ---
 

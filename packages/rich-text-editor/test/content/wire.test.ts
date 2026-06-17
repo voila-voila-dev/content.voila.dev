@@ -50,6 +50,62 @@ describe("wire adapter — roundtrip", () => {
     expect(toWire(plate, { generateId: fail })).toEqual(wireDoc);
   });
 
+  test("an inline mention round-trips with its source/value/label intact", () => {
+    const doc = [
+      {
+        id: "p",
+        type: "paragraph",
+        children: [
+          { text: "Hi " },
+          {
+            id: "m",
+            type: "mention",
+            source: "users",
+            value: "ada",
+            label: "Ada Lovelace",
+            children: [{ text: "" }],
+          },
+          { text: "!" },
+        ],
+      },
+    ] as const;
+    // The mention is a known kind (not wrapped as unsupported) and survives
+    // byte-identical, and the engine's default validator accepts it.
+    const out = toWire(fromWire(doc), { generateId: fail });
+    expect(out).toEqual(doc);
+    const field = fields.richText() as unknown as {
+      "~standard": { validate(v: unknown): { issues?: ReadonlyArray<unknown> } };
+    };
+    expect(field["~standard"].validate(out).issues).toBeUndefined();
+  });
+
+  test("a block image round-trips with its url/alt/dimensions intact", () => {
+    const doc = [
+      {
+        id: "p",
+        type: "paragraph",
+        children: [{ text: "before" }],
+      },
+      {
+        id: "img",
+        type: "image",
+        url: "https://cdn.example.com/photo.png",
+        alt: "A photo",
+        width: 800,
+        height: 600,
+        children: [{ text: "" }],
+      },
+    ] as const;
+    // The image is a known kind (not wrapped as unsupported), survives
+    // byte-identical, and the engine's default validator accepts it.
+    const out = toWire(fromWire(doc), { generateId: fail });
+    expect(out).toEqual(doc);
+    const field = fields.richText() as unknown as {
+      "~standard": { validate(v: unknown): { issues?: ReadonlyArray<unknown> } };
+    };
+    expect(field["~standard"].validate(out).issues).toBeUndefined();
+  });
+
   test("fromWire renames types and wraps list-item content in `lic`", () => {
     const plate = fromWire([
       {

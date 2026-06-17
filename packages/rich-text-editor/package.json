@@ -8,7 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./content": "./src/content/index.ts",
-    "./mention": "./src/mention.ts",
+    "./mention": "./src/mention.tsx",
     "./nodes": "./src/nodes/index.ts",
     "./serialize": "./src/serialize.ts",
     "./styles.css": "./src/styles.css"
@@ -20,6 +20,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@ariakit/react": "^0.4",
     "@platejs/autoformat": "^53.0.0",
     "@platejs/basic-nodes": "^53.0.0",
     "@platejs/floating": "^53.0.0",
@@ -27,6 +28,7 @@
     "@platejs/list-classic": "^53.0.0",
     "@platejs/markdown": "^53.0.0",
     "@platejs/mention": "^53.0.0",
+    "@platejs/slash-command": "^53",
     "platejs": "^53.0.5",
     "remark-gfm": "^4.0.1"
   },

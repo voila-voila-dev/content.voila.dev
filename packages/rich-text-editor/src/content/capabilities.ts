@@ -37,6 +37,8 @@ import {
 import { type NodeComponent, type NodeComponents, NodeIdPlugin } from "platejs";
 import { type AnyPlatePlugin, createPlatePlugin, ParagraphPlugin } from "platejs/react";
 import type { MarkdownFlavor } from "../markdown.ts";
+import { type MediaOptions, mediaPlugins } from "../media.tsx";
+import { type MentionOptions, mentionPlugins } from "../mention.tsx";
 import {
   BlockquoteElement,
   BoldLeaf,
@@ -54,6 +56,7 @@ import {
   UnderlineLeaf,
 } from "../nodes/index.ts";
 import { UnsupportedElement } from "../nodes/unsupported-element.tsx";
+import { SLASH_INPUT_KEY, slashPlugins } from "../slash.tsx";
 import { UNSUPPORTED_TYPE } from "./wire.ts";
 
 /**
@@ -191,6 +194,28 @@ export interface DerivePluginsOptions {
    * `true`.
    */
   readonly autoformat?: boolean;
+  /**
+   * Wire the `/` slash command menu. Its commands are the field's allowed
+   * block/list kinds (the same {@link deriveToolbar} model), so it never offers
+   * a block the field can't persist. Skipped when the field allows no blocks.
+   * Defaults to `false`.
+   */
+  readonly slash?: boolean;
+  /**
+   * Enable `@`-mentions against a source collection. Requires the field to allow
+   * the `mention` element kind *and* the caller to supply the source + items
+   * (the editor is data-agnostic). Omitted → no mention UI; any existing mention
+   * nodes still round-trip via the wire adapter.
+   */
+  readonly mention?: MentionOptions;
+  /**
+   * Enable image insertion via the host's `_media` upload pipeline. Requires the
+   * field to allow the `image` element kind; the caller supplies the `upload`
+   * function (the editor is data-agnostic). When the field allows `image` but no
+   * `media` is given, existing images still render read-only — only the insert
+   * UI (placeholder, drop/paste, the image toolbar button) needs `upload`.
+   */
+  readonly media?: MediaOptions;
 }
 
 /**
@@ -245,6 +270,34 @@ export function derivePlugins(
     if (!cap) continue;
     plugins.push(withAutoformat(cap, autoformat));
     components[cap.plateKey] = cap.component;
+  }
+
+  // @-mentions: only when the field allows the kind and a source was supplied.
+  if (options.mention && elements.includes("mention")) {
+    const { plugins: mentionPluginSet, components: mentionComponents } = mentionPlugins(
+      options.mention,
+    );
+    plugins.push(...mentionPluginSet);
+    Object.assign(components, mentionComponents);
+  }
+
+  // Images: render them read-only whenever the field allows the kind, and wire
+  // the upload UI (placeholder + drop/paste) when a `media.upload` is supplied.
+  if (elements.includes("image")) {
+    const { plugins: mediaPluginSet, components: mediaComponents } = mediaPlugins(options.media);
+    plugins.push(...mediaPluginSet);
+    Object.assign(components, mediaComponents);
+  }
+
+  // Slash menu: driven by the field's block/list commands. Skip it when the
+  // field has no blocks to turn into (the menu would be empty).
+  if (options.slash) {
+    const model = deriveToolbar(elements, marks);
+    if (model.blocks.length > 0 || model.lists.length > 0) {
+      const { plugins: slashPluginSet, component } = slashPlugins(model);
+      plugins.push(...(slashPluginSet as ReadonlyArray<AnyPlatePlugin>));
+      components[SLASH_INPUT_KEY] = component as unknown as NodeComponent;
+    }
   }
 
   return { plugins, components };

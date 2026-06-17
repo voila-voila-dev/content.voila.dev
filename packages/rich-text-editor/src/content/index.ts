@@ -4,6 +4,10 @@
 // stays thin glue. Type-only imports from `@voila/content` keep the editor
 // package framework-agnostic — `@voila/content` is an optional peer dependency.
 
+export type { MediaOptions, UploadedMedia } from "../media.tsx";
+export { insertImageFiles } from "../media.tsx";
+export type { MentionItem, MentionOptions } from "../mention.tsx";
+export { deriveSlashItems, type SlashItem } from "../slash.tsx";
 export type {
   DerivedEditorConfig,
   DerivePluginsOptions,

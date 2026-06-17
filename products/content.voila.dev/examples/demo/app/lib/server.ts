@@ -9,7 +9,12 @@ import {
   makeBetterAuth,
   resendMailer,
 } from "@voila/content/better-auth";
-import { createRestHandler, makeDatabase } from "@voila/content/server";
+import {
+  createRestHandler,
+  makeDatabase,
+  makeFsStorage,
+  makeMediaStore,
+} from "@voila/content/server";
 import { makeNodeSqliteDriver } from "@voila/content/server/node-sqlite";
 import config from "../../content.config";
 
@@ -46,10 +51,19 @@ export const auth = makeBetterAuth({ secret, driver, mailer, baseUrl });
 /** The secret, re-exported so the API route reuses it to mint CSRF tokens. */
 export const authSecret = secret;
 
+// Media uploads: bytes on the local filesystem, metadata in `voila_media`. This
+// powers both `media()` fields and the rich-text editor's image button (both
+// POST to `/admin/api/_media`). Swap `makeFsStorage` for `makeR2Storage` /
+// `makeS3Storage` in production.
+const media = {
+  storage: makeFsStorage({ directory: new URL("../../.voila/media", import.meta.url).pathname }),
+  store: makeMediaStore(driver),
+};
+
 // Secure by default: a valid session (`auth`), a CSRF token on writes (`csrf`),
 // and the admin (the first account to sign in, `access`).
 export const restHandler = createRestHandler(
-  { config, database },
+  { config, database, media },
   {
     basePath: "/admin/api",
     auth: auth.authenticator,

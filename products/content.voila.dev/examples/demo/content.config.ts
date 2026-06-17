@@ -11,7 +11,16 @@ const posts = defineCollection({
   fields: {
     title: fields.string({ required: true, max: 120 }),
     slug: fields.slug({ from: "title" }),
+    // A top-level media field. It provisions the engine-owned `voila_media`
+    // table that the `_media` upload pipeline writes to — the same table the
+    // rich-text editor's inline image uploads land in.
+    coverImage: fields.media(),
     body: fields.markdown(),
+    // Rich JSON content: edited with the Plate-based editor (toolbar, slash
+    // menu, @-mentions) wired via app/lib/widgets.ts.
+    content: fields.richText(),
+    // Localized rich text: the admin renders one editor per project locale.
+    summary: fields.richText({ localized: true }),
     published: fields.boolean({ defaultValue: false }),
     publishedAt: fields.datetime(),
   },
@@ -26,6 +35,7 @@ const settings = defineSingleton({
 
 export default defineConfig({
   branding: { name: "demo" },
+  i18n: { locales: ["en-US", "fr-FR"], defaultLocale: "en-US" },
   collections: { posts },
   singletons: { settings },
 });

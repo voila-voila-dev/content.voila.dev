@@ -13,6 +13,12 @@ export interface RichTextToolbarProps {
   /** Accessible name for the toolbar landmark. Defaults to "Formatting". */
   label?: string;
   className?: string;
+  /**
+   * Extra controls rendered as a final group inside the toolbar landmark — e.g.
+   * an insert-image button (`RichTextImageButton`) whose action isn't a
+   * turn-into/mark/list control derivable from the field's `elements`.
+   */
+  extra?: ReactNode;
 }
 
 /**
@@ -26,8 +32,9 @@ export function RichTextToolbar({
   model,
   label = "Formatting",
   className = "voila-rich-text-toolbar",
+  extra,
 }: RichTextToolbarProps) {
-  return <ToolbarSurface model={model} label={label} className={className} />;
+  return <ToolbarSurface model={model} label={label} className={className} extra={extra} />;
 }
 
 export interface ToolbarSurfaceProps {
@@ -36,6 +43,8 @@ export interface ToolbarSurfaceProps {
   className: string;
   /** Positioning style, e.g. from a floating-UI hook. Spread onto the landmark. */
   style?: CSSProperties;
+  /** Extra controls rendered as a final group (see {@link RichTextToolbarProps.extra}). */
+  extra?: ReactNode;
 }
 
 /**
@@ -49,9 +58,9 @@ export interface ToolbarSurfaceProps {
  * position it.
  */
 export const ToolbarSurface = forwardRef<HTMLDivElement, ToolbarSurfaceProps>(
-  function ToolbarSurface({ model, label, className, style }, ref) {
+  function ToolbarSurface({ model, label, className, style, extra }, ref) {
     const { blocks, marks, lists } = model;
-    if (blocks.length === 0 && marks.length === 0 && lists.length === 0) return null;
+    if (blocks.length === 0 && marks.length === 0 && lists.length === 0 && !extra) return null;
 
     return (
       <div
@@ -65,6 +74,7 @@ export const ToolbarSurface = forwardRef<HTMLDivElement, ToolbarSurfaceProps>(
         <ToolbarGroup controls={blocks} />
         <ToolbarGroup controls={marks} />
         <ToolbarGroup controls={lists} />
+        {extra ? <div className="voila-rich-text-toolbar-group">{extra}</div> : null}
       </div>
     );
   },

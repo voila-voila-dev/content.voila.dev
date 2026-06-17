@@ -81,6 +81,36 @@ describe("capabilities — derivePlugins", () => {
   });
 });
 
+describe("capabilities — media", () => {
+  const media = { upload: async () => ({ url: "https://cdn/x.png" }) };
+
+  test("renders images read-only when the field allows `image`, even without upload", () => {
+    const { plugins, components } = derivePlugins(["paragraph", "image"], []);
+    const keys = plugins.map((p) => (p as { key: string }).key);
+    expect(keys).toContain("image");
+    // No upload → no placeholder (nothing to insert), but images still render.
+    expect(keys).not.toContain("image_placeholder");
+    expect(components.image).toBeDefined();
+  });
+
+  test("wires the placeholder + upload plugins when `media` is supplied", () => {
+    const { plugins, components } = derivePlugins(["paragraph", "image"], [], { media });
+    const keys = plugins.map((p) => (p as { key: string }).key);
+    expect(keys).toContain("image");
+    expect(keys).toContain("image_placeholder");
+    expect(components.image).toBeDefined();
+    expect(components.image_placeholder).toBeDefined();
+  });
+
+  test("not wired when the field omits the `image` element kind", () => {
+    const keys = derivePlugins(["paragraph"], [], { media }).plugins.map(
+      (p) => (p as { key: string }).key,
+    );
+    expect(keys).not.toContain("image");
+    expect(keys).not.toContain("image_placeholder");
+  });
+});
+
 describe("capabilities — deriveMarkdownPlugins", () => {
   test("derives the markdown-representable node set, with strikethrough only on GFM", () => {
     const gfm = deriveMarkdownPlugins("gfm").plugins.map((p) => (p as { key: string }).key);

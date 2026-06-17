@@ -30,7 +30,26 @@ function isText(node: Descendant): node is TText {
 
 function nodeText(node: Descendant): string {
   if (isText(node)) return node.text;
+  const element = node as TElement;
+  // A mention is a void node (its child text is empty); surface its label.
+  if (element.type === "mention") return `@${mentionLabel(element)}`;
+  // An image is a void node; surface its caption/alt as the text content.
+  if (element.type === "image") return imageText(element);
+  // A placeholder has no text content worth flattening.
+  if (element.type === "image_placeholder") return "";
   return node.children.map(nodeText).join("");
+}
+
+/** Plain-text stand-in for an image: its caption, falling back to alt text. */
+function imageText(node: TElement): string {
+  if (typeof node.caption === "string") return node.caption;
+  return typeof node.alt === "string" ? node.alt : "";
+}
+
+/** The display label of a mention element (`label`, falling back to `value`). */
+function mentionLabel(node: TElement): string {
+  if (typeof node.label === "string") return node.label;
+  return typeof node.value === "string" ? node.value : "";
 }
 
 function serializeNode(node: Descendant): string {
@@ -62,6 +81,17 @@ function serializeElement(node: TElement): string {
       const url = typeof node.url === "string" ? node.url : "#";
       return `<a href="${escapeAttr(url)}">${inner}</a>`;
     }
+    // Mentions are inline void atoms: render the label, not the (empty) child.
+    case "mention": {
+      const value = typeof node.value === "string" ? node.value : "";
+      return `<span class="voila-rich-text-mention" data-mention="${escapeAttr(value)}">@${escapeHtml(mentionLabel(node))}</span>`;
+    }
+    // Images are block void atoms: render the figure, not the (empty) child.
+    case "image":
+      return serializeImage(node);
+    // A placeholder is an editor-only transient; nothing to render statically.
+    case "image_placeholder":
+      return "";
     // List-item-content and other transparent wrappers contribute their
     // children without an extra block element.
     case "lic":
@@ -69,6 +99,16 @@ function serializeElement(node: TElement): string {
     default:
       return `<p>${inner}</p>`;
   }
+}
+
+/** A self-contained `<figure>` for an image element (url + optional caption). */
+function serializeImage(node: TElement): string {
+  const url = typeof node.url === "string" ? node.url : "";
+  const alt = typeof node.alt === "string" ? node.alt : "";
+  const img = `<img src="${escapeAttr(url)}" alt="${escapeAttr(alt)}" />`;
+  const caption =
+    typeof node.caption === "string" ? `<figcaption>${escapeHtml(node.caption)}</figcaption>` : "";
+  return `<figure class="voila-rich-text-image">${img}${caption}</figure>`;
 }
 
 function escapeHtml(value: string): string {

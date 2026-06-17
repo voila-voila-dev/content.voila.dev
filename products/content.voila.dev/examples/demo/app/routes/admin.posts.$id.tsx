@@ -4,6 +4,7 @@ import { CollectionForm, DetailView } from "@voila/content-ui";
 import { useState } from "react";
 import config from "../../content.config";
 import { client } from "../lib/content-client";
+import { displayWidgets, editWidgets } from "../lib/widgets";
 
 export const Route = createFileRoute("/admin/posts/$id")({
   component: PostDetail,
@@ -55,6 +56,8 @@ function PostDetail() {
         <h2 className="text-lg font-semibold">Edit post</h2>
         <CollectionForm
           collection={config.collections.posts}
+          registry={editWidgets}
+          locales={config.i18n?.locales}
           defaultValues={post.data}
           error={errorMessage(update.error)}
           submitLabel="Save"
@@ -68,6 +71,7 @@ function PostDetail() {
     <DetailView
       collection={config.collections.posts}
       doc={post.data}
+      registry={displayWidgets}
       actions={
         <div className="flex items-center gap-3">
           <button

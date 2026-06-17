@@ -44,6 +44,16 @@ export const WIRE_TO_PLATE: Readonly<Record<string, string>> = {
   "ordered-list": "ol",
   "list-item": "li",
   link: "a",
+  // Inline void; same key on both sides. Its `source`/`value`/`label` props
+  // ride along through `rest` so the node round-trips against the engine's
+  // `mention()` schema.
+  mention: "mention",
+  // Block voids for media. `image` keeps its key; `image-placeholder` maps to a
+  // hyphen-free Plate key. Their props (`url`/`alt`/…) ride along through `rest`
+  // so they round-trip against the engine's `image()` / `image-placeholder()`
+  // schemas. See `../media`.
+  image: "image",
+  "image-placeholder": "image_placeholder",
 };
 
 /** Plate element type → wire element type (inverse of {@link WIRE_TO_PLATE}). */

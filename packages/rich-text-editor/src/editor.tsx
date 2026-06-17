@@ -55,6 +55,10 @@ export function RichTextEditor({
   "aria-invalid": ariaInvalid,
 }: RichTextEditorProps) {
   const editor = usePlateEditor({
+    // Use the DOM id as the editor id so multiple editors on one page (e.g. a
+    // localized field rendering one per locale) never share a Plate store. When
+    // no id is given, Plate mints a unique one itself.
+    id,
     plugins: plugins ?? basicPlugins,
     components,
     value,

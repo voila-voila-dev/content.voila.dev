@@ -3,6 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CollectionForm } from "@voila/content-ui";
 import config from "../../content.config";
 import { client } from "../lib/content-client";
+import { editWidgets } from "../lib/widgets";
 
 export const Route = createFileRoute("/admin/posts/new")({
   component: NewPost,
@@ -27,6 +28,8 @@ function NewPost() {
       <h2 className="text-lg font-semibold">New post</h2>
       <CollectionForm
         collection={config.collections.posts}
+        registry={editWidgets}
+        locales={config.i18n?.locales}
         error={create.error instanceof Error ? create.error.message : undefined}
         submitLabel="Create"
         onSubmit={(values) => create.mutate(values)}

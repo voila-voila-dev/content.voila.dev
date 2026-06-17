@@ -16,6 +16,7 @@
     "@voila/content": "workspace:*",
     "better-auth": "^1.6.12",
     "@voila/content-ui": "workspace:*",
+    "@voila/rich-text-editor": "workspace:*",
     "@voila/ui": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
