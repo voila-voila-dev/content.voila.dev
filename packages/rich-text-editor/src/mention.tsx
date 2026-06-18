@@ -64,12 +64,18 @@ function MentionElement(props: PlateElementProps): ReactNode {
   const focused = useFocused();
   const readOnly = useReadOnly();
   const label = (element.label as string | undefined) ?? (element.value as string);
+  const source = element.source as string | undefined;
   return (
     <PlateElement
       {...props}
       className="voila-rich-text-mention"
       attributes={{
         ...props.attributes,
+        // A mention is an atomic reference to a record — give it a role and an
+        // explicit name so a screen reader announces it as one labelled unit
+        // (with its source collection) rather than loose "@" + text.
+        role: "link",
+        "aria-label": source ? `@${label}, ${source} mention` : `@${label} mention`,
         "data-slate-value": element.value as string,
         contentEditable: false,
         "data-selected": selected && focused && !readOnly ? "true" : undefined,

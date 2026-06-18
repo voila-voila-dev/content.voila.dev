@@ -46,7 +46,11 @@ export interface MediaOptions {
   readonly upload: (file: File) => Promise<UploadedMedia>;
   /** `accept` attribute for the file picker / a filter for drop & paste. Defaults to `"image/*"`. */
   readonly accept?: string;
-  /** Notified when an upload fails (the placeholder is removed regardless). */
+  /**
+   * Notified when an upload fails (the placeholder is removed regardless). When
+   * omitted the failure is logged via `console.error` instead of vanishing
+   * silently, so a host that forgets this hook still sees the error.
+   */
   readonly onError?: (error: unknown, file: File) => void;
   /** Mints the transient upload id. Defaults to `crypto.randomUUID`; injected for tests. */
   readonly generateId?: () => string;
@@ -58,10 +62,23 @@ function defaultGenerateId(): string {
   return crypto.randomUUID();
 }
 
-/** Reads only the image keys off an `UploadedMedia`, omitting absent optionals. */
-function imageNode(media: UploadedMedia): AnyRecord {
+// A readable `alt` fallback from a filename — drop the directory and extension
+// and turn separators into spaces. Far better for screen readers than the empty
+// `alt` an upload with no caption would otherwise leave on the image.
+function altFromFilename(name: string): string {
+  const base = name.split(/[\\/]/).pop() ?? name;
+  return base
+    .replace(/\.[^.]+$/, "")
+    .replace(/[_-]+/g, " ")
+    .trim();
+}
+
+/** Reads only the image keys off an `UploadedMedia`, omitting absent optionals.
+ *  `filename` seeds an `alt` fallback when the upload didn't supply one. */
+function imageNode(media: UploadedMedia, filename?: string): AnyRecord {
   const node: AnyRecord = { type: IMAGE_KEY, url: media.url, children: [{ text: "" }] };
-  if (media.alt) node.alt = media.alt;
+  const alt = media.alt ?? (filename ? altFromFilename(filename) : undefined);
+  if (alt) node.alt = alt;
   if (typeof media.width === "number") node.width = media.width;
   if (typeof media.height === "number") node.height = media.height;
   return node;
@@ -108,12 +125,15 @@ async function uploadOne(editor: PlateEditor, file: File, options: MediaOptions)
     if (!path) return;
     editor.tf.withoutNormalizing(() => {
       editor.tf.removeNodes({ at: path });
-      editor.tf.insertNodes(imageNode(media) as never, { at: path });
+      editor.tf.insertNodes(imageNode(media, file.name) as never, { at: path });
     });
   } catch (error) {
     const path = findUploadPath(editor, uploadId);
     if (path) editor.tf.removeNodes({ at: path });
-    options.onError?.(error, file);
+    // Never fail silently: a host without an `onError` still gets the error on
+    // the console rather than just watching the placeholder disappear.
+    if (options.onError) options.onError(error, file);
+    else console.error(`[@voila/rich-text-editor] image upload failed for "${file.name}":`, error);
   }
 }
 

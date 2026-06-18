@@ -4,9 +4,18 @@ import type { ReactNode } from "react";
 import { basicPlugins } from "./plugins/basic.ts";
 
 export interface RichTextEditorProps {
-  /** Initial document. A Slate value (array of nodes). */
+  /**
+   * Initial document (a Slate value — array of nodes). **Initial-only:** Plate
+   * owns the editor state after mount, so changing `value` later does *not*
+   * update the surface. To load a different document, remount the editor with a
+   * new React `key` (the `@voila/content-ui` form does this per record).
+   */
   value?: Value;
-  /** Called with the full document on every change. */
+  /**
+   * Called with the full document on every change. The component is effectively
+   * uncontrolled (see `value`): treat this as a change *notification*, not as
+   * one half of a controlled `value`/`onChange` pair.
+   */
   onChange?: (value: Value) => void;
   /** Plate plugins. Defaults to {@link basicPlugins}. */
   plugins?: AnyPlatePlugin[];

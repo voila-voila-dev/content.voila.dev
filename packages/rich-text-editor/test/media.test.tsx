@@ -77,6 +77,38 @@ describe("insertImageFiles", () => {
     });
   });
 
+  test("derives an alt from the filename when the upload supplies none", async () => {
+    const media: MediaOptions = {
+      upload: async () => ({ url: "https://cdn/n.png" }),
+      generateId: () => "u1",
+    };
+    const editor = editorWithImage(media);
+    await insertImageFiles(editor, [pngFile("Photo_of-a cat.png")], media);
+    const image = editor.children.find((n) => typeOf(n) === "image") as { alt?: string };
+    expect(image?.alt).toBe("Photo of a cat");
+  });
+
+  test("logs the failure when the upload fails and no onError is given", async () => {
+    const failure = new Error("upload failed");
+    const logged: unknown[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => {
+      logged.push(args);
+    };
+    try {
+      const media: MediaOptions = {
+        upload: () => Promise.reject(failure),
+        generateId: () => "u1",
+      };
+      const editor = editorWithImage(media);
+      await insertImageFiles(editor, [pngFile()], media);
+      expect(editor.children.some((n) => typeOf(n) === "image_placeholder")).toBe(false);
+      expect(logged.some((args) => (args as unknown[]).includes(failure))).toBe(true);
+    } finally {
+      console.error = original;
+    }
+  });
+
   test("removes the placeholder and reports onError when the upload fails", async () => {
     const failure = new Error("upload failed");
     const errors: unknown[] = [];
