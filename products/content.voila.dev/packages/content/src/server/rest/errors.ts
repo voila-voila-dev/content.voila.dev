@@ -256,15 +256,85 @@ export function fail(failure: ApiFailure): never {
   throw new ApiError(failure);
 }
 
+// ---------- human-readable summary ----------
+
+function formatIssue(issue: ValidationIssue): string {
+  return issue.path.length === 0 ? issue.message : `${issue.path.join(".")}: ${issue.message}`;
+}
+
+// The issues a field-addressable failure carries, mirroring the client's
+// `failureIssues` — the only codes that flatten to a `{ path, message }` list.
+function issuesOf(failure: ApiFailure): ReadonlyArray<ValidationIssue> {
+  switch (failure.code) {
+    case "VALIDATION":
+    case "CONFLICT":
+      return failure.issues;
+    case "FORBIDDEN":
+      return failure.issues ?? [];
+    default:
+      return [];
+  }
+}
+
+// Fallback sentence per code, used when a failure carries no richer context.
+const DEFAULT_MESSAGE: Record<ApiErrorCode, string> = {
+  BAD_REQUEST: "The request was malformed.",
+  UNKNOWN_COLLECTION: "No such collection.",
+  UNKNOWN_FIELD: "No such field.",
+  FIELD_NOT_UNIQUE: "That field is not unique.",
+  INVALID_ORDER: "Cannot order by that key.",
+  INVALID_CURSOR: "The pagination cursor was malformed.",
+  NOT_FOUND: "Not found.",
+  VALIDATION: "One or more fields are invalid.",
+  CONFLICT: "A unique field already has this value.",
+  INTERNAL: "An unexpected error occurred.",
+  UNAUTHORIZED: "Authentication is required.",
+  FORBIDDEN: "You don't have access to this resource.",
+  CSRF: "The CSRF token was missing or invalid.",
+  TOO_LARGE: "The upload is too large.",
+};
+
+/**
+ * A human-readable, standalone summary of an `ApiFailure` — what a direct
+ * (curl/non-JS) caller reads when it can't reconstruct one from the typed code.
+ * Prefers the failure's own structured context (issues, slug, field, cap); the
+ * typed `error` stays the source of truth, so clients still branch on `code`.
+ */
+export function failureMessage(failure: ApiFailure): string {
+  const issues = issuesOf(failure);
+  if (issues.length > 0) return issues.map(formatIssue).join(" ");
+  switch (failure.code) {
+    case "UNKNOWN_COLLECTION":
+      return `Unknown collection "${failure.slug}".`;
+    case "UNKNOWN_FIELD":
+      return `Unknown field "${failure.field}" on "${failure.collectionSlug}".`;
+    case "FIELD_NOT_UNIQUE":
+      return `Field "${failure.field}" on "${failure.collectionSlug}" is not unique.`;
+    case "INVALID_ORDER":
+      return `Cannot order "${failure.collectionSlug}" by "${failure.orderKey}".`;
+    case "NOT_FOUND":
+      return `No "${failure.collectionSlug}" matched.`;
+    case "TOO_LARGE":
+      return `The upload exceeds the maximum of ${failure.maxBytes} bytes.`;
+    default:
+      return DEFAULT_MESSAGE[failure.code];
+  }
+}
+
 // ---------- wire envelope ----------
 
-/** The on-the-wire error body: the discriminator plus the error's own fields. */
+/**
+ * The on-the-wire error body: the typed discriminated `error` (the contract a
+ * client narrows on `code`) plus a human-readable `message` summarizing it, so a
+ * direct/non-JS caller has something to show without reconstructing one.
+ */
 export interface ErrorEnvelope {
   readonly error: ApiFailure;
+  readonly message: string;
 }
 
 /** Render an `ApiFailure` as the standard error-envelope `Response`. */
 export function errorResponse(failure: ApiFailure): Response {
-  const envelope: ErrorEnvelope = { error: failure };
+  const envelope: ErrorEnvelope = { error: failure, message: failureMessage(failure) };
   return Response.json(envelope, { status: STATUS[failure.code] });
 }

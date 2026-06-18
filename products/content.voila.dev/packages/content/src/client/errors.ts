@@ -59,8 +59,14 @@ export class ContentClientError extends Error {
   readonly status: number;
   readonly failure: ApiFailure;
 
-  constructor(status: number, failure: ApiFailure) {
-    const detail = describeFailure(failure);
+  /**
+   * @param serverMessage the envelope's human-readable `message` (the server's
+   *   `failureMessage`). Used as the message detail for failures the client
+   *   can't describe from their typed fields alone — e.g. an operation-level
+   *   `FORBIDDEN` becomes "You don't have access…" instead of a bare code.
+   */
+  constructor(status: number, failure: ApiFailure, serverMessage?: string) {
+    const detail = describeFailure(failure) ?? serverMessage ?? null;
     super(
       detail === null ? `${failure.code} (${status})` : `${failure.code} (${status}): ${detail}`,
     );

@@ -58,9 +58,35 @@ describe("ContentClientError.message", () => {
     expect(error.message).toBe("FORBIDDEN (403): secret: Not allowed. rank: Not allowed.");
   });
 
-  it("stays code-only for failures without field detail", () => {
+  it("stays code-only for failures without field detail or a server message", () => {
     expect(new ContentClientError(403, { code: "FORBIDDEN" }).message).toBe("FORBIDDEN (403)");
     expect(new ContentClientError(500, { code: "INTERNAL" }).message).toBe("INTERNAL (500)");
+  });
+
+  it("falls back to the server message when it has no field detail of its own", () => {
+    // An operation-level FORBIDDEN (no per-field issues) reads as the server's
+    // human summary instead of a bare code — what `ListView` shows a denied user.
+    const denied = new ContentClientError(
+      403,
+      { code: "FORBIDDEN", collectionSlug: "posts", operation: "read" },
+      "You don't have access to this resource.",
+    );
+    expect(denied.message).toBe("FORBIDDEN (403): You don't have access to this resource.");
+  });
+
+  it("prefers its own field detail over the server message", () => {
+    // When the failure carries issues, the path-aware detail wins — the server
+    // message is only a fallback for the code-only failures.
+    const error = new ContentClientError(
+      409,
+      {
+        code: "CONFLICT",
+        collectionSlug: "posts",
+        issues: [{ path: ["slug"], message: "Taken." }],
+      },
+      "A unique field already has this value.",
+    );
+    expect(error.message).toBe("CONFLICT (409): slug: Taken.");
   });
 });
 

@@ -53,6 +53,8 @@ interface Envelope {
   readonly data?: unknown;
   readonly nextCursor?: string | null;
   readonly error?: ApiFailure;
+  /** The server's human-readable summary of `error` (see `failureMessage`). */
+  readonly message?: string;
 }
 
 const INTERNAL: ApiFailure = { code: "INTERNAL" };
@@ -65,7 +67,7 @@ export function makeMediaClient(options: ClientOptions): MediaClient {
   const send = async <T>(url: string, init?: RequestInit): Promise<T> => {
     const res = await fetchImpl(url, init);
     const body = (await res.json()) as Envelope;
-    if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL);
+    if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL, body.message);
     return body.data as T;
   };
 
@@ -85,7 +87,7 @@ export function makeMediaClient(options: ClientOptions): MediaClient {
       const body = (await res.json()) as Envelope;
       if (res.ok) return body.data as MediaItem;
       if (res.status === 404 && body.error?.code === "NOT_FOUND") return null;
-      throw new ContentClientError(res.status, body.error ?? INTERNAL);
+      throw new ContentClientError(res.status, body.error ?? INTERNAL, body.message);
     },
 
     async list(params) {
@@ -95,7 +97,7 @@ export function makeMediaClient(options: ClientOptions): MediaClient {
       const query = qs.toString();
       const res = await fetchImpl(`${root}${query ? `?${query}` : ""}`);
       const body = (await res.json()) as Envelope;
-      if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL);
+      if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL, body.message);
       return {
         data: (body.data as ReadonlyArray<MediaItem>) ?? [],
         nextCursor: body.nextCursor ?? null,

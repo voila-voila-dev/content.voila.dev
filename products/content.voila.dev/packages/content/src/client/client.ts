@@ -246,6 +246,8 @@ interface Envelope {
   readonly nextCursor?: string | null;
   readonly total?: number;
   readonly error?: ApiFailure;
+  /** The server's human-readable summary of `error` (see `failureMessage`). */
+  readonly message?: string;
 }
 
 // Fallback when a non-2xx response has no parseable error body — the call still
@@ -289,7 +291,7 @@ function makeSenders(fetchImpl: Fetch) {
   const send = async <T>(url: string, init?: RequestInit): Promise<T> => {
     const res = await fetchImpl(url, init);
     const body = (await res.json()) as Envelope;
-    if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL);
+    if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL, body.message);
     return body.data as T;
   };
 
@@ -300,7 +302,7 @@ function makeSenders(fetchImpl: Fetch) {
     const body = (await res.json()) as Envelope;
     if (res.ok) return body.data as T;
     if (res.status === 404 && body.error?.code === "NOT_FOUND") return null;
-    throw new ContentClientError(res.status, body.error ?? INTERNAL);
+    throw new ContentClientError(res.status, body.error ?? INTERNAL, body.message);
   };
 
   return { send, sendMaybe };
@@ -318,7 +320,7 @@ function makeCollectionClient(
     async list(params?: ListParams<unknown> & { locale?: string }) {
       const res = await fetchImpl(`${root}${listQuery(params)}`);
       const body = (await res.json()) as Envelope;
-      if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL);
+      if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL, body.message);
       return {
         data: (body.data as ReadonlyArray<Stored<unknown>>) ?? [],
         nextCursor: body.nextCursor ?? null,
@@ -356,7 +358,7 @@ function makeCollectionClient(
       const query = qs.toString();
       const res = await fetchImpl(`${root}/${enc(id)}/revisions${query ? `?${query}` : ""}`);
       const body = (await res.json()) as Envelope;
-      if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL);
+      if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL, body.message);
       return {
         data: (body.data as ReadonlyArray<Revision<unknown>>) ?? [],
         nextCursor: body.nextCursor ?? null,
@@ -372,7 +374,7 @@ function makeCollectionClient(
       if (params?.locale !== undefined) qs.set("locale", params.locale);
       const res = await fetchImpl(`${root}/search?${qs.toString()}`);
       const body = (await res.json()) as Envelope;
-      if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL);
+      if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL, body.message);
       return { data: (body.data as ReadonlyArray<Stored<unknown>>) ?? [] };
     },
   };
