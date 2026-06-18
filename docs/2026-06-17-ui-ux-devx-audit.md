@@ -125,42 +125,60 @@ even if the sign-in request fails — worth surfacing the real error.
 
 ---
 
-## P2 — rough edges a user will notice
+## P2 — rough edges a user will notice — ALL FIXED (2026-06-18)
 
-- **A denied (non-admin) user sees an infinite "Loading…".** A second account
-  (correctly denied by `firstUserAccess`) gets `403` on `GET …/posts` and
-  `…/posts?count=1`, but `ListView` / the dashboard stat just spin "Loading…"
-  forever with no "you don't have access" message. `ListView` should surface a
-  403/error state. (Observed live; ties to the engine envelope being
-  `code`-only — see P3.)
-- **The `media` field has no edit widget.** The create/edit form renders
-  *"No editor for "media" yet"* for `coverImage: fields.media()` — which the
-  demo config features prominently. Images can only be added inline via the
-  rich-text "Insert image" button, not as a first-class media field. Either ship
-  a media edit widget or drop `coverImage` from the demo until one exists.
-- **React hydration mismatch on every admin page.** Console logs *"A tree
-  hydrated but some attributes … didn't match"* pointing at the sidebar
-  `MenuButton isActive={true}` (`@voila/ui` AppSidebar / NavGroup) — the active
-  link is computed differently SSR vs client. Resolve `currentPath` consistently
-  on the server, or gate the active state behind a mounted flag.
-- **Delete has no confirmation.** Clicking **Delete** on the detail page fires
-  `client.posts.delete(id)` immediately and navigates away — one click, no
-  "are you sure?", and no restore UI (it's a soft delete, so the data is
-  recoverable only via the API). Add a confirm dialog (the `@voila/ui`
-  AlertDialog exists) and/or an undo affordance.
+- **A denied (non-admin) user sees an infinite "Loading…". — FIXED.** The wire
+  envelope already carried a human `message` (`failureMessage`), but the client
+  ignored it and reconstructed a bare `FORBIDDEN (403)`. `ContentClientError`
+  now accepts the server `message` and uses it as the detail for failures it
+  can't describe from typed fields alone (issue-less `FORBIDDEN`); the
+  client/media throw sites plumb `body.message` through. A denied read now lands
+  in `ListView`'s existing error alert as *"FORBIDDEN (403): You don't have
+  access to this resource."* (`content/client/errors.ts` + `client.ts` +
+  `media.ts`, regression tests added.)
+- **The `media` field has no edit widget. — FIXED.** Shipped a first-class media
+  widget in `@voila/content-ui`: `MediaDisplay` (thumbnail / mime+size, now in
+  the default display registry so media *displays* out of the box) and
+  `createMediaInput({ upload })` — an upload-backed edit-widget factory (upload /
+  replace / remove + alt-text, with client-side `max` enforcement and inline
+  upload errors). content-ui stays client-free; the host injects `upload`. The
+  demo wires it through `mediaClient` (so `coverImage` is now editable), and the
+  registry documents the one-liner opt-in (`content-client` now exports
+  `mediaClient`). (`content-ui/widgets/media.tsx` + tests; demo `app/lib/widgets.ts`.)
+- **React hydration mismatch on every admin page. — FIXED.** Root cause was
+  `admin-layout.tsx` reading `window.location.pathname`, so `currentPath` was
+  `undefined` on the server and the real path on the client → the sidebar's
+  active `MenuButton` disagreed across hydration. It now resolves the path
+  through TanStack's `useRouterState`, which returns the same pathname on the
+  server and the client. Fixed in both the demo copy and the registry-vended
+  source real users get.
+- **Delete has no confirmation. — FIXED.** Added a reusable `ConfirmButton` (over
+  the `@voila/ui` AlertDialog) to `@voila/content-ui` and wired it into the post
+  detail page's Delete action (demo + create-voila template). One click now opens
+  an "are you sure?" dialog that names the soft-delete / API-recoverable
+  consequence; the action only fires on confirm. (`content-ui/confirm-button.tsx`
+  + tests.) *Per-locale form errors and the optimistic sign-in "Check your inbox"
+  remain open.*
 
-## P3 — polish / consistency
+## P3 — polish / consistency — all FIXED (2026-06-18)
 
-- **Wide tables overflow on mobile.** The 8-column posts `DataTable` runs off a
-  390px viewport with no visible horizontal-scroll affordance. The mobile
-  sidebar collapse itself works.
-- **`/favicon.ico` 404s on every page** (console noise). Ship a favicon in the
-  template `public/` or add a `<link rel="icon">`.
-- **An already-signed-in user can still open `/admin/login`** (no redirect to
-  `/admin`). Minor.
-- **Opening+saving a post "dirties" an empty optional localized field** with
-  empty paragraphs (`{en-US:[{p:""}],…}`) instead of leaving it null. Cosmetic
-  after the P1.1 fix; consider omitting all-empty localized records on write.
+- **Wide tables overflow on mobile — FIXED.** `DataTable` header cells are now
+  `whitespace-nowrap`, so each column keeps at least its label width and a wide
+  table overflows the `overflow-auto` container and scrolls horizontally (a
+  scrollbar affordance) instead of cramming to fit. (`content-ui/data-table.tsx`.)
+- **`/favicon.ico` 404 on every page — FIXED.** Both `__root.tsx` (demo +
+  template) now declare a `<link rel="icon">` with an inline SVG data URI, which
+  stops the browser's implicit `/favicon.ico` request and ships a default mark.
+- **An already-signed-in user could still open `/admin/login` — FIXED.**
+  `admin_.login.tsx` (registry item + demo) gained a `beforeLoad` that runs the
+  same server-side `fetchSession` as the `/admin` guard and redirects to `/admin`
+  when a session exists.
+- **Opening+saving a post dirtied an empty optional localized field — FIXED.**
+  `validateFields` now treats a localized record that is blank in *every* locale
+  as "not provided" (omitted when optional, "Required." when required), where
+  blank includes the empty rich-text document (`[{ type:"paragraph",
+  children:[{ text:"" }] }]`) the editor emits on mount. A partially-filled
+  record is still kept and validated as-is. (`content-ui/lib/validate.ts`.)
 
 ---
 
@@ -238,3 +256,15 @@ verified manually**. Not labelled a bug.
 
 *Resolved this pass: the localized-edit P1 (1.1) and the auth-on-non-default-port
 P1 (1.2), both fixed and verified live.*
+
+*Resolved 2026-06-18: all four P3 polish items — mobile table horizontal scroll,
+the `/favicon.ico` 404, the missing `/admin/login`→`/admin` redirect for
+signed-in users, and the empty-localized-field write. Gates green (990 tests,
+`tsc -b`, `check:items`, biome).*
+
+*Resolved 2026-06-18: all four P2 items — the denied-read error state (client now
+uses the envelope's `message`), the first-class `media` edit/display widget, the
+sidebar hydration mismatch (`useRouterState`), and the delete confirmation
+(`ConfirmButton`). This also closes the DevX "wire envelope carries no `message`"
+nit (the envelope has it and the client now consumes it). Gates green (1025
+tests, `tsc -b`, `check:items`, coverage, biome).*
