@@ -3,7 +3,7 @@
 // actions, or swap the nav links for TanStack `<Link>` via `renderLink`. The
 // sidebar footer shows the signed-in user and a sign-out button.
 
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { AdminShell } from "@voila/content-ui";
 import type { ReactNode } from "react";
 import config from "../../content.config";
@@ -38,7 +38,11 @@ export function AdminLayout({
   children: ReactNode;
   user?: SessionUser;
 }): ReactNode {
-  const currentPath = typeof window === "undefined" ? undefined : window.location.pathname;
+  // Resolve the path through the router (not `window.location`): the router
+  // knows the same pathname on the server and the client, so the highlighted
+  // nav item matches across hydration. Reading `window` only on the client made
+  // the SSR markup (no active item) disagree with the first client render.
+  const currentPath = useRouterState({ select: (state) => state.location.pathname });
 
   return (
     <AdminShell
