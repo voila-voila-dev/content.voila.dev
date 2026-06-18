@@ -2,7 +2,7 @@
 // the typed client, and your database schema are all derived from it — no
 // codegen. After editing, run `voila migrate generate` to update the schema.
 
-import { defineCollection, defineConfig, defineSingleton, fields } from "@voila/content";
+import { defineCollection, defineConfig, fields } from "@voila/content";
 
 const posts = defineCollection({
   slug: "posts",
@@ -26,16 +26,13 @@ const posts = defineCollection({
   },
 });
 
-const settings = defineSingleton({
-  slug: "settings",
-  fields: {
-    siteName: fields.string({ required: true }),
-  },
-});
+// Singletons are supported by the engine (write path + typed client shipped),
+// but the demo only vends the per-collection admin routes (`admin.posts.*`), so
+// a singleton would render a nav link with no matching route. Add a singleton
+// here once you've vended an `admin.<slug>.*` route for it.
 
 export default defineConfig({
   branding: { name: "demo" },
   i18n: { locales: ["en-US", "fr-FR"], defaultLocale: "en-US" },
   collections: { posts },
-  singletons: { settings },
 });

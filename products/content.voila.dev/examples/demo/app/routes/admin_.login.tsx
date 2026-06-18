@@ -5,10 +5,17 @@
 // terminal. The first account to sign in becomes the admin.
 
 import { useMutation } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
+import { fetchSession } from "../lib/auth";
 
 export const Route = createFileRoute("/admin_/login")({
+  // Already signed in? Skip the login form and go straight to the admin. The
+  // session check runs server-side (mirroring the `/admin` guard) before the
+  // page renders, so a refresh on `/admin/login` lands a signed-in user on `/admin`.
+  beforeLoad: async () => {
+    if (await fetchSession()) throw redirect({ to: "/admin" });
+  },
   component: LoginPage,
 });
 
