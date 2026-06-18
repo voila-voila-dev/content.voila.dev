@@ -6,8 +6,17 @@
 // field }`, plus an `id` so the form can wire a `<label htmlFor>`.
 
 import type { Field, FieldMetaBase } from "@voila/content";
-import { cn, Input, Switch, Textarea } from "@voila/ui";
+import { Input, Switch, Textarea } from "@voila/ui";
 import type { ReactNode } from "react";
+
+// Token-based styling for the native `<select>`, matched to the `@voila/ui`
+// Input/Select-Trigger look. A *native* control is deliberate here: it's the
+// right tool for a form field (native keyboard, mobile picker, no portal, fully
+// testable), so the form's select stays a plain `<select>` rather than the
+// portal-based `@voila/ui` Select. Hoisted out of the JSX so the widget reads
+// like the Input/Textarea ones above.
+const NATIVE_SELECT_CLASS =
+  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 export interface EditWidgetProps {
   readonly value: unknown;
@@ -195,9 +204,7 @@ export function SelectInput({
       id={id}
       value={current}
       disabled={disabled}
-      className={cn(
-        "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-      )}
+      className={NATIVE_SELECT_CLASS}
       onChange={(e) => {
         const next = options.find((o) => o.value === e.target.value);
         onChange(next ? next.raw : undefined);

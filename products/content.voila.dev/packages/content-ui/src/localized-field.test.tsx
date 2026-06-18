@@ -153,6 +153,43 @@ describe("CollectionForm + locales", () => {
     });
   });
 
+  test("shows a validation error only under the locale that failed", async () => {
+    const required = defineCollection({
+      slug: "docs",
+      fields: { title: fields.string({ localized: true, required: true }) },
+    });
+    const cfg = defineConfig({
+      branding: { name: "Test" },
+      i18n: { locales: ["en-US", "fr-FR"], defaultLocale: "en-US" },
+      collections: { docs: required },
+    });
+    const onSubmit = mock();
+    const { container } = render(
+      <CollectionForm
+        collection={cfg.collections.docs}
+        locales={LOCALES}
+        onSubmit={onSubmit}
+        defaultValues={{ title: { "en-US": "Hello" } }}
+      />,
+    );
+    fireEvent.submit(container.querySelector("form") as HTMLFormElement);
+    // fr-FR is blank+required → its input is flagged; en-US (filled) is not.
+    await waitFor(() => {
+      expect(
+        (container.querySelector("#docs-title-fr-FR") as HTMLInputElement).getAttribute(
+          "aria-invalid",
+        ),
+      ).toBe("true");
+    });
+    expect(
+      (container.querySelector("#docs-title-en-US") as HTMLInputElement).getAttribute(
+        "aria-invalid",
+      ),
+    ).toBeNull();
+    expect(container.querySelector("#docs-title-fr-FR-error")?.textContent).toBe("Required.");
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   test("falls back to the plain widget without a locales prop", () => {
     const { container } = render(
       <CollectionForm collection={config.collections.posts} onSubmit={mock()} />,

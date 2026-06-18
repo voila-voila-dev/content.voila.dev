@@ -85,7 +85,7 @@ export function DataTable({
       <Table.Header role="rowgroup">
         <Table.Row role="row">
           {cols.map((col) => (
-            <Table.Head key={col.key} role="columnheader" scope="col">
+            <Table.Head key={col.key} role="columnheader" scope="col" className="whitespace-nowrap">
               {col.label}
             </Table.Head>
           ))}

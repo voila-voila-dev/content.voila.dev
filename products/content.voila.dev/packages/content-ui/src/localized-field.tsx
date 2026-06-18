@@ -25,7 +25,12 @@ export interface LocalizedFieldEditorProps {
    *  the locale badge (`aria-labelledby`), e.g. "Published en". */
   readonly labelId?: string;
   readonly registry: EditRegistry;
-  readonly error?: string;
+  /**
+   * Validation messages keyed by locale — the error renders (and `aria-invalid`
+   * lights up) only under the locale(s) that actually failed, so a `fr` error no
+   * longer flags `en` too. Locales absent from the map render clean.
+   */
+  readonly errors?: Readonly<Record<string, string>>;
   readonly disabled?: boolean;
 }
 
@@ -43,7 +48,7 @@ export function LocalizedFieldEditor({
   id,
   labelId,
   registry,
-  error,
+  errors,
   disabled,
 }: LocalizedFieldEditorProps): ReactNode {
   // The unwrapped per-locale value field; without it (a hand-built field) the
@@ -54,31 +59,43 @@ export function LocalizedFieldEditor({
 
   return (
     <div className="space-y-2">
-      {locales.map((locale) => (
-        <div key={locale} className="flex items-start gap-2">
-          <Badge
-            id={`${id}-${locale}-label`}
-            variant="outline"
-            className="mt-1.5 shrink-0 font-mono text-xs"
-          >
-            {locale}
-          </Badge>
-          <div className="min-w-0 flex-1">
-            <Widget
-              value={record[locale]}
-              // Merge via a functional updater (resolved by the host against the
-              // latest record) so two locales emitting in the same batch — e.g.
-              // each editor normalising on mount — don't overwrite each other.
-              onChange={(v) => onChange((prev: unknown) => ({ ...asRecord(prev), [locale]: v }))}
-              field={inner}
-              id={`${id}-${locale}`}
-              labelId={labelId ? `${labelId} ${id}-${locale}-label` : `${id}-${locale}-label`}
-              error={error}
-              disabled={disabled}
-            />
+      {locales.map((locale) => {
+        const localeError = errors?.[locale];
+        return (
+          <div key={locale} className="flex items-start gap-2">
+            <Badge
+              id={`${id}-${locale}-label`}
+              variant="outline"
+              className="mt-1.5 shrink-0 font-mono text-xs"
+            >
+              {locale}
+            </Badge>
+            <div className="min-w-0 flex-1">
+              <Widget
+                value={record[locale]}
+                // Merge via a functional updater (resolved by the host against
+                // the latest record) so two locales emitting in the same batch —
+                // each editor normalising on mount — don't overwrite each other.
+                onChange={(v) => onChange((prev: unknown) => ({ ...asRecord(prev), [locale]: v }))}
+                field={inner}
+                id={`${id}-${locale}`}
+                labelId={labelId ? `${labelId} ${id}-${locale}-label` : `${id}-${locale}-label`}
+                error={localeError}
+                disabled={disabled}
+              />
+              {localeError ? (
+                <p
+                  id={`${id}-${locale}-error`}
+                  role="alert"
+                  className="mt-1 text-sm text-destructive"
+                >
+                  {localeError}
+                </p>
+              ) : null}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

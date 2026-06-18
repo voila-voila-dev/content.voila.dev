@@ -10,7 +10,7 @@ import { buttonVariants, cn, Label } from "@voila/ui";
 import { type FormEvent, type ReactNode, useState } from "react";
 import type { Doc } from "./lib/doc";
 import { getFieldLabel, humanize } from "./lib/humanize";
-import { validateFields } from "./lib/validate";
+import { localizedFieldErrors, validateFields } from "./lib/validate";
 import { LocalizedFieldEditor } from "./localized-field";
 import { defaultEditRegistry, type EditRegistry, resolveEditWidget } from "./registry/edit";
 
@@ -192,6 +192,15 @@ export function CollectionForm<C extends Collection = Collection>({
         const required = field.meta.required === true;
         const localized = field.meta.localized === true && locales !== undefined;
         const Widget = localized ? null : resolveEditWidget(field.meta, registry);
+        // For a failed localized field, resolve the message down to the locale(s)
+        // that actually failed so the error doesn't repeat under every locale.
+        // Empty (e.g. a server error client validation can't reproduce) → fall
+        // back to the single field-level message below.
+        const localeErrors =
+          localized && fieldError !== undefined
+            ? localizedFieldErrors(field, values[key], locales ?? [])
+            : undefined;
+        const hasLocaleErrors = localeErrors !== undefined && Object.keys(localeErrors).length > 0;
         return (
           <div key={key} className="space-y-1.5">
             <Label id={`${id}-label`} htmlFor={localized ? `${id}-${locales?.[0]}` : id}>
@@ -211,7 +220,7 @@ export function CollectionForm<C extends Collection = Collection>({
                 id={id}
                 labelId={`${id}-label`}
                 registry={registry}
-                error={fieldError}
+                errors={localeErrors}
                 disabled={submitting}
               />
             ) : Widget ? (
@@ -225,7 +234,9 @@ export function CollectionForm<C extends Collection = Collection>({
                 disabled={submitting}
               />
             ) : null}
-            {fieldError ? (
+            {/* Field-level message — suppressed for a localized field once its
+                per-locale errors render inline, to avoid showing it twice. */}
+            {fieldError && !hasLocaleErrors ? (
               <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
                 {fieldError}
               </p>
