@@ -12,6 +12,28 @@ import { CliError } from "./index";
 const DIALECTS = ["sqlite", "postgres"] as const;
 const TARGETS = ["sqlite", "d1-local", "d1-remote"] as const;
 
+const GENERATE_USAGE = `voila migrate generate — generate a migration from the content config.
+
+Usage: voila migrate generate [options]
+
+Options:
+  --config <path>   Content config file (default "content.config.ts").
+  --dir <dir>       Migrations directory (default "migrations").
+  --name <name>     Migration name (default "migration").
+  --dialect <d>     SQL dialect: ${DIALECTS.join(" | ")} (default "sqlite").
+  --auth            Also emit the Better Auth tables (sqlite only).
+  -h, --help        Show this help.`;
+
+const APPLY_USAGE = `voila migrate apply — apply pending migrations to a target.
+
+Usage: voila migrate apply [options]
+
+Options:
+  --dir <dir>       Migrations directory (default "migrations").
+  --target <t>      Target: ${TARGETS.join(" | ")} (default "sqlite").
+  --db <database>   DB URL (sqlite) or D1 database name/binding (required for d1-*).
+  -h, --help        Show this help.`;
+
 export async function runMigrate(args: ReadonlyArray<string>): Promise<void> {
   const [sub, ...rest] = args;
   switch (sub) {
@@ -35,9 +57,11 @@ async function runGenerate(args: ReadonlyArray<string>): Promise<void> {
       name: { type: "string", default: "migration" },
       dialect: { type: "string", default: "sqlite" },
       auth: { type: "boolean", default: false },
+      help: { type: "boolean", short: "h" },
     },
     strict: true,
   });
+  if (values.help as boolean) return void console.log(GENERATE_USAGE);
 
   const dialect = values.dialect as string;
   if (!DIALECTS.includes(dialect as Dialect)) {
@@ -68,9 +92,11 @@ async function runApply(args: ReadonlyArray<string>): Promise<void> {
       dir: { type: "string", default: "migrations" },
       target: { type: "string", default: "sqlite" },
       db: { type: "string" },
+      help: { type: "boolean", short: "h" },
     },
     strict: true,
   });
+  if (values.help as boolean) return void console.log(APPLY_USAGE);
 
   const target = values.target as string;
   if (!TARGETS.includes(target as ApplyTarget)) {

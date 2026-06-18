@@ -24,7 +24,8 @@ Commands:
   migrate generate   Generate a migration from the content config.
   migrate apply      Apply pending migrations to a target.
 
-Run "voila migrate <command> --help" for command options.`;
+Run "voila <command> --help" for a command's options
+(e.g. "voila add --help", "voila migrate generate --help").`;
 
 export async function run(argv: ReadonlyArray<string>): Promise<void> {
   const [command, ...rest] = argv;

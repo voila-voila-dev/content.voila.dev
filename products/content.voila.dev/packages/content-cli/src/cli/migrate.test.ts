@@ -32,6 +32,22 @@ const voila = (cwd: string, ...args: Array<string>) => {
   };
 };
 
+describe("voila migrate --help", () => {
+  it("prints usage for generate without throwing on the flag", () => {
+    const result = voila(tmpRoot, "migrate", "generate", "--help");
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("voila migrate generate");
+    expect(result.stdout).toContain("--dialect");
+  });
+
+  it("prints usage for apply", () => {
+    const result = voila(tmpRoot, "migrate", "apply", "-h");
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("voila migrate apply");
+    expect(result.stdout).toContain("--target");
+  });
+});
+
 describe("voila migrate (subprocess)", () => {
   let dir: string;
 

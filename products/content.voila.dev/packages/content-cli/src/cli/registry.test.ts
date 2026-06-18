@@ -50,6 +50,13 @@ describe("voila list (subprocess)", () => {
     expect(result.stdout).toContain("list");
     expect(result.stdout).toContain("Browse the registry catalog");
   });
+
+  it("prints its own usage for --help", () => {
+    const result = voila("list", "--help");
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("voila list");
+    expect(result.stdout).toContain("--type");
+  });
 });
 
 describe("voila add (subprocess)", () => {
@@ -90,8 +97,19 @@ describe("voila add (subprocess)", () => {
     expect(readFileSync(dest, "utf8")).toBe("// my edits\n");
 
     const over = voila("add", "content-client", "--cwd", app, "--no-install", "--overwrite");
+    // The drift of the locally-modified file is surfaced before it's clobbered
+    // (local edits show as `+` lines, matching the `voila diff` convention).
+    expect(over.stdout).toContain("--overwrite will replace");
+    expect(over.stdout).toContain("+ // my edits");
     expect(over.stdout).toContain("+ app/lib/content-client.ts");
     expect(readFileSync(dest, "utf8")).toContain("makeClient");
+  });
+
+  it("prints usage for --help without throwing on the flag", () => {
+    const result = voila("add", "--help");
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("voila add");
+    expect(result.stdout).toContain("--overwrite");
   });
 
   it("dry-run reports files and deps without writing", () => {
@@ -167,6 +185,13 @@ describe("voila diff (subprocess)", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain("missing   app/lib/content-client.ts");
     expect(result.stdout).toContain("1 missing");
+  });
+
+  it("prints its own usage for --help", () => {
+    const result = voila("diff", "--help");
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("voila diff");
+    expect(result.stdout).toContain("--cwd");
   });
 
   it("reports up to date right after add", () => {

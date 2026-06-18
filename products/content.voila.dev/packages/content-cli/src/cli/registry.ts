@@ -27,12 +27,40 @@ import { CliError } from "./index";
 
 const TYPES = ["shell", "route", "block", "field", "lib"] as const;
 
+const LIST_USAGE = `voila list — browse the registry catalog of vendable items.
+
+Usage: voila list [--type <type>]
+
+Options:
+  --type <type>   Filter by item type (${TYPES.join(" | ")}).
+  -h, --help      Show this help.`;
+
+const ADD_USAGE = `voila add — vend registry items (and their deps) into your app.
+
+Usage: voila add <item...> [options]
+
+Options:
+  --cwd <dir>     Target app directory (default ".").
+  --overwrite     Replace existing vended files (a drift diff is shown first).
+  --no-install    Print the dependency install command instead of running it.
+  --dry-run       Show what would be written/installed, then exit.
+  -h, --help      Show this help.`;
+
+const DIFF_USAGE = `voila diff — show drift between your vended copy and upstream.
+
+Usage: voila diff [item...] [--cwd <dir>]
+
+Options:
+  --cwd <dir>     Target app directory (default ".").
+  -h, --help      Show this help.`;
+
 export async function runList(args: ReadonlyArray<string>): Promise<void> {
   const { values } = parseArgs({
     args: [...args],
-    options: { type: { type: "string" } },
+    options: { type: { type: "string" }, help: { type: "boolean", short: "h" } },
     strict: true,
   });
+  if (values.help as boolean) return void console.log(LIST_USAGE);
 
   const type = values.type as string | undefined;
   if (type !== undefined && !TYPES.includes(type as RegistryItemType)) {
@@ -58,10 +86,12 @@ export async function runAdd(args: ReadonlyArray<string>): Promise<void> {
       // skip-install flag is its own boolean (install is on by default).
       "no-install": { type: "boolean", default: false },
       "dry-run": { type: "boolean", default: false },
+      help: { type: "boolean", short: "h" },
     },
     allowPositionals: true,
     strict: true,
   });
+  if (values.help as boolean) return void console.log(ADD_USAGE);
 
   if (positionals.length === 0) {
     throw new CliError('Usage: voila add <item...>. Run "voila list" to see the catalog.');
@@ -86,7 +116,21 @@ export async function runAdd(args: ReadonlyArray<string>): Promise<void> {
     return;
   }
 
-  const result = await vendFiles(files, { cwd, overwrite: values.overwrite as boolean });
+  // `--overwrite` replaces files in place. Before clobbering, surface any
+  // locally-modified file's drift so the edits about to be lost are visible in
+  // the command output rather than silently overwritten.
+  const overwrite = values.overwrite as boolean;
+  if (overwrite) {
+    const drift = (await diffFiles(files, { cwd })).filter((d) => d.status === "modified");
+    if (drift.length > 0) {
+      console.log(
+        `⚠ --overwrite will replace ${drift.length} locally-modified file(s); the edits below will be lost:\n`,
+      );
+      console.log(`${formatDiffs(drift)}\n`);
+    }
+  }
+
+  const result = await vendFiles(files, { cwd, overwrite });
   for (const target of result.written) console.log(`  + ${target}`);
   for (const target of result.skipped) {
     console.log(`  · ${target} (exists — pass --overwrite to replace)`);
@@ -106,10 +150,11 @@ export async function runAdd(args: ReadonlyArray<string>): Promise<void> {
 export async function runDiff(args: ReadonlyArray<string>): Promise<void> {
   const { values, positionals } = parseArgs({
     args: [...args],
-    options: { cwd: { type: "string", default: "." } },
+    options: { cwd: { type: "string", default: "." }, help: { type: "boolean", short: "h" } },
     allowPositionals: true,
     strict: true,
   });
+  if (values.help as boolean) return void console.log(DIFF_USAGE);
 
   const cwdArg = values.cwd as string;
   const cwd = isAbsolute(cwdArg) ? cwdArg : resolvePath(process.cwd(), cwdArg);
