@@ -15,6 +15,7 @@ import {
   RichTextValueDisplay,
   TextDisplay,
 } from "../widgets/display";
+import { MediaDisplay } from "../widgets/media";
 import { mergeMaps } from "./merge";
 import { resolveWidget } from "./resolve";
 
@@ -22,7 +23,7 @@ export type DisplayRegistry = Readonly<Record<string, DisplayWidget>>;
 
 /**
  * Built-in display widgets keyed by field `kind`. Kinds with no dedicated entry
- * (array, object, media, relation, json, …) fall through to `JsonDisplay`.
+ * (array, object, relation, json, …) fall through to `JsonDisplay`.
  */
 export const defaultDisplayRegistry: DisplayRegistry = {
   string: TextDisplay,
@@ -41,6 +42,7 @@ export const defaultDisplayRegistry: DisplayRegistry = {
   date: DateDisplay,
   datetime: DateDisplay,
   time: DateDisplay,
+  media: MediaDisplay,
 };
 
 /** Merge a caller's overrides over the default display widgets. */

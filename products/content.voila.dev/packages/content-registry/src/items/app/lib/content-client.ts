@@ -9,7 +9,7 @@
 // double-submit check), and it bounces an expired/absent session (401) to the
 // login page.
 
-import { type Fetch, makeClient } from "@voila/content/client";
+import { type Fetch, makeClient, makeMediaClient } from "@voila/content/client";
 import config from "../../content.config";
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -42,3 +42,8 @@ const authedFetch: Fetch = async (input, init) => {
 };
 
 export const client = makeClient(config, { baseUrl: "/admin/api", fetch: authedFetch });
+
+/** Uploads to the `_media` pipeline through the same CSRF-aware fetch. Wire it
+ *  into a `media` field's edit widget (see `app/lib/widgets.ts`) or the
+ *  rich-text editor's image button. */
+export const mediaClient = makeMediaClient({ baseUrl: "/admin/api", fetch: authedFetch });

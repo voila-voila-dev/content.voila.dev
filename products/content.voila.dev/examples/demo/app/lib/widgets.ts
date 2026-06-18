@@ -4,15 +4,18 @@
 // seam (the Plate editor wired in for `richText` + `markdown`); own this file —
 // add your own custom widgets to either registry.
 
-import { mergeDisplayRegistry, mergeEditRegistry } from "@voila/content-ui";
+import { createMediaInput, mergeDisplayRegistry, mergeEditRegistry } from "@voila/content-ui";
 import { RichTextInput } from "../components/widgets/rich-text";
 import { RichTextDisplay } from "../components/widgets/rich-text-display";
+import { mediaClient } from "./content-client";
 
-/** Edit widgets for `CollectionForm` — `richText` and `markdown` use the Plate
- *  editor (markdown stays one toggle away from its raw source). */
+/** Edit widgets for `CollectionForm` — `richText`/`markdown` use the Plate
+ *  editor (markdown stays one toggle away from its raw source); `media` uploads
+ *  through the same `_media` pipeline the rich-text image button uses. */
 export const editWidgets = mergeEditRegistry({
   richText: RichTextInput,
   markdown: RichTextInput,
+  media: createMediaInput({ upload: (file, opts) => mediaClient.upload(file, opts) }),
 });
 
 /** Display widgets for `ListView` / `DetailView` — `richText` renders formatted. */

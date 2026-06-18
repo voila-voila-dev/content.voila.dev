@@ -7,6 +7,16 @@
 
 import { defaultDisplayRegistry, defaultEditRegistry } from "@voila/content-ui";
 
+// `media` fields display out of the box (the default registry renders a
+// thumbnail). To make them *editable*, wire the upload-backed widget — it just
+// needs your `mediaClient`:
+//
+//   import { createMediaInput, mergeEditRegistry } from "@voila/content-ui";
+//   import { mediaClient } from "./content-client";
+//   export const editWidgets = mergeEditRegistry({
+//     media: createMediaInput({ upload: (file, opts) => mediaClient.upload(file, opts) }),
+//   });
+
 /** Edit widgets for `CollectionForm`. */
 export const editWidgets = defaultEditRegistry;
 

@@ -7,6 +7,7 @@
 export { AdminShell, type AdminShellProps } from "./admin-shell";
 export { AppSidebar, type AppSidebarProps } from "./app-sidebar";
 export { CollectionForm, type CollectionFormProps, type FormValues } from "./collection-form";
+export { ConfirmButton, type ConfirmButtonProps } from "./confirm-button";
 export { Dashboard, type DashboardProps } from "./dashboard";
 export { DataTable, type DataTableProps } from "./data-table";
 export { DetailView, type DetailViewProps, documentTitle } from "./detail-view";
@@ -80,5 +81,11 @@ export {
   TextInput,
   UnsupportedInput,
 } from "./widgets/edit";
+export {
+  type CreateMediaInputOptions,
+  createMediaInput,
+  MediaDisplay,
+  type MediaUploader,
+} from "./widgets/media";
 export { StatCard, type StatCardProps } from "./widgets/stat-card";
 export { StatusBadge, type StatusBadgeProps } from "./widgets/status-badge";

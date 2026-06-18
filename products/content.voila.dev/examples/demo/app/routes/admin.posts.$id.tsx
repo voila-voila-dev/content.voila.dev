@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { CollectionForm, DetailView } from "@voila/content-ui";
+import { CollectionForm, ConfirmButton, DetailView } from "@voila/content-ui";
 import { useState } from "react";
 import config from "../../content.config";
 import { client } from "../lib/content-client";
@@ -81,14 +81,14 @@ function PostDetail() {
           >
             Edit
           </button>
-          <button
-            type="button"
-            className="text-sm font-medium text-destructive disabled:opacity-60"
+          <ConfirmButton
+            onConfirm={() => remove.mutate()}
             disabled={remove.isPending}
-            onClick={() => remove.mutate()}
+            title="Delete this post?"
+            description="It's a soft delete — the post is hidden but recoverable through the API."
           >
             {remove.isPending ? "Deleting…" : "Delete"}
-          </button>
+          </ConfirmButton>
           <Link to="/admin/posts" className="text-sm text-muted-foreground">
             Back
           </Link>
