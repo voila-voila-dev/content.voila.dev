@@ -12,9 +12,14 @@
 // (S3-style adapters) and falls back to streaming the bytes through the app.
 
 import type { MediaValue } from "../../config/schema/fields";
-import type { MediaListOpts, MediaRecord, MediaStore } from "../media/store";
+import {
+  decodeListCursor,
+  type MediaListOpts,
+  type MediaRecord,
+  type MediaStore,
+} from "../media/store";
 import type { Storage } from "../storage";
-import { badRequest, fail, notFound, tooLarge } from "./errors";
+import { badRequest, fail, invalidCursor, notFound, tooLarge } from "./errors";
 import { type RestErrorHook, runHandler } from "./handlers";
 
 /** What the media routes need from the host: bytes + records + limits. */
@@ -141,7 +146,12 @@ export function handleMediaList(
       (opts as { limit?: number }).limit = value;
     }
     const cursor = url.searchParams.get("cursor");
-    if (cursor !== null) (opts as { cursor?: string }).cursor = cursor;
+    if (cursor !== null) {
+      // Validate here so a malformed cursor is a typed 400 (mirroring the
+      // collection read path) rather than a raw `Error`/500 out of `store.list`.
+      if (decodeListCursor(cursor) === null) fail(invalidCursor());
+      (opts as { cursor?: string }).cursor = cursor;
+    }
 
     const result = await media.store.list(opts);
     return Response.json({

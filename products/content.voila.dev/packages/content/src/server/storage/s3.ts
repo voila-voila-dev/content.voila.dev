@@ -22,7 +22,16 @@ export interface S3StorageOpts {
   readonly fetch?: typeof fetch;
   /** Clock returning epoch ms — injectable for deterministic signing tests. */
   readonly now?: () => number;
+  /**
+   * TTL (seconds) of the short-lived presigned URLs the adapter signs for its
+   * own `put`/`get`/`delete` round-trips — each is consumed immediately, so the
+   * default is short. Raise it only for unusually slow links. (The browser-
+   * facing `signedUrl` TTL is set per call via `SignedUrlOpts.expiresIn`.)
+   */
+  readonly requestExpiresIn?: number;
 }
+
+const DEFAULT_REQUEST_EXPIRES_IN = 300;
 
 const encoder = new TextEncoder();
 
@@ -133,6 +142,7 @@ export function makeS3Storage(opts: S3StorageOpts): Storage {
   const endpoint = opts.endpoint ?? `https://s3.${opts.region}.amazonaws.com`;
   const fetchImpl = opts.fetch ?? globalThis.fetch;
   const now = opts.now ?? Date.now;
+  const requestTtl = opts.requestExpiresIn ?? DEFAULT_REQUEST_EXPIRES_IN;
 
   const sign = (method: string, key: string, expiresIn: number): Promise<string> =>
     presign({
@@ -150,7 +160,7 @@ export function makeS3Storage(opts: S3StorageOpts): Storage {
   return {
     id: "s3",
     async put(key: string, body: Uint8Array<ArrayBuffer>, putOpts?: StoragePutOpts) {
-      const url = await sign("PUT", key, 300);
+      const url = await sign("PUT", key, requestTtl);
       const res = await fetchImpl(url, {
         method: "PUT",
         headers: putOpts?.contentType ? { "content-type": putOpts.contentType } : undefined,
@@ -159,7 +169,7 @@ export function makeS3Storage(opts: S3StorageOpts): Storage {
       if (!res.ok) throw new Error(`S3 PUT "${key}" failed: ${res.status}`);
     },
     async get(key: string): Promise<StorageObject | null> {
-      const url = await sign("GET", key, 300);
+      const url = await sign("GET", key, requestTtl);
       const res = await fetchImpl(url);
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`S3 GET "${key}" failed: ${res.status}`);
@@ -167,7 +177,7 @@ export function makeS3Storage(opts: S3StorageOpts): Storage {
       return { body, size: body.byteLength };
     },
     async delete(key: string) {
-      const url = await sign("DELETE", key, 300);
+      const url = await sign("DELETE", key, requestTtl);
       const res = await fetchImpl(url, { method: "DELETE" });
       // 404 on delete is a no-op by the seam's contract.
       if (!res.ok && res.status !== 404)

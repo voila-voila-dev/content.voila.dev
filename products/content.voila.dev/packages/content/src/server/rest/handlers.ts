@@ -56,16 +56,24 @@ export interface RestContext {
   readonly onError?: RestErrorHook;
 }
 
+// `NormalizedConfig` narrows its collection/singleton maps with a mapped type
+// whose values erase to `unknown` under indexing; the read layer only ever reads
+// `fields` off an entry. These two helpers are the single place that re-views the
+// maps as that field-bearing shape, so the cast isn't restated at every call.
+type FieldBearingMap = Record<string, { fields: FieldsMap }>;
+const collectionsOf = (config: NormalizedConfig): FieldBearingMap =>
+  config.collections as FieldBearingMap;
+const singletonsOf = (config: NormalizedConfig): FieldBearingMap =>
+  config.singletons as FieldBearingMap;
+
 /**
  * Resolve a `:collection` URL segment against the registry. Collections and
  * singletons share a flat slug namespace, so a singleton is reachable through
  * the same routes. Throws `UNKNOWN_COLLECTION` when the slug matches neither.
  */
 export function requireCollection(config: NormalizedConfig, slug: string): CollectionLike {
-  // `NormalizedConfig` narrows its maps with a mapped type whose values erase to
-  // `unknown` under indexing; re-view them as the field-bearing shape we read.
-  const collections = config.collections as Record<string, { fields: FieldsMap }>;
-  const singletons = config.singletons as Record<string, { fields: FieldsMap }>;
+  const collections = collectionsOf(config);
+  const singletons = singletonsOf(config);
   // `Object.hasOwn` guards against inherited keys (`"toString"`, …) before the
   // own-value read; the capture is what lets TS drop the `| undefined`.
   const collection = Object.hasOwn(collections, slug) ? collections[slug] : undefined;
@@ -78,12 +86,12 @@ export function requireCollection(config: NormalizedConfig, slug: string): Colle
 /** Whether a slug names a configured singleton — drives the router's split
  *  between the list/create collection routes and the get/set singleton routes. */
 export function isSingleton(config: NormalizedConfig, slug: string): boolean {
-  return Object.hasOwn(config.singletons as Record<string, unknown>, slug);
+  return Object.hasOwn(singletonsOf(config), slug);
 }
 
 /** Like `requireCollection`, but resolves only singletons. */
 export function requireSingleton(config: NormalizedConfig, slug: string): CollectionLike {
-  const singletons = config.singletons as Record<string, { fields: FieldsMap }>;
+  const singletons = singletonsOf(config);
   const singleton = Object.hasOwn(singletons, slug) ? singletons[slug] : undefined;
   if (singleton) return { slug, fields: singleton.fields };
   return fail(unknownCollection(slug));

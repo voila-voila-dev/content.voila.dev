@@ -2,6 +2,7 @@
 // `_media` REST routes (and a host's own tooling) read and write.
 
 export {
+  decodeListCursor,
   type MediaListOpts,
   type MediaListResult,
   type MediaRecord,

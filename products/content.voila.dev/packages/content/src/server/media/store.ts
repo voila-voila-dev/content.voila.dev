@@ -66,8 +66,11 @@ function mapRow(row: SqlRow): MediaRecord {
 }
 
 // The list cursor is the boundary row's `(createdAt, id)` — `id` breaks ties
-// between same-millisecond uploads. Encoded as `<epochMs>:<id>`.
-function decodeListCursor(cursor: string): { createdAt: number; id: string } | null {
+// between same-millisecond uploads. Encoded as `<epochMs>:<id>`. Exported so the
+// REST media route can pre-validate a `?cursor` and map a malformed one to a
+// typed `400 INVALID_CURSOR` (like the collection read path) instead of letting
+// `list` throw a raw `Error` that folds to a 500.
+export function decodeListCursor(cursor: string): { createdAt: number; id: string } | null {
   const split = cursor.indexOf(":");
   if (split < 1) return null;
   const createdAt = Number(cursor.slice(0, split));

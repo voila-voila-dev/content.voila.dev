@@ -197,6 +197,13 @@ describe("record + library reads", () => {
     const handle = handler();
     expect((await send(handle, "/_media?limit=zero")).status).toBe(400);
   });
+
+  it("maps a malformed cursor to 400 INVALID_CURSOR (not a 500)", async () => {
+    const handle = handler();
+    const res = await send(handle, "/_media?cursor=not-a-cursor");
+    expect(res.status).toBe(400);
+    expect((await errorOf(res)).code).toBe("INVALID_CURSOR");
+  });
 });
 
 describe("file serve", () => {
