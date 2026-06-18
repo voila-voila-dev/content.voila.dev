@@ -61,7 +61,9 @@ describe("LocalizedFieldEditor", () => {
     fireEvent.change(container.querySelector("#posts-title-fr-FR") as HTMLInputElement, {
       target: { value: "Bonjour" },
     });
-    expect(onChange.mock.calls[0]?.[0]).toEqual({ "en-US": "Hello", "fr-FR": "Bonjour" });
+    // onChange emits a functional updater; resolve it against the prior record.
+    const update = onChange.mock.calls[0]?.[0] as (prev: unknown) => unknown;
+    expect(update({ "en-US": "Hello" })).toEqual({ "en-US": "Hello", "fr-FR": "Bonjour" });
   });
 
   test("labels each locale's switch with the form label plus the locale badge", () => {

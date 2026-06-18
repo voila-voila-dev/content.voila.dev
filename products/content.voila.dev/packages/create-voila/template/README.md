@@ -9,8 +9,8 @@ from it.
 
 ```bash
 bun install
-voila migrate generate   # SQL from your fields (+ auth tables) → migrations/
-voila migrate apply      # apply to ./local.db — the file the app opens too
+voila migrate generate --auth   # SQL from your fields (+ auth tables) → migrations/
+voila migrate apply             # apply to ./local.db — the file the app opens too
 bun dev                  # → http://localhost:3000  (admin at /admin)
 ```
 
@@ -32,7 +32,7 @@ are denied access. To send real email instead of printing to the terminal, set
 Edit `content.config.ts` — add a collection, add a field — then:
 
 ```bash
-voila migrate generate && voila migrate apply
+voila migrate generate --auth && voila migrate apply
 ```
 
 The admin list, detail, and create/edit forms update automatically; you write

@@ -9,8 +9,8 @@ from it.
 
 ```bash
 bun install
-voila migrate generate   # SQL from your fields (+ auth tables) → migrations/
-voila migrate apply      # apply to ./local.db — the file the app opens too
+voila migrate generate --auth   # SQL from your fields (+ auth tables) → migrations/
+voila migrate apply             # apply to ./local.db — the file the app opens too
 cp .env.example .env     # then set VOILA_AUTH_SECRET (openssl rand -base64 32)
 bun dev                  # → http://localhost:3000  (admin at /admin)
 ```
@@ -28,7 +28,7 @@ becomes the admin**; later emails authenticate but are denied access.
 Edit `content.config.ts` — add a collection, add a field — then:
 
 ```bash
-voila migrate generate && voila migrate apply
+voila migrate generate --auth && voila migrate apply
 ```
 
 The admin list, detail, and create/edit forms update automatically; you write

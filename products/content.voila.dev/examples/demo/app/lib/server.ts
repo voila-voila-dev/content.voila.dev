@@ -32,7 +32,10 @@ if (!secret) {
       "auth sessions, magic-link tokens, and the CSRF token.",
   );
 }
-const baseUrl = process.env.VOILA_BASE_URL ?? "http://localhost:3000";
+// Set in production to your deployment origin (e.g. https://admin.example.com).
+// Unset in dev — Better Auth then infers the origin from each request, so auth
+// works on whatever port the dev server bound to (3000, 3001, …).
+const baseUrl = process.env.VOILA_BASE_URL;
 
 const driver = makeNodeSqliteDriver({
   url: new URL("../../local.db", import.meta.url).pathname,

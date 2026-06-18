@@ -21,19 +21,26 @@ export interface CursorPosition {
   readonly direction: OrderDirection;
 }
 
-const toBase64Url = (s: string): string =>
-  btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+function toBase64Url(s: string): string {
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
 
-const fromBase64Url = (s: string): string => atob(s.replace(/-/g, "+").replace(/_/g, "/"));
+function fromBase64Url(s: string): string {
+  return atob(s.replace(/-/g, "+").replace(/_/g, "/"));
+}
 
-export const encodeCursor = (position: CursorPosition): string =>
-  toBase64Url(JSON.stringify([position.value, position.id, position.orderBy, position.direction]));
+export function encodeCursor(position: CursorPosition): string {
+  return toBase64Url(
+    JSON.stringify([position.value, position.id, position.orderBy, position.direction]),
+  );
+}
 
-const isCursorValue = (v: unknown): v is CursorPosition["value"] =>
-  v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean";
+function isCursorValue(v: unknown): v is CursorPosition["value"] {
+  return v === null || typeof v === "string" || typeof v === "number" || typeof v === "boolean";
+}
 
 /** Decode a cursor, or `null` if it's malformed (treated as "start from the top"). */
-export const decodeCursor = (cursor: string): CursorPosition | null => {
+export function decodeCursor(cursor: string): CursorPosition | null {
   try {
     const parsed: unknown = JSON.parse(fromBase64Url(cursor));
     if (
@@ -50,4 +57,4 @@ export const decodeCursor = (cursor: string): CursorPosition | null => {
   } catch {
     return null;
   }
-};
+}

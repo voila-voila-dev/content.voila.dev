@@ -66,7 +66,10 @@ export function LocalizedFieldEditor({
           <div className="min-w-0 flex-1">
             <Widget
               value={record[locale]}
-              onChange={(v) => onChange({ ...record, [locale]: v })}
+              // Merge via a functional updater (resolved by the host against the
+              // latest record) so two locales emitting in the same batch — e.g.
+              // each editor normalising on mount — don't overwrite each other.
+              onChange={(v) => onChange((prev: unknown) => ({ ...asRecord(prev), [locale]: v }))}
               field={inner}
               id={`${id}-${locale}`}
               labelId={labelId ? `${labelId} ${id}-${locale}-label` : `${id}-${locale}-label`}

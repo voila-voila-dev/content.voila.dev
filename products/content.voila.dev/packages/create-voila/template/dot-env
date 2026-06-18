@@ -2,9 +2,11 @@
 # Generated for you at scaffold time — keep it private; .env is git-ignored.
 VOILA_AUTH_SECRET={{authSecret}}
 
-# The app's own URL. Used for magic-link verify links and to decide whether
-# auth cookies are `Secure` (https → yes). Set this to your deployed origin.
-VOILA_BASE_URL=http://localhost:3000
+# The app's own URL — used for magic-link verify links and to decide whether
+# auth cookies are `Secure` (https → yes). Leave it unset in dev: auth then
+# follows whatever port the dev server binds to. Set it to your deployed origin
+# in production.
+# VOILA_BASE_URL=https://admin.example.com
 
 # Magic links print to the dev server's terminal by default. To send real
 # email, set a Resend API key and a verified from-address (then restart):

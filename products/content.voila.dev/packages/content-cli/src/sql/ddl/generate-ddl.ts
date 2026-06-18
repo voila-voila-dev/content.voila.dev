@@ -47,7 +47,7 @@ const renderIndex = (idx: IndexSchema, dialect: Dialect): string => {
   return `CREATE ${unique}INDEX ${quote(idx.name)} ON ${quote(idx.table)}${using} (${target});`;
 };
 
-export const generateDDL = (tables: ReadonlyArray<TableSchema>, dialect: Dialect): string => {
+export function generateDDL(tables: ReadonlyArray<TableSchema>, dialect: Dialect): string {
   const blocks: string[] = [];
   for (const table of tables) {
     const block: string[] = [renderTable(table, dialect)];
@@ -57,4 +57,4 @@ export const generateDDL = (tables: ReadonlyArray<TableSchema>, dialect: Dialect
     blocks.push(block.join("\n"));
   }
   return `${blocks.join("\n\n")}\n`;
-};
+}

@@ -98,6 +98,24 @@ describe("magic-link sign-in", () => {
     expect(principal?.email).toBe("user@x.dev");
     expect(principal?.id).toBeTruthy();
   });
+
+  // Regression: with no pinned `baseUrl` (the dev default), a sign-in from a
+  // non-3000 localhost port must be accepted (not "Invalid origin") *and* the
+  // magic-link URL must point back at that same port — otherwise the link is
+  // unusable whenever the dev server falls back from 3000.
+  it("infers the request origin when no baseUrl is pinned (any dev port works)", async () => {
+    const devBridge = makeBetterAuth({ secret: SECRET, driver, mailer: capturingMailer });
+    const origin = "http://localhost:3001";
+    const response = await devBridge.handler(
+      new Request(`${origin}${devBridge.basePath}/sign-in/magic-link`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin },
+        body: JSON.stringify({ email: "dev@x.dev" }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(inbox.at(-1)?.url).toContain(`${origin}${devBridge.basePath}/magic-link/verify`);
+  });
 });
 
 describe("authenticator (the seam)", () => {

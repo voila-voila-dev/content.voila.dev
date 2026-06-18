@@ -109,5 +109,10 @@ function printNextSteps(dir: string, pm: string, opts: { readonly installed: boo
     steps.push(`  ${pm} install`, `  ${runCmd} migrate:generate`);
   }
   steps.push(`  ${runCmd} migrate:apply`, `  ${runCmd} dev`);
-  console.log(`\nNext steps:\n${steps.join("\n")}\n\nThen open http://localhost:3000/admin`);
+  console.log(
+    `\nNext steps:\n${steps.join("\n")}\n\nThen open http://localhost:3000/admin — it's secure by ` +
+      `default, so you'll be sent to /admin/login. Enter an email and open the magic-link URL ` +
+      `printed to the dev server terminal (look for "[voila/auth] magic link"). The first ` +
+      `account to sign in becomes the admin.`,
+  );
 }

@@ -132,8 +132,14 @@ export function CollectionForm<C extends Collection = Collection>({
   function handleChange(name: string, value: unknown) {
     const derivedKeys = (bySource[name] ?? []).filter((k) => !latchedSlugs.has(k));
     setValues((prev) => {
-      const next = { ...prev, [name]: value };
-      if (typeof value === "string") for (const k of derivedKeys) next[k] = slugify(value);
+      // A localized widget passes a functional updater so its per-locale edits
+      // merge against the latest record, not the (possibly stale) value it was
+      // rendered with — otherwise two locales emitting in one batch clobber each
+      // other and a locale silently drops out of the record.
+      const resolved =
+        typeof value === "function" ? (value as (p: unknown) => unknown)(prev[name]) : value;
+      const next = { ...prev, [name]: resolved };
+      if (typeof resolved === "string") for (const k of derivedKeys) next[k] = slugify(resolved);
       return next;
     });
     if (derivable.has(name)) {
