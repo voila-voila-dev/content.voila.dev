@@ -2,11 +2,9 @@
   "extends": "@voila/typescript-config/tsconfig.base.json",
   "files": [],
   "references": [
-    { "path": "./packages/ui/tsconfig.build.json" },
-    { "path": "./packages/rich-text-editor/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/content/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/content-ui/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/content-registry/tsconfig.build.json" },
-    { "path": "./products/content.voila.dev/packages/create-voila/tsconfig.build.json" }
+    { "path": "./packages/content/tsconfig.build.json" },
+    { "path": "./packages/content-ui/tsconfig.build.json" },
+    { "path": "./packages/content-registry/tsconfig.build.json" },
+    { "path": "./packages/create-voila/tsconfig.build.json" }
   ]
 }

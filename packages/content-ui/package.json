@@ -1,0 +1,35 @@
+{
+  "name": "@voila/content-ui",
+  "version": "0.1.0",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./tailwind": "./src/tailwind.css"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "^2.1.7",
+    "@voila/content": "workspace:*",
+    "@voila/ui": "^0.1.0"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^15.11.7",
+    "@testing-library/react": "^16.1.0",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@voila/typescript-config": "workspace:*",
+    "happy-dom": "^15.11.7",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  }
+}

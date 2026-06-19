@@ -1,0 +1,16 @@
+{
+  "extends": "@voila/typescript-config/tsconfig.build.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    // Schema-aware blocks forward props through React components and read the
+    // erased `Field`/`FieldMetaBase` shapes, which routinely defeat inference
+    // for isolatedDeclarations — disable it here only, exactly like @voila/ui.
+    "isolatedDeclarations": false
+  },
+  "references": [{ "path": "../content/tsconfig.build.json" }],
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}

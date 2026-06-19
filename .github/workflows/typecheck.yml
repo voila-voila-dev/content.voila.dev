@@ -26,8 +26,3 @@ jobs:
         shell: bash
         run: bunx tsc -b
 
-      - name: tsc --noEmit (apps/ui.voila.dev)
-        shell: bash
-        working-directory: apps/ui.voila.dev
-        run: bunx tsc --noEmit
-
