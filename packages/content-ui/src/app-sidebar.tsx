@@ -7,7 +7,7 @@
 // (`AdminShell` supplies one).
 
 import type { NormalizedConfig } from "@voila/content";
-import { Sidebar } from "@voila/ui";
+import { Sidebar } from "@voila/ui/sidebar";
 import type { ReactElement, ReactNode } from "react";
 import { buildNav, type NavItem } from "./lib/nav";
 

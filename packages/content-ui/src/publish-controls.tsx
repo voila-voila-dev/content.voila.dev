@@ -5,7 +5,7 @@
 // The host wires those to `client.<slug>.publish/unpublish`. Renders nothing for
 // a document with no `status` (a non-draft collection).
 
-import { Button } from "@voila/ui";
+import { Button } from "@voila/ui/button";
 import type { ReactNode } from "react";
 import type { Doc } from "./lib/doc";
 import { publishStatus } from "./lib/publish-status";

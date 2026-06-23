@@ -5,7 +5,9 @@
 // the trigger styles itself from the `variant`, and the caller controls the
 // pending/disabled state (e.g. `disabled` while the mutation runs).
 
-import { AlertDialog, buttonVariants, cn } from "@voila/ui";
+import { AlertDialog } from "@voila/ui/alert-dialog";
+import { buttonVariants } from "@voila/ui/button";
+import { cn } from "@voila/ui/cn";
 import type { ReactNode } from "react";
 
 export interface ConfirmButtonProps {

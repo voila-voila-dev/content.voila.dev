@@ -4,7 +4,7 @@
 // `client.<slug>.list({ status })`, and feeds the page back into the table.
 // The values mirror the engine's `DraftFilter` (`any` = every row).
 
-import { Tabs } from "@voila/ui";
+import { Tabs } from "@voila/ui/tabs";
 import type { ReactNode } from "react";
 
 export type StatusFilterValue = "any" | "published" | "scheduled" | "draft";

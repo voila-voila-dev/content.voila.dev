@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { cleanup, render, screen } from "@testing-library/react";
 import { defineCollection, defineConfig, defineSingleton, fields } from "@voila/content";
-import { Sidebar } from "@voila/ui";
+import { Sidebar } from "@voila/ui/sidebar";
 import { AppSidebar, type AppSidebarProps } from "./app-sidebar";
 
 // `screen` queries the whole document; AppSidebar needs an ambient

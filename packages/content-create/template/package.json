@@ -19,12 +19,10 @@
     "@voila/content-admin": "^0.1.0",
     "@voila/content": "^0.1.0",
     "@voila/content-ui": "^0.1.0",
-    "@voila/ui": "^0.1.0",
+    "@voila/ui": "^0.2.0",
     "better-auth": "^1.6.12",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-hook-form": "^7.54.0",
-    "recharts": "^2.15.0"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.0.0",

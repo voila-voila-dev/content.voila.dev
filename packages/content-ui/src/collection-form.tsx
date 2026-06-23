@@ -6,7 +6,9 @@
 // surfaces server failures (e.g. a 409 conflict).
 
 import { type Collection, type InferFields, slugify } from "@voila/content";
-import { buttonVariants, cn, Label } from "@voila/ui";
+import { buttonVariants } from "@voila/ui/button";
+import { cn } from "@voila/ui/cn";
+import { Label } from "@voila/ui/label";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import type { Doc } from "./lib/doc";
 import { getFieldLabel, humanize } from "./lib/humanize";

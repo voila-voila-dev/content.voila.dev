@@ -6,7 +6,9 @@
 // field }`, plus an `id` so the form can wire a `<label htmlFor>`.
 
 import type { Field, FieldMetaBase } from "@voila/content";
-import { Input, Switch, Textarea } from "@voila/ui";
+import { Input } from "@voila/ui/input";
+import { Switch } from "@voila/ui/switch";
+import { Textarea } from "@voila/ui/textarea";
 import type { ReactNode } from "react";
 
 // Token-based styling for the native `<select>`, matched to the `@voila/ui`

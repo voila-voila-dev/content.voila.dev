@@ -3,7 +3,7 @@
 // with no `status` (a non-draft collection), so it's safe to drop into a row or
 // a detail header unconditionally.
 
-import { Badge } from "@voila/ui";
+import { Badge } from "@voila/ui/badge";
 import type { ReactNode } from "react";
 import type { Doc } from "../lib/doc";
 import { type PublishState, publishStatus } from "../lib/publish-status";

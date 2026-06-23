@@ -6,7 +6,7 @@
 // validator doesn't expose them at runtime.
 
 import type { Field } from "@voila/content";
-import { Badge } from "@voila/ui";
+import { Badge } from "@voila/ui/badge";
 import type { ReactNode } from "react";
 import type { Doc } from "./lib/doc";
 import { type EditRegistry, resolveEditWidget } from "./registry/edit";

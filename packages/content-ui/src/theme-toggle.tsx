@@ -5,7 +5,7 @@
 // flips the `dark` class on `<html>`.
 
 import { MoonIcon, SunIcon } from "@phosphor-icons/react";
-import { Button } from "@voila/ui";
+import { Button } from "@voila/ui/button";
 import type { ReactNode } from "react";
 import { resolvedTheme, setTheme } from "./lib/theme";
 

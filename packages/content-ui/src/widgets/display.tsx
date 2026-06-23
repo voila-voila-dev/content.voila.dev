@@ -5,7 +5,7 @@
 // land in a later slice — these are the cell/detail renderers.
 
 import type { FieldMetaBase } from "@voila/content";
-import { Badge } from "@voila/ui";
+import { Badge } from "@voila/ui/badge";
 import type { ReactNode } from "react";
 
 export interface DisplayWidgetProps {

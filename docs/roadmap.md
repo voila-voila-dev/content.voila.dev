@@ -28,7 +28,7 @@ All packages are published; `bun create content-voila <dir>` works from npm alon
 
 ## Now — polish
 
-- [ ] `@voila/ui`: move `chart`/`form` to subpath exports so the barrel stops forcing the `recharts`/`react-hook-form` optional peers (today the template installs them)
+- [x] `@voila/ui@0.2.0`: dropped the barrel entirely — every component is now its own subpath export (`@voila/ui/button`, `@voila/ui/chart`, …), so importing one no longer pulls the `recharts`/`react-hook-form` optional peers. Template + demo no longer install them.
 - [ ] CI gate: external `bun create content-voila` → build + typecheck (the smoke test, automated)
 - [ ] Close the remaining [DX](./dx-review.md) and [UI/UX](./ui-ux-review.md) review items
 

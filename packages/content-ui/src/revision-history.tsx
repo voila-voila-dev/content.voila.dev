@@ -7,7 +7,8 @@
 // revision is the current state, so it shows a "Current" marker instead of a
 // Restore button.
 
-import { Badge, Button } from "@voila/ui";
+import { Badge } from "@voila/ui/badge";
+import { Button } from "@voila/ui/button";
 import type { ReactNode } from "react";
 import type { Doc } from "./lib/doc";
 import { StatusBadge } from "./widgets/status-badge";

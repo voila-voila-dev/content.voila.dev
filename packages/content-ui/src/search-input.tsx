@@ -4,7 +4,7 @@
 // ranked rows back into the table. Submitting the form (Enter) calls `onSubmit`;
 // `onChange` fires per keystroke so a host can debounce-and-search if it prefers.
 
-import { Input } from "@voila/ui";
+import { Input } from "@voila/ui/input";
 import type { ReactNode } from "react";
 
 export interface SearchInputProps {

@@ -16,7 +16,7 @@
   "dependencies": {
     "@phosphor-icons/react": "^2.1.7",
     "@voila/content": "workspace:*",
-    "@voila/ui": "^0.1.0"
+    "@voila/ui": "^0.2.0"
   },
   "peerDependencies": {
     "react": "catalog:",

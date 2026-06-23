@@ -10,7 +10,8 @@
 // pagination, and loading/error chrome.
 
 import type { Collection, Field } from "@voila/content";
-import { Skeleton, Table } from "@voila/ui";
+import { Skeleton } from "@voila/ui/skeleton";
+import { Table } from "@voila/ui/table";
 import type { ReactNode } from "react";
 import { documentTitle } from "./detail-view";
 import { FieldRenderer } from "./field-renderer";

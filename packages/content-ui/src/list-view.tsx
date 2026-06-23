@@ -7,7 +7,7 @@
 // `actions` to navigation. Columns and cells still come entirely from the config.
 
 import type { Collection } from "@voila/content";
-import { Button } from "@voila/ui";
+import { Button } from "@voila/ui/button";
 import type { ReactNode } from "react";
 import { DataTable } from "./data-table";
 import type { Doc } from "./lib/doc";

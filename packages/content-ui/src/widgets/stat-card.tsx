@@ -5,7 +5,7 @@
 // `renderLink` to render through a framework `Link` (it receives the href and
 // the card body as children), defaulting to a plain `<a>`.
 
-import { Card } from "@voila/ui";
+import { Card } from "@voila/ui/card";
 import type { ReactElement, ReactNode } from "react";
 
 export interface StatCardProps {
