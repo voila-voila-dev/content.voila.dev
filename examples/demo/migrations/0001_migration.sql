@@ -14,15 +14,6 @@ CREATE TABLE "posts" (
 );
 CREATE UNIQUE INDEX "posts_slug_unique_idx" ON "posts" ("slug");
 
-CREATE TABLE "settings" (
-  "id" TEXT PRIMARY KEY NOT NULL,
-  "created_at" INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-  "updated_at" INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-  "deleted_at" INTEGER,
-  "site_name" TEXT NOT NULL,
-  CHECK ("id" = 'settings')
-);
-
 CREATE TABLE "voila_media" (
   "id" TEXT PRIMARY KEY NOT NULL,
   "key" TEXT NOT NULL,

@@ -1,0 +1,10 @@
+node_modules
+.output
+dist
+.wrangler
+.dev.vars
+worker-configuration.d.ts
+*.db
+*.db-*
+.env
+.DS_Store

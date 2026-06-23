@@ -54,6 +54,13 @@ describe("CollectionForm", () => {
     expect(input.getAttribute("aria-invalid")).toBe("true");
   });
 
+  test("focuses the first invalid field on a failed submit", () => {
+    const { container } = render(<CollectionForm collection={posts} onSubmit={mock()} />);
+    fireEvent.submit(form(container));
+    // `title` is the first (and only) invalid field — focus lands on its input.
+    expect(document.activeElement).toBe(container.querySelector("#posts-title"));
+  });
+
   test("clears a field error as soon as it is edited", () => {
     const { container } = render(<CollectionForm collection={posts} onSubmit={mock()} />);
     fireEvent.submit(form(container));
@@ -210,5 +217,39 @@ describe("CollectionForm — slug derivation (`slug({ from })`)", () => {
     fireEvent.submit(form(container));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit.mock.calls[0]?.[0]).toEqual({ title: "My Post", slug: "my-post" });
+  });
+});
+
+describe("CollectionForm — unsaved-changes guard", () => {
+  // Did a `beforeunload` listener veto the navigation? (preventDefault → prompt.)
+  function wouldPromptOnLeave(): boolean {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  }
+
+  test("a pristine form lets the page unload without a prompt", () => {
+    render(<CollectionForm collection={posts} onSubmit={mock()} />);
+    expect(wouldPromptOnLeave()).toBe(false);
+  });
+
+  test("prompts before unload once a field is edited", () => {
+    const { container } = render(<CollectionForm collection={posts} onSubmit={mock()} />);
+    fireEvent.change(container.querySelector("#posts-title") as HTMLInputElement, {
+      target: { value: "Draft" },
+    });
+    expect(wouldPromptOnLeave()).toBe(true);
+  });
+
+  test("stops guarding after a successful submit", async () => {
+    const { container } = render(
+      <CollectionForm collection={posts} onSubmit={mock()} defaultValues={{ title: "Hello" }} />,
+    );
+    fireEvent.change(container.querySelector("#posts-title") as HTMLInputElement, {
+      target: { value: "Hello world" },
+    });
+    expect(wouldPromptOnLeave()).toBe(true);
+    fireEvent.submit(form(container));
+    await waitFor(() => expect(wouldPromptOnLeave()).toBe(false));
   });
 });

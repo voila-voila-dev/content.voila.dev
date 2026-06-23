@@ -14,8 +14,13 @@ import type { DisplayRegistry } from "./registry/registry";
 
 export interface DetailViewProps {
   readonly collection: Collection;
-  /** The document to display (e.g. `client.<slug>.find(id)`). */
-  readonly doc: Doc;
+  /**
+   * The document to display (e.g. `client.<slug>.find(id)`). Optional so a host
+   * can render `DetailView` directly through the fetch lifecycle: `null` /
+   * `undefined` with `loading` shows the loading state, and without it shows the
+   * `emptyMessage` (not-found) state — mirroring `ListView`.
+   */
+  readonly doc?: Doc | null;
   /** Field keys to show, in order. Defaults to all non-hidden fields. */
   readonly fields?: readonly string[];
   /** Override display widgets per kind/name. */
@@ -24,8 +29,15 @@ export interface DetailViewProps {
    *  collection declares one), then the collection label / humanized slug. */
   readonly title?: ReactNode;
   readonly description?: ReactNode;
-  /** Header actions (e.g. Edit / Delete); rendered on the right. */
+  /** Header actions (e.g. Edit / Delete); rendered on the right. Only shown
+   *  alongside a document — hidden during loading / error / not-found. */
   readonly actions?: ReactNode;
+  /** While true (and no `doc` yet), shows a loading placeholder. */
+  readonly loading?: boolean;
+  /** Form-level error message (e.g. a failed fetch); shown as an alert. */
+  readonly error?: string;
+  /** Shown when there's no `doc` and we're not loading. Defaults to "Not found." */
+  readonly emptyMessage?: string;
 }
 
 interface Row {
@@ -64,35 +76,74 @@ export function DetailView({
   title,
   description,
   actions,
+  loading = false,
+  error,
+  emptyMessage,
 }: DetailViewProps): ReactNode {
+  const hasDoc = doc !== null && doc !== undefined;
   const heading =
-    title ?? documentTitle(collection, doc) ?? collection.label ?? humanize(collection.slug);
-  const rows = resolveRows(collection, fields);
+    title ??
+    (hasDoc ? documentTitle(collection, doc) : undefined) ??
+    collection.label ??
+    humanize(collection.slug);
+  const rows = hasDoc ? resolveRows(collection, fields) : [];
+
+  // What an assistive-tech user hears when the view's state changes — mirroring
+  // `ListView`. The visible loading / not-found text below isn't in a live
+  // region, so screen readers stay silent on those transitions without this.
+  const liveMessage = error
+    ? error
+    : loading && !hasDoc
+      ? "Loading…"
+      : !hasDoc
+        ? (emptyMessage ?? "Not found.")
+        : "";
 
   return (
     <section className="space-y-4">
+      <p aria-live="polite" className="sr-only">
+        {liveMessage}
+      </p>
+
       <header className="flex items-start gap-4">
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold">{heading}</h2>
+          {/* `tabIndex={-1}` makes the page heading programmatically focusable so
+              a host can move focus here on a route / mode change (SPA focus
+              management) without it landing in the tab order. */}
+          <h1 tabIndex={-1} className="text-lg font-semibold focus:outline-none">
+            {heading}
+          </h1>
           {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
         </div>
-        {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
+        {actions && hasDoc ? (
+          <div className="ml-auto flex items-center gap-2">{actions}</div>
+        ) : null}
       </header>
 
-      <dl className="grid grid-cols-[minmax(8rem,12rem)_1fr] gap-x-4 gap-y-3 text-sm">
-        {rows.map((row) => {
-          const field = collection.fields[row.key];
-          if (!field) return null;
-          return (
-            <div key={row.key} className="contents">
-              <dt className="font-medium text-muted-foreground">{row.label}</dt>
-              <dd>
-                <FieldRenderer field={field} value={doc[row.key]} registry={registry} />
-              </dd>
-            </div>
-          );
-        })}
-      </dl>
+      {error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      ) : hasDoc ? (
+        <dl className="grid grid-cols-[minmax(8rem,12rem)_1fr] gap-x-4 gap-y-3 text-sm">
+          {rows.map((row) => {
+            const field = collection.fields[row.key];
+            if (!field) return null;
+            return (
+              <div key={row.key} className="contents">
+                <dt className="font-medium text-muted-foreground">{row.label}</dt>
+                <dd>
+                  <FieldRenderer field={field} value={doc[row.key]} registry={registry} />
+                </dd>
+              </div>
+            );
+          })}
+        </dl>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          {loading ? "Loading…" : (emptyMessage ?? "Not found.")}
+        </p>
+      )}
     </section>
   );
 }

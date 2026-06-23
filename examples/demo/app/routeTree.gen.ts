@@ -9,207 +9,204 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AdminIndexRouteImport } from './routes/admin.index'
-import { Route as AdminLoginRouteImport } from './routes/admin_.login'
-import { Route as AdminPostsIndexRouteImport } from './routes/admin.posts.index'
-import { Route as AdminPostsNewRouteImport } from './routes/admin.posts.new'
-import { Route as AdminPostsIdRouteImport } from './routes/admin.posts.$id'
-import { Route as AdminApiSplatRouteImport } from './routes/admin.api.$'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as ApiSplatRouteImport } from './routes/api.$'
+import { Route as AppSplatRouteImport } from './routes/_app.$'
+import { Route as AppCollectionIndexRouteImport } from './routes/_app.$collection.index'
+import { Route as AppCollectionNewRouteImport } from './routes/_app.$collection.new'
+import { Route as AppCollectionIdRouteImport } from './routes/_app.$collection.$id'
 
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
-const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminLoginRoute = AdminLoginRouteImport.update({
-  id: '/admin_/login',
-  path: '/admin/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminPostsIndexRoute = AdminPostsIndexRouteImport.update({
-  id: '/posts/',
-  path: '/posts/',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminPostsNewRoute = AdminPostsNewRouteImport.update({
-  id: '/posts/new',
-  path: '/posts/new',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminPostsIdRoute = AdminPostsIdRouteImport.update({
-  id: '/posts/$id',
-  path: '/posts/$id',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminApiSplatRoute = AdminApiSplatRouteImport.update({
+const ApiSplatRoute = ApiSplatRouteImport.update({
   id: '/api/$',
   path: '/api/$',
-  getParentRoute: () => AdminRoute,
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppSplatRoute = AppSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCollectionIndexRoute = AppCollectionIndexRouteImport.update({
+  id: '/$collection/',
+  path: '/$collection/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCollectionNewRoute = AppCollectionNewRouteImport.update({
+  id: '/$collection/new',
+  path: '/$collection/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCollectionIdRoute = AppCollectionIdRouteImport.update({
+  id: '/$collection/$id',
+  path: '/$collection/$id',
+  getParentRoute: () => AppRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
-  '/admin/login': typeof AdminLoginRoute
-  '/admin/': typeof AdminIndexRoute
-  '/admin/api/$': typeof AdminApiSplatRoute
-  '/admin/posts/$id': typeof AdminPostsIdRoute
-  '/admin/posts/new': typeof AdminPostsNewRoute
-  '/admin/posts/': typeof AdminPostsIndexRoute
+  '/': typeof AppIndexRoute
+  '/login': typeof LoginRoute
+  '/$': typeof AppSplatRoute
+  '/api/$': typeof ApiSplatRoute
+  '/$collection/$id': typeof AppCollectionIdRoute
+  '/$collection/new': typeof AppCollectionNewRoute
+  '/$collection/': typeof AppCollectionIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/admin/login': typeof AdminLoginRoute
-  '/admin': typeof AdminIndexRoute
-  '/admin/api/$': typeof AdminApiSplatRoute
-  '/admin/posts/$id': typeof AdminPostsIdRoute
-  '/admin/posts/new': typeof AdminPostsNewRoute
-  '/admin/posts': typeof AdminPostsIndexRoute
+  '/login': typeof LoginRoute
+  '/$': typeof AppSplatRoute
+  '/api/$': typeof ApiSplatRoute
+  '/': typeof AppIndexRoute
+  '/$collection/$id': typeof AppCollectionIdRoute
+  '/$collection/new': typeof AppCollectionNewRoute
+  '/$collection': typeof AppCollectionIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
-  '/admin_/login': typeof AdminLoginRoute
-  '/admin/': typeof AdminIndexRoute
-  '/admin/api/$': typeof AdminApiSplatRoute
-  '/admin/posts/$id': typeof AdminPostsIdRoute
-  '/admin/posts/new': typeof AdminPostsNewRoute
-  '/admin/posts/': typeof AdminPostsIndexRoute
+  '/_app': typeof AppRouteWithChildren
+  '/login': typeof LoginRoute
+  '/_app/$': typeof AppSplatRoute
+  '/api/$': typeof ApiSplatRoute
+  '/_app/': typeof AppIndexRoute
+  '/_app/$collection/$id': typeof AppCollectionIdRoute
+  '/_app/$collection/new': typeof AppCollectionNewRoute
+  '/_app/$collection/': typeof AppCollectionIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/admin'
-    | '/admin/login'
-    | '/admin/'
-    | '/admin/api/$'
-    | '/admin/posts/$id'
-    | '/admin/posts/new'
-    | '/admin/posts/'
+    | '/login'
+    | '/$'
+    | '/api/$'
+    | '/$collection/$id'
+    | '/$collection/new'
+    | '/$collection/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/login'
+    | '/$'
+    | '/api/$'
     | '/'
-    | '/admin/login'
-    | '/admin'
-    | '/admin/api/$'
-    | '/admin/posts/$id'
-    | '/admin/posts/new'
-    | '/admin/posts'
+    | '/$collection/$id'
+    | '/$collection/new'
+    | '/$collection'
   id:
     | '__root__'
-    | '/'
-    | '/admin'
-    | '/admin_/login'
-    | '/admin/'
-    | '/admin/api/$'
-    | '/admin/posts/$id'
-    | '/admin/posts/new'
-    | '/admin/posts/'
+    | '/_app'
+    | '/login'
+    | '/_app/$'
+    | '/api/$'
+    | '/_app/'
+    | '/_app/$collection/$id'
+    | '/_app/$collection/new'
+    | '/_app/$collection/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRouteWithChildren
-  AdminLoginRoute: typeof AdminLoginRoute
+  AppRoute: typeof AppRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  ApiSplatRoute: typeof ApiSplatRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/': {
+      id: '/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/admin/': {
-      id: '/admin/'
-      path: '/'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin_/login': {
-      id: '/admin_/login'
-      path: '/admin/login'
-      fullPath: '/admin/login'
-      preLoaderRoute: typeof AdminLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/posts/': {
-      id: '/admin/posts/'
-      path: '/posts'
-      fullPath: '/admin/posts/'
-      preLoaderRoute: typeof AdminPostsIndexRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/posts/new': {
-      id: '/admin/posts/new'
-      path: '/posts/new'
-      fullPath: '/admin/posts/new'
-      preLoaderRoute: typeof AdminPostsNewRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/posts/$id': {
-      id: '/admin/posts/$id'
-      path: '/posts/$id'
-      fullPath: '/admin/posts/$id'
-      preLoaderRoute: typeof AdminPostsIdRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/api/$': {
-      id: '/admin/api/$'
+    '/api/$': {
+      id: '/api/$'
       path: '/api/$'
-      fullPath: '/admin/api/$'
-      preLoaderRoute: typeof AdminApiSplatRouteImport
-      parentRoute: typeof AdminRoute
+      fullPath: '/api/$'
+      preLoaderRoute: typeof ApiSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/$': {
+      id: '/_app/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof AppSplatRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/$collection/': {
+      id: '/_app/$collection/'
+      path: '/$collection'
+      fullPath: '/$collection/'
+      preLoaderRoute: typeof AppCollectionIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/$collection/new': {
+      id: '/_app/$collection/new'
+      path: '/$collection/new'
+      fullPath: '/$collection/new'
+      preLoaderRoute: typeof AppCollectionNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/$collection/$id': {
+      id: '/_app/$collection/$id'
+      path: '/$collection/$id'
+      fullPath: '/$collection/$id'
+      preLoaderRoute: typeof AppCollectionIdRouteImport
+      parentRoute: typeof AppRoute
     }
   }
 }
 
-interface AdminRouteChildren {
-  AdminIndexRoute: typeof AdminIndexRoute
-  AdminApiSplatRoute: typeof AdminApiSplatRoute
-  AdminPostsIdRoute: typeof AdminPostsIdRoute
-  AdminPostsNewRoute: typeof AdminPostsNewRoute
-  AdminPostsIndexRoute: typeof AdminPostsIndexRoute
+interface AppRouteChildren {
+  AppSplatRoute: typeof AppSplatRoute
+  AppIndexRoute: typeof AppIndexRoute
+  AppCollectionIdRoute: typeof AppCollectionIdRoute
+  AppCollectionNewRoute: typeof AppCollectionNewRoute
+  AppCollectionIndexRoute: typeof AppCollectionIndexRoute
 }
 
-const AdminRouteChildren: AdminRouteChildren = {
-  AdminIndexRoute: AdminIndexRoute,
-  AdminApiSplatRoute: AdminApiSplatRoute,
-  AdminPostsIdRoute: AdminPostsIdRoute,
-  AdminPostsNewRoute: AdminPostsNewRoute,
-  AdminPostsIndexRoute: AdminPostsIndexRoute,
+const AppRouteChildren: AppRouteChildren = {
+  AppSplatRoute: AppSplatRoute,
+  AppIndexRoute: AppIndexRoute,
+  AppCollectionIdRoute: AppCollectionIdRoute,
+  AppCollectionNewRoute: AppCollectionNewRoute,
+  AppCollectionIndexRoute: AppCollectionIndexRoute,
 }
 
-const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AdminRoute: AdminRouteWithChildren,
-  AdminLoginRoute: AdminLoginRoute,
+  AppRoute: AppRouteWithChildren,
+  LoginRoute: LoginRoute,
+  ApiSplatRoute: ApiSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

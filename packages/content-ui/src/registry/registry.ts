@@ -7,6 +7,7 @@
 import type { FieldMetaBase } from "@voila/content";
 import {
   BooleanDisplay,
+  ColorDisplay,
   DateDisplay,
   type DisplayWidget,
   JsonDisplay,
@@ -29,7 +30,7 @@ export const defaultDisplayRegistry: DisplayRegistry = {
   string: TextDisplay,
   slug: TextDisplay,
   id: TextDisplay,
-  color: TextDisplay,
+  color: ColorDisplay,
   code: MultilineTextDisplay,
   markdown: MultilineTextDisplay,
   richText: RichTextValueDisplay,

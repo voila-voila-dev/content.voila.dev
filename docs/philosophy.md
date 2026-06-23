@@ -58,7 +58,7 @@ This is a library. There is no SaaS. Pay Cloudflare, not us.
 ## The promise
 
 ```bash
-bunx create-voila my-site     # fresh TanStack Start app, wired
+bunx create-content-voila my-site     # fresh TanStack Start app, wired
 ```
 
 Write your collections in `content.config.ts`, run a migration, and you have a

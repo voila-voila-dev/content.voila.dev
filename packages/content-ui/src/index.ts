@@ -58,6 +58,7 @@ export { StatusFilter, type StatusFilterProps, type StatusFilterValue } from "./
 export { ThemeToggle } from "./theme-toggle";
 export {
   BooleanDisplay,
+  ColorDisplay,
   DateDisplay,
   type DisplayWidget,
   type DisplayWidgetProps,
@@ -70,6 +71,7 @@ export {
 } from "./widgets/display";
 export {
   BooleanInput,
+  ColorInput,
   DateInput,
   type EditWidget,
   type EditWidgetProps,

@@ -38,9 +38,17 @@ export interface EditWidgetProps {
 /** An input that edits a single field value. */
 export type EditWidget = (props: EditWidgetProps) => ReactNode;
 
-/** `aria-invalid` + `aria-describedby` wiring shared by the native controls. */
-function aria(id: string, error?: string) {
-  return error ? { "aria-invalid": true as const, "aria-describedby": `${id}-error` } : undefined;
+/**
+ * Shared ARIA wiring for the native controls: `aria-invalid` + `aria-describedby`
+ * when the field has an error, and `aria-required` whenever the field is required
+ * — so assistive tech announces "required" on focus, not only after a failed
+ * submit (the visible `*` is `aria-hidden`).
+ */
+function aria(field: Field, id: string, error?: string) {
+  return {
+    ...(error ? { "aria-invalid": true as const, "aria-describedby": `${id}-error` } : {}),
+    ...(field.meta.required === true ? { "aria-required": true as const } : {}),
+  };
 }
 
 export function TextInput({
@@ -58,7 +66,7 @@ export function TextInput({
       placeholder={field.meta.description}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
-      {...aria(id, error)}
+      {...aria(field, id, error)}
     />
   );
 }
@@ -78,7 +86,7 @@ export function TextareaInput({
       placeholder={field.meta.description}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
-      {...aria(id, error)}
+      {...aria(field, id, error)}
     />
   );
 }
@@ -104,7 +112,7 @@ export function MonospaceTextareaInput({
       placeholder={field.meta.description}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
-      {...aria(id, error)}
+      {...aria(field, id, error)}
     />
   );
 }
@@ -113,6 +121,50 @@ interface NumberMetaShape {
   readonly min?: number;
   readonly max?: number;
   readonly integer?: boolean;
+}
+
+/** Matches the `#rrggbb` form the native color control requires. */
+const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * Color editor: a native `<input type="color">` swatch paired with a text input
+ * for the hex value (so it stays typeable/paste-able and named values survive a
+ * round-trip the picker can't represent). Both edit the same string; the text
+ * input carries the field `id`/`aria` wiring so the `<label>`, required, and
+ * error states behave like every other widget.
+ */
+export function ColorInput({
+  value,
+  onChange,
+  id,
+  error,
+  disabled,
+  field,
+}: EditWidgetProps): ReactNode {
+  const text = typeof value === "string" ? value : "";
+  // The swatch only accepts `#rrggbb`; fall back to black when the field is
+  // empty or holds a partial/named color so the picker still opens on a hue.
+  const swatch = HEX_COLOR.test(text) ? text : "#000000";
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="color"
+        aria-label="Color picker"
+        value={swatch}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-9 w-12 shrink-0 cursor-pointer rounded-md border border-input bg-transparent p-1 disabled:cursor-not-allowed disabled:opacity-50"
+      />
+      <Input
+        id={id}
+        value={text}
+        placeholder={field.meta.description ?? "#000000"}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        {...aria(field, id, error)}
+      />
+    </div>
+  );
 }
 
 export function NumberInput({
@@ -141,7 +193,7 @@ export function NumberInput({
         const n = Number(raw);
         onChange(Number.isNaN(n) ? undefined : n);
       }}
-      {...aria(id, error)}
+      {...aria(field, id, error)}
     />
   );
 }
@@ -152,6 +204,7 @@ export function BooleanInput({
   id,
   labelId,
   disabled,
+  field,
 }: EditWidgetProps): ReactNode {
   // The block wrapper drops the inline-flex switch onto its own line below the
   // (inline) label, so the form's vertical spacing applies between them.
@@ -160,6 +213,7 @@ export function BooleanInput({
       <Switch
         id={id}
         aria-labelledby={labelId}
+        aria-required={field.meta.required === true ? true : undefined}
         checked={value === true}
         disabled={disabled}
         onCheckedChange={(c) => onChange(c)}
@@ -209,7 +263,7 @@ export function SelectInput({
         const next = options.find((o) => o.value === e.target.value);
         onChange(next ? next.raw : undefined);
       }}
-      {...aria(id, error)}
+      {...aria(field, id, error)}
     >
       {/* A placeholder row so an optional select can be cleared back to empty. */}
       {required ? null : <option value="">—</option>}
@@ -227,13 +281,23 @@ export function SelectInput({
  * richText, …). Honest and non-destructive: it shows the kind and disables
  * input rather than silently dropping or corrupting the value.
  */
-export function UnsupportedInput({ id, field, disabled }: EditWidgetProps): ReactNode {
+export function UnsupportedInput({ id, field }: EditWidgetProps): ReactNode {
   // richText advertises its own fix: the registry item that vends a real editor.
   const message =
     field.meta.kind === "richText"
       ? "Rich text — run `voila add rich-text-editor`"
       : `No editor for "${field.meta.kind}" yet`;
-  return <Input id={id} value={message} disabled={disabled ?? true} readOnly />;
+  // An inert note, not a borrowed `<Input readOnly>`: a text input exposes the
+  // message to assistive tech as editable form content. A `<p>` reads it as the
+  // static hint it is. Keeps `id` so the field `<label htmlFor>` still resolves.
+  return (
+    <p
+      id={id}
+      className="rounded-md border border-dashed border-input px-3 py-2 text-sm text-muted-foreground"
+    >
+      {message}
+    </p>
+  );
 }
 
 const DATE_INPUT_TYPE: Record<string, string> = {
@@ -285,7 +349,7 @@ export function DateInput({
         // datetime decodes to a `Date`; date/time stay ISO strings.
         onChange(kind === "datetime" ? new Date(v) : v);
       }}
-      {...aria(id, error)}
+      {...aria(field, id, error)}
     />
   );
 }

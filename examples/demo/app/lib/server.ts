@@ -1,21 +1,12 @@
-// Server-side wiring: SQLite database, the magic-link authenticator, and the
-// voila REST handler mounted at /admin/api. Imported only from server route
-// handlers. `vite dev` runs SSR under Node, so the database opens through the
-// `node:sqlite` driver — the same `local.db` the CLI migrates under Bun.
+// Server-side runtime, built with the framework's `createAdminRuntime`. This
+// demo runs on Node (`vite dev`) with the `node:sqlite` driver and filesystem
+// media — the deployable scaffold uses `createWorkerAdmin` (D1 + R2) instead.
+// Imported only from server route handlers and server functions.
 
-import {
-  consoleMailer,
-  firstUserAccess,
-  makeBetterAuth,
-  resendMailer,
-} from "@voila/content/better-auth";
-import {
-  createRestHandler,
-  makeDatabase,
-  makeFsStorage,
-  makeMediaStore,
-} from "@voila/content/server";
+import { consoleMailer, resendMailer } from "@voila/content/better-auth";
+import { makeFsStorage } from "@voila/content/server";
 import { makeNodeSqliteDriver } from "@voila/content/server/node-sqlite";
+import { createAdminRuntime } from "@voila/content-admin/server";
 import config from "../../content.config";
 
 // Load `.env` into process.env (Node ≥ 20.12) so `vite dev` sees the secret.
@@ -32,45 +23,22 @@ if (!secret) {
       "auth sessions, magic-link tokens, and the CSRF token.",
   );
 }
-// Set in production to your deployment origin (e.g. https://admin.example.com).
-// Unset in dev — Better Auth then infers the origin from each request, so auth
-// works on whatever port the dev server bound to (3000, 3001, …).
-const baseUrl = process.env.VOILA_BASE_URL;
 
 const driver = makeNodeSqliteDriver({
   url: new URL("../../local.db", import.meta.url).pathname,
 });
-const database = makeDatabase(config, driver);
 
 const mailer =
   process.env.RESEND_API_KEY && process.env.VOILA_AUTH_FROM
     ? resendMailer({ apiKey: process.env.RESEND_API_KEY, from: process.env.VOILA_AUTH_FROM })
     : consoleMailer();
 
-/** The Better Auth bridge: its `handler` serves the auth routes (sign-in,
- *  verify, sign-out) and its `authenticator` resolves the session for the API. */
-export const auth = makeBetterAuth({ secret, driver, mailer, baseUrl });
-
-/** The secret, re-exported so the API route reuses it to mint CSRF tokens. */
-export const authSecret = secret;
-
-// Media uploads: bytes on the local filesystem, metadata in `voila_media`. This
-// powers both `media()` fields and the rich-text editor's image button (both
-// POST to `/admin/api/_media`). Swap `makeFsStorage` for `makeR2Storage` /
-// `makeS3Storage` in production.
-const media = {
+/** The composed admin runtime: database, Better Auth bridge, REST handler. The
+ *  REST mount is secure by default (auth + CSRF + first-user access control). */
+export const runtime = createAdminRuntime(config, {
+  driver,
+  secret,
   storage: makeFsStorage({ directory: new URL("../../.voila/media", import.meta.url).pathname }),
-  store: makeMediaStore(driver),
-};
-
-// Secure by default: a valid session (`auth`), a CSRF token on writes (`csrf`),
-// and the admin (the first account to sign in, `access`).
-export const restHandler = createRestHandler(
-  { config, database, media },
-  {
-    basePath: "/admin/api",
-    auth: auth.authenticator,
-    csrf: { secret },
-    access: firstUserAccess(driver),
-  },
-);
+  baseUrl: process.env.VOILA_BASE_URL,
+  mailer,
+});

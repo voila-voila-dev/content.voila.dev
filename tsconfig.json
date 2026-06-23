@@ -4,7 +4,7 @@
   "references": [
     { "path": "./packages/content/tsconfig.build.json" },
     { "path": "./packages/content-ui/tsconfig.build.json" },
-    { "path": "./packages/content-registry/tsconfig.build.json" },
-    { "path": "./packages/create-voila/tsconfig.build.json" }
+    { "path": "./packages/content-admin/tsconfig.build.json" },
+    { "path": "./packages/content-create/tsconfig.build.json" }
   ]
 }

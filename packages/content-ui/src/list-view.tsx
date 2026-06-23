@@ -87,11 +87,32 @@ export function ListView({
   const canLoadMore = Boolean(nextCursor) && onLoadMore !== undefined;
   const showSearch = searchEnabled(collection.search) && onSearchChange !== undefined;
 
+  // What an assistive-tech user hears when the list's state changes. The
+  // visible "Loading…" / "No records" text in `DataTable` isn't in a live
+  // region, so screen readers stay silent on load, empty, and page changes
+  // without this. Mirrors the load → empty/results progression below.
+  const liveMessage = loading
+    ? "Loading…"
+    : rows.length === 0
+      ? (emptyMessage ?? "No records.")
+      : rows.length === 1
+        ? "1 result"
+        : `${rows.length} results`;
+
   return (
     <section className="space-y-4">
+      <p aria-live="polite" className="sr-only">
+        {liveMessage}
+      </p>
+
       <header className="flex items-start gap-4">
         <div className="space-y-1">
-          <h2 className="text-lg font-semibold">{heading}</h2>
+          {/* `tabIndex={-1}` makes the page heading programmatically focusable so
+              a host can move focus here on a route change (SPA focus management)
+              without it landing in the tab order. */}
+          <h1 tabIndex={-1} className="text-lg font-semibold focus:outline-none">
+            {heading}
+          </h1>
           {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
         </div>
         {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}

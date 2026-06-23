@@ -16,8 +16,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@voila/content": "workspace:*",
-    "@voila/content-registry": "workspace:*"
+    "@voila/content": "workspace:*"
   },
   "devDependencies": {
     "@voila/typescript-config": "workspace:*"

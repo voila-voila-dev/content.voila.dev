@@ -41,7 +41,7 @@ export function Dashboard({
 
   return (
     <section className="space-y-4">
-      {title ? <h2 className="text-lg font-semibold">{title}</h2> : null}
+      {title ? <h1 className="text-lg font-semibold">{title}</h1> : null}
       {collections.length === 0 ? (
         <p className="text-sm text-muted-foreground">{emptyMessage}</p>
       ) : (

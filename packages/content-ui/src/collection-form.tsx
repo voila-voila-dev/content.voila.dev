@@ -7,7 +7,7 @@
 
 import { type Collection, type InferFields, slugify } from "@voila/content";
 import { buttonVariants, cn, Label } from "@voila/ui";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import type { Doc } from "./lib/doc";
 import { getFieldLabel, humanize } from "./lib/humanize";
 import { localizedFieldErrors, validateFields } from "./lib/validate";
@@ -109,6 +109,23 @@ export function CollectionForm<C extends Collection = Collection>({
     ...serverErrors,
   }));
   const [submitting, setSubmitting] = useState(false);
+  // Unsaved-changes guard: once the user edits a field, a full-page navigation
+  // (reload / tab close / external link) prompts the native "leave site?"
+  // confirm so in-progress input isn't lost silently. In-app router navigation
+  // is the host's to block — `@voila/content-ui` stays router-agnostic — but
+  // this covers the cases the component can see on its own. Cleared on a
+  // successful submit (the values are persisted; leaving is now intended).
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    if (!dirty) return;
+    function onBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      // Legacy assignment some browsers still require to show the prompt.
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
   // Adopt each new `serverErrors` object into the field errors during render
   // (the React "derive state from a prop change" pattern), so a failed submit's
   // 422/409 lands on the offending fields and clears on edit like local errors.
@@ -130,6 +147,7 @@ export function CollectionForm<C extends Collection = Collection>({
   });
 
   function handleChange(name: string, value: unknown) {
+    setDirty(true);
     const derivedKeys = (bySource[name] ?? []).filter((k) => !latchedSlugs.has(k));
     setValues((prev) => {
       // A localized widget passes a functional updater so its per-locale edits
@@ -164,11 +182,26 @@ export function CollectionForm<C extends Collection = Collection>({
     });
   }
 
+  // Move focus to the first field that failed validation, so a keyboard / AT
+  // user lands on the problem instead of being left at the submit button. The
+  // control's DOM id is the form's `${slug}-${key}` (the first locale's input
+  // for a localized field); the elements are already rendered, so a synchronous
+  // focus by id works.
+  function focusFirstError(failed: Readonly<Record<string, string>>) {
+    const firstKey = keys.find((key) => failed[key] !== undefined);
+    if (firstKey === undefined) return;
+    const localized = collection.fields[firstKey]?.meta.localized === true && locales !== undefined;
+    const id = `${collection.slug}-${firstKey}`;
+    const targetId = localized ? `${id}-${locales?.[0]}` : id;
+    document.getElementById(targetId)?.focus();
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const result = validateFields(collection.fields, values, keys);
     if (Object.keys(result.errors).length > 0) {
       setErrors(result.errors);
+      focusFirstError(result.errors);
       return;
     }
     setErrors({});
@@ -177,6 +210,9 @@ export function CollectionForm<C extends Collection = Collection>({
       // `result.values` has cleared the fields' Standard Schemas, so it
       // conforms to the collection's typed shape — narrow back to `FormValues`.
       await onSubmit(result.values as FormValues<C>);
+      // Only on success: a thrown `onSubmit` (e.g. a server conflict) leaves the
+      // form mounted with the user's still-unsaved edits, so keep guarding it.
+      setDirty(false);
     } finally {
       setSubmitting(false);
     }

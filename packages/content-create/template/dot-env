@@ -1,0 +1,16 @@
+# Local secrets for `vite dev` (also the source of values you push to the Worker
+# with `wrangler secret put`). Generated for you at scaffold time — keep it
+# private; .env is git-ignored.
+
+# Signs auth sessions, magic-link tokens, and the CSRF token.
+# Push to the Worker with: wrangler secret put VOILA_AUTH_SECRET
+VOILA_AUTH_SECRET={{authSecret}}
+
+# Your deployed origin (https → Secure cookies + absolute magic-link URLs).
+# Leave unset in dev — auth follows the local origin. Set in production, e.g.:
+# VOILA_BASE_URL=https://admin.{{clientDomain}}
+
+# Magic links print to the dev console by default. To send real email, set a
+# Resend key + from-address, then: wrangler secret put RESEND_API_KEY
+# RESEND_API_KEY=re_...
+# VOILA_AUTH_FROM="Acme <admin@acme.dev>"

@@ -10,7 +10,7 @@
 // pagination, and loading/error chrome.
 
 import type { Collection, Field } from "@voila/content";
-import { Table } from "@voila/ui";
+import { Skeleton, Table } from "@voila/ui";
 import type { ReactNode } from "react";
 import { documentTitle } from "./detail-view";
 import { FieldRenderer } from "./field-renderer";
@@ -30,10 +30,12 @@ export interface DataTableProps {
   /** When set, rows become clickable; each row also gets a visually-hidden
    *  "Open …" button (named from `titleField`) for keyboard/AT activation. */
   readonly onRowClick?: (row: Doc, index: number) => void;
-  /** While true, an empty `rows` shows the loading message instead of `emptyMessage`. */
+  /** While true, an empty `rows` shows skeleton rows instead of `emptyMessage`. */
   readonly loading?: boolean;
   readonly emptyMessage?: string;
   readonly loadingMessage?: string;
+  /** Number of placeholder rows to show while `loading` with no rows yet. */
+  readonly skeletonRows?: number;
   readonly caption?: string;
 }
 
@@ -72,9 +74,11 @@ export function DataTable({
   loading = false,
   emptyMessage = "No records.",
   loadingMessage = "Loading…",
+  skeletonRows = 5,
   caption,
 }: DataTableProps): ReactNode {
   const cols = resolveColumns(collection, columns);
+  const colCount = cols.length || 1;
 
   // Explicit ARIA roles on top of the native elements: Chrome's layout-table
   // heuristic can demote a styled table and drop row/columnheader semantics
@@ -93,15 +97,37 @@ export function DataTable({
       </Table.Header>
       <Table.Body role="rowgroup">
         {rows.length === 0 ? (
-          <Table.Row role="row">
-            <Table.Cell
-              role="cell"
-              colSpan={cols.length || 1}
-              className="text-center text-muted-foreground"
-            >
-              {loading ? loadingMessage : emptyMessage}
-            </Table.Cell>
-          </Table.Row>
+          loading ? (
+            <>
+              {/* Decorative shimmer rows for perceived performance — hidden from
+                  AT, which instead hears the visually-hidden status row below
+                  (and `ListView`'s `aria-live` region). */}
+              {Array.from({ length: skeletonRows }).map((_, r) => (
+                <Table.Row key={`skeleton-${r}`} role="row" aria-hidden="true">
+                  {Array.from({ length: colCount }).map((_, c) => (
+                    <Table.Cell key={`skeleton-${r}-${c}`} role="cell">
+                      <Skeleton className="h-4 w-full" />
+                    </Table.Cell>
+                  ))}
+                </Table.Row>
+              ))}
+              <Table.Row role="row" className="sr-only">
+                <Table.Cell role="cell" colSpan={colCount}>
+                  {loadingMessage}
+                </Table.Cell>
+              </Table.Row>
+            </>
+          ) : (
+            <Table.Row role="row">
+              <Table.Cell
+                role="cell"
+                colSpan={colCount}
+                className="text-center text-muted-foreground"
+              >
+                {emptyMessage}
+              </Table.Cell>
+            </Table.Row>
+          )
         ) : (
           rows.map((row, index) => (
             <Table.Row

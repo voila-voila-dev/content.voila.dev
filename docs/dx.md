@@ -68,7 +68,7 @@ with all three protections out of the box (`app/lib/server.ts`):
   (`403`) on every collection. No allowlist to maintain.
 
 ```bash
-# .env (create-voila writes one with a generated secret; .env is git-ignored)
+# .env (create-content-voila writes one with a generated secret; .env is git-ignored)
 VOILA_AUTH_SECRET=…        # signs sessions, magic-link tokens, and the CSRF token
 VOILA_BASE_URL=http://localhost:3000
 # RESEND_API_KEY + VOILA_AUTH_FROM → real email; otherwise links print to the terminal

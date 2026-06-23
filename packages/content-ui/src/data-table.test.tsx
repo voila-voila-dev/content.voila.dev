@@ -70,6 +70,22 @@ describe("DataTable", () => {
     expect(screen.getByText("Fetching posts…")).toBeDefined();
   });
 
+  test("renders decorative skeleton rows while loading with no rows", () => {
+    const { container } = render(
+      <DataTable collection={posts} rows={[]} loading skeletonRows={3} />,
+    );
+    // Three placeholder rows, each hidden from assistive tech...
+    const skeletonRows = container.querySelectorAll('tbody tr[aria-hidden="true"]');
+    expect(skeletonRows.length).toBe(3);
+    // ...while the visually-hidden status row still announces "Loading…".
+    expect(screen.getByText("Loading…")).toBeDefined();
+  });
+
+  test("skeleton rows give way to real rows once they arrive", () => {
+    const { container } = render(<DataTable collection={posts} rows={rows} loading />);
+    expect(container.querySelectorAll('tbody tr[aria-hidden="true"]').length).toBe(0);
+  });
+
   test("renders a caption when given", () => {
     const { container } = render(<DataTable collection={posts} rows={rows} caption="All posts" />);
     expect(container.querySelector("caption")?.textContent).toBe("All posts");

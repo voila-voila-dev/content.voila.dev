@@ -6,6 +6,7 @@
 import type { FieldMetaBase } from "@voila/content";
 import {
   BooleanInput,
+  ColorInput,
   DateInput,
   type EditWidget,
   MonospaceTextareaInput,
@@ -24,7 +25,7 @@ export const defaultEditRegistry: EditRegistry = {
   string: TextInput,
   slug: TextInput,
   id: TextInput,
-  color: TextInput,
+  color: ColorInput,
   code: MonospaceTextareaInput,
   markdown: MonospaceTextareaInput,
   number: NumberInput,

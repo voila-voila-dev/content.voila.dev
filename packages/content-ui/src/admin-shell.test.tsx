@@ -26,12 +26,29 @@ describe("AdminShell", () => {
 
   test("shows the title and header actions in the header bar", () => {
     render(
-      <AdminShell config={config} title="Posts" headerActions={<button type="button">New</button>}>
+      // A title distinct from any nav label ("Posts") so the assertion below
+      // matches the header chrome, not the sidebar link.
+      <AdminShell
+        config={config}
+        title="Overview"
+        headerActions={<button type="button">New</button>}
+      >
         <span>body</span>
       </AdminShell>,
     );
-    expect(screen.getByRole("heading", { name: "Posts" })).toBeDefined();
+    // The header title is app chrome, not a heading — each page view owns the
+    // screen's single <h1>, so this is a plain label.
+    expect(screen.getByText("Overview")).toBeDefined();
     expect(screen.getByRole("button", { name: "New" })).toBeDefined();
+  });
+
+  test("wraps the page body in a main landmark", () => {
+    render(
+      <AdminShell config={config}>
+        <span>body</span>
+      </AdminShell>,
+    );
+    expect(screen.getByRole("main")).toBeDefined();
   });
 
   test("includes a sidebar toggle trigger", () => {

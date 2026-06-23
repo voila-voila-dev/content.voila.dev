@@ -1,6 +1,9 @@
 # dependencies (bun install)
 node_modules
 
+# npm auth token (local publishing) — never commit
+.npmrc
+
 # output
 out
 dist

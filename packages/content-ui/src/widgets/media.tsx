@@ -49,8 +49,9 @@ function formatBytes(bytes: unknown): string | null {
 
 /**
  * Read-only render of a media value: an image thumbnail (when the mime is an
- * image), else the file's mime as a label, with the byte size as a caption.
- * Registered for the `media` kind in the default display registry.
+ * image), else the file's mime as a label, with the byte size as a caption. The
+ * thumbnail/label links through to the asset (new tab) so the value is more than
+ * a dead preview. Registered for the `media` kind in the default display registry.
  */
 export function MediaDisplay({ value }: DisplayWidgetProps): ReactNode {
   const media = asMedia(value);
@@ -58,17 +59,24 @@ export function MediaDisplay({ value }: DisplayWidgetProps): ReactNode {
   const size = formatBytes(media.size);
   return (
     <span className="inline-flex items-center gap-2 align-middle">
-      {isImage(media) ? (
-        <img
-          src={media.url}
-          alt={media.alt ?? ""}
-          className="h-10 w-10 shrink-0 rounded border object-cover"
-        />
-      ) : (
-        <span className="rounded border bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-          {media.mime || "file"}
-        </span>
-      )}
+      <a
+        href={media.url}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex rounded outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {isImage(media) ? (
+          <img
+            src={media.url}
+            alt={media.alt ?? ""}
+            className="h-10 w-10 shrink-0 rounded border object-cover"
+          />
+        ) : (
+          <span className="rounded border bg-muted px-1.5 py-0.5 text-xs text-muted-foreground underline-offset-2 hover:underline">
+            {media.mime || "file"}
+          </span>
+        )}
+      </a>
       {size ? <span className="text-xs text-muted-foreground">{size}</span> : null}
     </span>
   );

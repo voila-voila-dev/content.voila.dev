@@ -4,7 +4,7 @@
 # Preloads the shared setup (happy-dom + preserved native Request/AbortSignal)
 # so the suite behaves the same as the root `bun test`.
 [test]
-preload = ["../../../../test/setup.ts"]
+preload = ["../../test/setup.ts"]
 coverageReporter = ["lcov"]
 coverageDir = "coverage"
 coveragePathIgnorePatterns = ["../**"]

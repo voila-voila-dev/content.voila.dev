@@ -1,0 +1,36 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "{{projectName}}",
+  "main": "@tanstack/react-start/server-entry",
+  "compatibility_date": "2026-06-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // The content + auth database. `createWorkerAdmin` binds `makeD1Driver(env.DB)`.
+  // The database_id below is a placeholder so `bun run dev` works locally;
+  // before deploying, run `wrangler d1 create {{projectName}}` and paste the
+  // real id it returns here.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "{{projectName}}",
+      "database_id": "{{d1DatabaseId}}",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // The media library (uploads). `createWorkerAdmin` binds
+  // `makeR2Storage(env.BUCKET)`. Create it with
+  // `wrangler r2 bucket create {{projectName}}-media`.
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "{{projectName}}-media" }],
+
+  // Serve the admin at admin.{{clientDomain}}. A custom_domain route makes
+  // Cloudflare create the DNS record + TLS cert automatically (the zone must be
+  // on this Cloudflare account). Remove this block to deploy at the default
+  // *.workers.dev URL instead.
+  "routes": [{ "pattern": "admin.{{clientDomain}}", "custom_domain": true }]
+
+  // Secrets are NOT committed. Set them on the Worker with:
+  //   wrangler secret put VOILA_AUTH_SECRET   (the value is in .env)
+  //   wrangler secret put RESEND_API_KEY      (optional, for real email)
+}

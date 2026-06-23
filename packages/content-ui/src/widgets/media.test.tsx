@@ -35,6 +35,16 @@ describe("MediaDisplay", () => {
     expect(container.textContent).toContain("application/pdf");
   });
 
+  test("links the preview through to the asset in a new tab", () => {
+    const { container } = render(<MediaDisplay value={IMAGE} meta={fields.media().meta} />);
+    const link = container.querySelector("a") as HTMLAnchorElement;
+    expect(link.getAttribute("href")).toBe(IMAGE.url);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noreferrer");
+    // The thumbnail lives inside the link, so the whole preview is clickable.
+    expect(link.querySelector("img")).not.toBeNull();
+  });
+
   test("shows the empty marker for a missing or malformed value", () => {
     const { container: a } = render(<MediaDisplay value={null} meta={fields.media().meta} />);
     expect(a.textContent).toBe("—");

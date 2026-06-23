@@ -41,6 +41,26 @@ export function MultilineTextDisplay({ value }: DisplayWidgetProps): ReactNode {
   return <span className="whitespace-pre-wrap break-words">{String(value)}</span>;
 }
 
+/**
+ * A color value as a small swatch beside its string (hex or named), so a table
+ * cell / detail row reads the actual color, not just the text. The swatch is
+ * `aria-hidden` — the string carries the meaning for assistive tech.
+ */
+export function ColorDisplay({ value }: DisplayWidgetProps): ReactNode {
+  if (isEmpty(value)) return <Empty />;
+  const color = String(value);
+  return (
+    <span className="inline-flex items-center gap-2 align-middle">
+      <span
+        aria-hidden
+        className="inline-block h-4 w-4 shrink-0 rounded border"
+        style={{ backgroundColor: color }}
+      />
+      <span className="tabular-nums">{color}</span>
+    </span>
+  );
+}
+
 export function NumberDisplay({ value }: DisplayWidgetProps): ReactNode {
   if (value === null || value === undefined) return <Empty />;
   const n = typeof value === "number" ? value : Number(value);

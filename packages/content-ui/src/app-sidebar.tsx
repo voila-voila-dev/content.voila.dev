@@ -25,6 +25,16 @@ export interface AppSidebarProps {
   readonly renderLink?: (item: NavItem) => ReactElement;
   /** Content for the sidebar footer (e.g. a user menu / sign-out). */
   readonly footer?: ReactNode;
+  /**
+   * Extra nav groups appended after the config-derived collections/singletons —
+   * e.g. custom admin screens. Each renders as its own labelled menu group; an
+   * empty `items` array is skipped. Optional and additive: omitting it leaves
+   * the config-only nav unchanged.
+   */
+  readonly extraGroups?: ReadonlyArray<{
+    readonly label: string;
+    readonly items: readonly NavItem[];
+  }>;
 }
 
 function defaultRenderLink(item: NavItem): ReactElement {
@@ -72,6 +82,7 @@ export function AppSidebar({
   basePath,
   renderLink = defaultRenderLink,
   footer,
+  extraGroups,
 }: AppSidebarProps): ReactNode {
   const nav = buildNav(config, { basePath, currentPath });
 
@@ -85,6 +96,14 @@ export function AppSidebar({
       <Sidebar.Content>
         <NavGroup label="Collections" items={nav.collections} renderLink={renderLink} />
         <NavGroup label="Content" items={nav.singletons} renderLink={renderLink} />
+        {extraGroups?.map((group) => (
+          <NavGroup
+            key={group.label}
+            label={group.label}
+            items={group.items}
+            renderLink={renderLink}
+          />
+        ))}
       </Sidebar.Content>
       {footer ? <Sidebar.Footer>{footer}</Sidebar.Footer> : null}
     </Sidebar.Root>

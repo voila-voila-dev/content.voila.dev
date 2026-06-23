@@ -89,6 +89,39 @@ describe("DetailView", () => {
     expect(within(definitions[0] as HTMLElement).getByText("Only title")).toBeDefined();
     expect((definitions[1] as HTMLElement).textContent).toBe("—");
   });
+
+  test("shows a loading state when there's no doc yet", () => {
+    const { container } = render(<DetailView collection={posts} loading />);
+    // No definition list while loading...
+    expect(container.querySelector("dl")).toBeNull();
+    // ...and the loading text appears (visible + in the aria-live region).
+    expect(screen.getAllByText("Loading…").length).toBeGreaterThan(0);
+  });
+
+  test("shows the not-found state when there's no doc and not loading", () => {
+    render(<DetailView collection={posts} emptyMessage="No such post" />);
+    expect(screen.getAllByText("No such post").length).toBeGreaterThan(0);
+  });
+
+  test("defaults the empty state to 'Not found.'", () => {
+    render(<DetailView collection={posts} doc={null} />);
+    expect(screen.getAllByText("Not found.").length).toBeGreaterThan(0);
+  });
+
+  test("shows an error as an alert", () => {
+    render(<DetailView collection={posts} error="Boom" />);
+    expect(screen.getByRole("alert").textContent).toBe("Boom");
+  });
+
+  test("hides actions while there's no doc", () => {
+    render(<DetailView collection={posts} loading actions={<button type="button">Edit</button>} />);
+    expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();
+  });
+
+  test("the page heading is programmatically focusable", () => {
+    render(<DetailView collection={posts} doc={doc} />);
+    expect(screen.getByRole("heading", { level: 1 }).getAttribute("tabindex")).toBe("-1");
+  });
 });
 
 describe("documentTitle", () => {

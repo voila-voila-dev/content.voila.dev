@@ -1,68 +1,33 @@
-# ADR 0001 — Monorepo and `@voila` package naming
+# ADR 0001 — Package naming & repo structure
 
-**Accepted · 2026-05-21**
+**Accepted 2026-05-21 · Updated 2026-06-19**
 
-## Context
+## Decision
 
-Voila will ship more than one product (`content.voila.dev` is the first). Two questions to settle before product number two:
+**One npm scope, `@voila`.** Naming by role:
 
-1. One repo for everything, or one per product?
-2. What npm scope + naming convention scales to N products?
+| Pattern | Use | Example |
+| --- | --- | --- |
+| `@voila/<product>` | product runtime entry | `@voila/content` |
+| `@voila/<product>-<pkg>` | product sub-package | `@voila/content-ui` |
+| `@voila/<pkg>` | cross-product, no prefix | `@voila/ui` |
 
-## Decisions
+Product prefix = subdomain (`content.voila.dev` → `content`). Versioning:
+Changesets, lock-step across the `@voila/*` packages in each repo.
 
-### Monorepo, partitioned by product
+## Structure (revised)
 
-Single repo `voila-voila-dev/voila.dev`. Each product owns its subtree under `products/<domain>/`. Cross-product code lives at the root.
+Originally one monorepo partitioned by `products/<domain>/`. That was **reversed**
+in June 2026: each product now lives in its **own repo**, and shared packages were
+extracted to their own repos too.
 
-```
-.
-├── apps/                          # cross-product apps (e.g. ui.voila.dev)
-├── products/
-│   └── content.voila.dev/
-│       ├── apps/                  # playground, docs, …
-│       ├── packages/              # @voila/content-* packages
-│       ├── examples/
-│       └── docs/                  # product-specific design docs
-├── packages/                      # cross-product packages (no product prefix)
-├── docs/decision-records/         # org-wide ADRs
-└── package.json                   # Bun workspaces root
-```
+- `content.voila.dev` — `@voila/content`, `-cli`, `-ui`, `-registry`,
+  `create-content-voila`
+- `ui.voila.dev` — `@voila/ui` (primitives)
+- `rich-text-editor.voila.dev` — `@voila/rich-text-editor`
 
-Root `package.json`:
+Cross-repo packages are consumed as published npm deps, not workspace links.
 
-```jsonc
-"workspaces": [
-  "apps/*",
-  "packages/*",
-  "products/*/apps/*",
-  "products/*/packages/*",
-  "products/*/examples/*"
-]
-```
-
-Apps at the repo root (`apps/<domain>`) are cross-product. Apps under
-`products/<domain>/apps/` are product-specific.
-
-Versioning: Changesets `fixed: [["@voila/*"]]` — every package in scope ships on the same version.
-
-### npm naming
-
-One scope: **`@voila`**.
-
-| Pattern                       | Use                                                |
-| ----------------------------- | -------------------------------------------------- |
-| `@voila/<product>`            | Product runtime entry (e.g. `@voila/content`)      |
-| `@voila/<product>-<package>`  | Product sub-package (e.g. `@voila/content-schema`) |
-| `@voila/<package>`            | Cross-product, no product prefix                   |
-
-Product prefix = subdomain: `content.voila.dev` → `content`, `auth.voila.dev` → `auth`.
-
-Apps under `products/<domain>/apps/` are unpublished — unscoped name + `"private": true`.
-
-### Existing packages renamed
-
-| Before                                  | After                       |
-| --------------------------------------- | --------------------------- |
-| `@content.voila.dev/schema`             | `@voila/content-schema`     |
-| `@content.voila.dev/typescript-config`  | `@voila/typescript-config`  |
+**Consequence:** clean ownership boundaries, but cross-repo packages must be
+**published** before a consumer repo can install or test — the live blocker
+tracked in the [roadmap](../roadmap.md) and [DX review](../dx-review.md).

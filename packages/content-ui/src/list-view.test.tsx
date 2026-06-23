@@ -68,18 +68,21 @@ describe("ListView", () => {
 
   test("shows a loading note", () => {
     render(<ListView collection={posts} rows={rows} loading />);
-    expect(screen.getByText("Loading…")).toBeDefined();
+    // The visible bottom note plus the sr-only live region both say "Loading…".
+    expect(screen.getAllByText("Loading…").length).toBeGreaterThanOrEqual(1);
   });
 
   test("loading an empty list shows Loading… in the table, never the empty message", () => {
     render(<ListView collection={posts} rows={[]} loading emptyMessage="No records." />);
-    expect(screen.getAllByText("Loading…")).toHaveLength(1);
+    // Both the table cell and the sr-only live region read "Loading…".
+    expect(screen.getAllByText("Loading…")).toHaveLength(2);
     expect(screen.queryByText("No records.")).toBeNull();
   });
 
   test("an empty list without loading shows the empty message only", () => {
     render(<ListView collection={posts} rows={[]} />);
-    expect(screen.getByText("No records.")).toBeDefined();
+    // Both the table cell and the sr-only live region read the empty message.
+    expect(screen.getAllByText("No records.")).toHaveLength(2);
     expect(screen.queryByText("Loading…")).toBeNull();
   });
 
@@ -112,6 +115,30 @@ describe("ListView", () => {
       />,
     );
     expect(screen.getByRole("button", { name: "More posts" })).toBeDefined();
+  });
+});
+
+describe("ListView live region", () => {
+  function liveRegion(container: HTMLElement): HTMLElement | null {
+    return container.querySelector('[aria-live="polite"]');
+  }
+
+  test("announces loading, empty, and result count as state changes", () => {
+    const { container, rerender } = render(<ListView collection={posts} rows={[]} loading />);
+    expect(liveRegion(container)?.textContent).toBe("Loading…");
+
+    rerender(<ListView collection={posts} rows={[]} emptyMessage="No records." />);
+    expect(liveRegion(container)?.textContent).toBe("No records.");
+
+    rerender(<ListView collection={posts} rows={rows} />);
+    expect(liveRegion(container)?.textContent).toBe("2 results");
+  });
+
+  test("uses the singular for a single result", () => {
+    const { container } = render(
+      <ListView collection={posts} rows={[{ id: "1", title: "Hello", views: 12 }]} />,
+    );
+    expect(liveRegion(container)?.textContent).toBe("1 result");
   });
 });
 

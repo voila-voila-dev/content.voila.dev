@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render } from "@testing-library/react";
 import { fields } from "@voila/content";
 import {
   BooleanInput,
+  ColorInput,
   DateInput,
   MonospaceTextareaInput,
   NumberInput,
@@ -60,8 +61,36 @@ describe("MonospaceTextareaInput", () => {
   });
 });
 
+describe("ColorInput", () => {
+  test("renders a color swatch + text input editing the same value", () => {
+    const onChange = mock();
+    const { container } = render(
+      <ColorInput value="#ff0000" onChange={onChange} field={fields.color()} id="c" />,
+    );
+    const swatch = container.querySelector('input[type="color"]') as HTMLInputElement;
+    const text = container.querySelector("#c") as HTMLInputElement;
+    expect(swatch.value).toBe("#ff0000");
+    expect(text.value).toBe("#ff0000");
+    fireEvent.change(swatch, { target: { value: "#00ff00" } });
+    expect(onChange).toHaveBeenCalledWith("#00ff00");
+    fireEvent.change(text, { target: { value: "rebeccapurple" } });
+    expect(onChange).toHaveBeenLastCalledWith("rebeccapurple");
+  });
+
+  test("falls back the swatch to black for a non-hex value", () => {
+    const { container } = render(
+      <ColorInput value="rebeccapurple" onChange={mock()} field={fields.color()} id="c" />,
+    );
+    expect((container.querySelector('input[type="color"]') as HTMLInputElement).value).toBe(
+      "#000000",
+    );
+    // …while the text input still shows the named value verbatim.
+    expect((container.querySelector("#c") as HTMLInputElement).value).toBe("rebeccapurple");
+  });
+});
+
 describe("UnsupportedInput", () => {
-  test("renders a read-only note naming the kind", () => {
+  test("renders an inert <p> note naming the kind (not an editable input)", () => {
     const { container } = render(
       <UnsupportedInput
         value={[]}
@@ -70,16 +99,16 @@ describe("UnsupportedInput", () => {
         id="a"
       />,
     );
-    const input = container.querySelector("input") as HTMLInputElement;
-    expect(input.value).toContain("array");
-    expect(input.disabled).toBe(true);
+    expect(container.querySelector("input")).toBeNull();
+    const note = container.querySelector("p#a") as HTMLParagraphElement;
+    expect(note.textContent).toContain("array");
   });
 
   test("advertises the rich-text-editor item for richText fields", () => {
     const { container } = render(
       <UnsupportedInput value={[]} onChange={mock()} field={fields.richText()} id="b" />,
     );
-    expect((container.querySelector("input") as HTMLInputElement).value).toContain(
+    expect((container.querySelector("p#b") as HTMLParagraphElement).textContent).toContain(
       "voila add rich-text-editor",
     );
   });
@@ -104,6 +133,18 @@ describe("TextInput", () => {
     const input = container.querySelector("input") as HTMLInputElement;
     expect(input.getAttribute("aria-invalid")).toBe("true");
     expect(input.getAttribute("aria-describedby")).toBe("f-error");
+  });
+
+  test("sets aria-required on a required field, omits it otherwise", () => {
+    const { container: required } = render(
+      <TextInput value="" onChange={mock()} field={fields.string({ required: true })} id="f" />,
+    );
+    expect(required.querySelector("input")?.getAttribute("aria-required")).toBe("true");
+
+    const { container: optional } = render(
+      <TextInput value="" onChange={mock()} field={fields.string()} id="g" />,
+    );
+    expect(optional.querySelector("input")?.getAttribute("aria-required")).toBeNull();
   });
 });
 

@@ -3,6 +3,7 @@ import { render } from "@testing-library/react";
 import type { FieldMetaBase } from "@voila/content";
 import {
   BooleanDisplay,
+  ColorDisplay,
   DateDisplay,
   JsonDisplay,
   MultilineTextDisplay,
@@ -14,6 +15,22 @@ import {
 function meta(kind: string): FieldMetaBase {
   return { kind };
 }
+
+describe("ColorDisplay", () => {
+  test("renders a swatch tinted to the value alongside the string", () => {
+    const { container } = render(<ColorDisplay value="#ff0000" meta={meta("color")} />);
+    expect(container.textContent).toContain("#ff0000");
+    const swatch = container.querySelector("span[aria-hidden]") as HTMLSpanElement;
+    expect(swatch.style.backgroundColor).toBe("#ff0000");
+  });
+
+  test("renders an em-dash for empty values", () => {
+    for (const v of [null, undefined, ""]) {
+      const { container } = render(<ColorDisplay value={v} meta={meta("color")} />);
+      expect(container.textContent).toBe("—");
+    }
+  });
+});
 
 describe("TextDisplay", () => {
   test("renders the string value", () => {

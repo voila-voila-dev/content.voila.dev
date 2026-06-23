@@ -1,48 +1,12 @@
-// The typed REST client, inferred from `content.config.ts` — no codegen. Every
-// collection method is typed from your fields:
-//
-//   const page = await client.posts.list({ orderBy: "createdAt" });
-//   const post = await client.posts.create({ title: "Hi", slug: "hi" });
-//
-// The wrapped `fetch` does two things the secure admin needs: it mirrors the
-// `voila_csrf` cookie into the `x-csrf-token` header on writes (the engine's
-// double-submit check), and it bounces an expired/absent session (401) to the
-// login page.
+// The media client the rich-text editor's image button + the `media` field
+// widget upload through (the `_media` pipeline). It shares the framework's
+// CSRF-aware fetch (`makeAuthedFetch`). The collection CRUD client lives on the
+// admin instance (`app/lib/admin.ts`); this is the standalone media client the
+// widgets need at module scope.
 
-import { type Fetch, makeClient, makeMediaClient } from "@voila/content/client";
-import config from "../../content.config";
+import { makeMediaClient } from "@voila/content/client";
+import { makeAuthedFetch } from "@voila/content-admin";
 
-const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const fetch = makeAuthedFetch({ loginPath: "/login" });
 
-function readCsrfToken(): string | undefined {
-  if (typeof document === "undefined") return undefined;
-  return document.cookie.match(/(?:^|;\s*)voila_csrf=([^;]+)/)?.[1];
-}
-
-const authedFetch: Fetch = async (input, init) => {
-  const method = (init?.method ?? "GET").toUpperCase();
-  let nextInit = init;
-  if (MUTATING.has(method)) {
-    const token = readCsrfToken();
-    if (token) {
-      const headers = new Headers(init?.headers);
-      headers.set("x-csrf-token", token);
-      nextInit = { ...init, headers };
-    }
-  }
-  const response = await fetch(input, nextInit);
-  if (
-    response.status === 401 &&
-    typeof window !== "undefined" &&
-    !window.location.pathname.startsWith("/admin/login")
-  ) {
-    window.location.assign("/admin/login");
-  }
-  return response;
-};
-
-export const client = makeClient(config, { baseUrl: "/admin/api", fetch: authedFetch });
-
-/** Uploads to the `_media` pipeline through the same CSRF-aware fetch. The
- *  rich-text editor's image button and drop/paste call `mediaClient.upload`. */
-export const mediaClient = makeMediaClient({ baseUrl: "/admin/api", fetch: authedFetch });
+export const mediaClient = makeMediaClient({ baseUrl: "/api", fetch });

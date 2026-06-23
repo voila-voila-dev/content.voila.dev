@@ -8,7 +8,7 @@
 import type { NormalizedConfig } from "@voila/content";
 import { Sidebar } from "@voila/ui";
 import type { ReactElement, ReactNode } from "react";
-import { AppSidebar } from "./app-sidebar";
+import { AppSidebar, type AppSidebarProps } from "./app-sidebar";
 import type { NavItem } from "./lib/nav";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -28,6 +28,8 @@ export interface AdminShellProps {
   readonly headerActions?: ReactNode;
   /** Whether the sidebar starts expanded. Defaults to open. */
   readonly defaultSidebarOpen?: boolean;
+  /** Extra nav groups appended after collections/singletons (e.g. custom screens). */
+  readonly extraGroups?: AppSidebarProps["extraGroups"];
   readonly children?: ReactNode;
 }
 
@@ -40,6 +42,7 @@ export function AdminShell({
   title,
   headerActions,
   defaultSidebarOpen = true,
+  extraGroups,
   children,
 }: AdminShellProps): ReactNode {
   return (
@@ -50,16 +53,23 @@ export function AdminShell({
         basePath={basePath}
         renderLink={renderLink}
         footer={sidebarFooter}
+        extraGroups={extraGroups}
       />
       <Sidebar.Inset>
         <header className="flex h-14 items-center gap-2 border-b px-4">
           <Sidebar.Trigger />
-          {title ? <h1 className="text-sm font-medium">{title}</h1> : null}
+          {/* Persistent app chrome, not a document heading — each page view owns
+              its single <h1>, so this stays a plain styled label to avoid two
+              competing top-level headings on a screen. */}
+          {title ? <span className="text-sm font-medium">{title}</span> : null}
           <div className="ml-auto flex items-center gap-2">
             {headerActions}
             <ThemeToggle />
           </div>
         </header>
+        {/* `Sidebar.Inset` is itself the `<main>` landmark, so the body is a
+            plain padded `<div>` — a nested second `<main>` would give the screen
+            two main landmarks. */}
         <div className="flex-1 p-4">{children}</div>
       </Sidebar.Inset>
     </Sidebar.Provider>

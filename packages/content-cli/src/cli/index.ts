@@ -3,7 +3,6 @@
 // `node:util` `parseArgs`.
 
 import { runMigrate } from "./migrate";
-import { runAdd, runDiff, runList } from "./registry";
 
 /** A user-facing CLI failure — `bin.ts` prints the message and exits non-zero. */
 export class CliError extends Error {
@@ -18,24 +17,14 @@ const HELP = `Voila content CLI
 Usage: voila <command>
 
 Commands:
-  list               Browse the registry catalog of vendable items.
-  add <item...>      Vend registry items (and their deps) into the app.
-  diff [item...]     Show drift between your vended copy and upstream.
   migrate generate   Generate a migration from the content config.
   migrate apply      Apply pending migrations to a target.
 
-Run "voila <command> --help" for a command's options
-(e.g. "voila add --help", "voila migrate generate --help").`;
+Run "voila migrate --help" for a command's options.`;
 
 export async function run(argv: ReadonlyArray<string>): Promise<void> {
   const [command, ...rest] = argv;
   switch (command) {
-    case "list":
-      return runList(rest);
-    case "add":
-      return runAdd(rest);
-    case "diff":
-      return runDiff(rest);
     case "migrate":
       return runMigrate(rest);
     case undefined:

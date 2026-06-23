@@ -26,10 +26,9 @@ const posts = defineCollection({
   },
 });
 
-// Singletons are supported by the engine (write path + typed client shipped),
-// but the demo only vends the per-collection admin routes (`admin.posts.*`), so
-// a singleton would render a nav link with no matching route. Add a singleton
-// here once you've vended an `admin.<slug>.*` route for it.
+// Add another collection (or a `defineSingleton`) and it shows up in the admin
+// automatically — the dynamic `$collection` routes from `@voila/content-admin` serve its
+// pages with no new files.
 
 export default defineConfig({
   branding: { name: "demo" },
