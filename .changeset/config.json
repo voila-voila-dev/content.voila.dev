@@ -1,6 +1,6 @@
 {
   "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
-  "changelog": ["@changesets/changelog-github", { "repo": "voila-voila-dev/voila.dev" }],
+  "changelog": ["@changesets/changelog-github", { "repo": "voila-voila-dev/content.voila.dev" }],
   "commit": false,
   "fixed": [["@voila/*"]],
   "linked": [],

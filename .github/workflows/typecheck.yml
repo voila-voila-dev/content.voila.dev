@@ -19,15 +19,10 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v5
-      - uses: ./.github/actions/setup-bun
-      - uses: ./.github/actions/install
+      - uses: voila-voila-dev/.github/actions/setup-bun@main
+      - uses: voila-voila-dev/.github/actions/install@main
       
       - name: tsc -b (workspace project references)
         shell: bash
         run: bunx tsc -b
-
-      - name: tsc --noEmit (apps/ui.voila.dev)
-        shell: bash
-        working-directory: apps/ui.voila.dev
-        run: bunx tsc --noEmit
 

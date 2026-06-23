@@ -1,0 +1,54 @@
+{
+  "name": "@voila/content-admin",
+  "version": "0.1.1",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./screens": "./src/screens/index.ts",
+    "./server": "./src/server/index.ts",
+    "./cloudflare": "./src/cloudflare.ts"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@voila/content": "workspace:*"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5",
+    "@tanstack/react-router": "^1",
+    "@tanstack/react-start": "^1",
+    "@voila/content-ui": "workspace:*",
+    "better-auth": "^1.6.0",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "peerDependenciesMeta": {
+    "@tanstack/react-query": {
+      "optional": true
+    },
+    "@tanstack/react-router": {
+      "optional": true
+    },
+    "@tanstack/react-start": {
+      "optional": true
+    },
+    "@voila/content-ui": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@voila/typescript-config": "workspace:*",
+    "better-auth": "^1.6.12"
+  }
+}

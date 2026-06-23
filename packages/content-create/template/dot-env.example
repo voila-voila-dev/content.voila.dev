@@ -1,0 +1,17 @@
+# Copy to .env and fill in. `create-content-voila` writes a real .env with a generated
+# secret for you; this committed example documents the keys for teammates.
+# On the deployed Worker these are set as secrets/vars, not from this file.
+
+# Signs auth sessions, magic-link tokens, and the CSRF token.
+# Generate one with: openssl rand -base64 32
+# On the Worker: wrangler secret put VOILA_AUTH_SECRET
+VOILA_AUTH_SECRET=
+
+# The Worker's origin (https → Secure cookies + magic-link verify URLs). Unset
+# in dev. In production set it as a var, e.g.:
+# VOILA_BASE_URL=https://admin.example.com
+
+# Real email via Resend (else magic links print to the dev console):
+# On the Worker: wrangler secret put RESEND_API_KEY
+# RESEND_API_KEY=re_...
+# VOILA_AUTH_FROM="Acme <admin@acme.dev>"

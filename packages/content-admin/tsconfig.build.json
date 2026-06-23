@@ -1,0 +1,19 @@
+{
+  "extends": "@voila/typescript-config/tsconfig.build.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    // The screens forward props through React components and read erased field
+    // shapes, which defeat inference for isolatedDeclarations — disable it here
+    // only, exactly like @voila/content-ui.
+    "isolatedDeclarations": false
+  },
+  "references": [
+    { "path": "../content/tsconfig.build.json" },
+    { "path": "../content-ui/tsconfig.build.json" }
+  ],
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}

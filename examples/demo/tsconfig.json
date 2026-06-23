@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+    "skipLibCheck": true,
+    "noEmit": true,
+    // @voila/rich-text-editor ships TS source whose internal imports carry
+    // explicit .ts/.tsx extensions; allow them when typechecking the demo.
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "paths": {
+      "~/*": ["./app/*"]
+    }
+  },
+  "include": ["app", "content.config.ts", "vite.config.ts"]
+}

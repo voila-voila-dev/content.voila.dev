@@ -1,0 +1,40 @@
+{
+  "name": "{{projectName}}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "vite build && wrangler deploy",
+    "cf-typegen": "wrangler types",
+    "migrate:generate": "voila migrate generate --auth",
+    "migrate:local": "voila migrate apply --target d1-local --db DB",
+    "migrate:remote": "voila migrate apply --target d1-remote --db DB"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.100.14",
+    "@tanstack/react-router": "~1.170.15",
+    "@tanstack/react-start": "~1.168.25",
+    "@voila/content-admin": "^0.1.0",
+    "@voila/content": "^0.1.0",
+    "@voila/content-ui": "^0.1.0",
+    "@voila/ui": "^0.2.0",
+    "better-auth": "^1.6.12",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.0.0",
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^22.5.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "@voila/content-cli": "^0.1.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^7.0.0",
+    "wrangler": "^4.0.0"
+  }
+}
