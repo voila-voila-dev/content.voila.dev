@@ -1,0 +1,25 @@
+---
+import Head from "#/components/head.astro";
+import type { SeoProps } from "#/lib/seo";
+
+interface Props extends SeoProps {
+  /** `<html lang>`. Defaults to "en". */
+  lang?: string;
+  /** Extra classes for `<body>`. */
+  class?: string;
+}
+
+const { lang = "en", class: bodyClass, ...seo } = Astro.props;
+---
+
+<!doctype html>
+<html lang={lang} class="scroll-smooth">
+  <head>
+    <Head {...seo}>
+      <slot name="head" />
+    </Head>
+  </head>
+  <body class={bodyClass}>
+    <slot />
+  </body>
+</html>

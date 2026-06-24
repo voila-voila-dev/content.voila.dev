@@ -1,0 +1,18 @@
+/*
+ * @voila/content-admin — Tailwind v4 source registration.
+ *
+ * Import from an app's entry stylesheet, after `@voila/ui/tailwind` and
+ * `@voila/content-ui/tailwind`:
+ *
+ *     @import "@voila/ui/tailwind";
+ *     @import "@voila/content-ui/tailwind";
+ *     @import "@voila/content-admin/tailwind";
+ *
+ * Tailwind only auto-scans the app's own files, so without this the classes
+ * used inside this package's screens (e.g. the login page's `min-h-screen` /
+ * `p-8`, the admin shell, the data tables) are never generated unless something
+ * in the app happens to repeat them — leaving the admin UI unstyled.
+ */
+
+/* Resolved relative to this file → works from workspace or node_modules. */
+@source ".";

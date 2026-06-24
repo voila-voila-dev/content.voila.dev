@@ -1,0 +1,77 @@
+name: Deploy (demo.content.voila.dev)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/demo.content.voila.dev/**"
+      - ".github/workflows/deploy-demo.content.voila.dev.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-demo-content-voila-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare Workers
+    runs-on: ubuntu-latest
+    # The GitHub Environment that holds this site's Worker secrets
+    # (VOILA_AUTH_SECRET, RESEND_API_KEY). Scoping them here means no DEMO_*
+    # prefix and keeps them off the rest of the repo's workflows.
+    environment: demo.content.voila.dev
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: voila-voila-dev/.github/actions/setup-bun@main
+      - uses: voila-voila-dev/.github/actions/install@main
+
+      - name: Apply D1 migrations (remote)
+        uses: voila-voila-dev/.github/actions/cloudflare-workers-publish@main
+        with:
+          command: d1 migrations apply demo-content-voila-dev --remote
+          working-directory: apps/demo.content.voila.dev
+          api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Build
+        shell: bash
+        working-directory: apps/demo.content.voila.dev
+        run: bun run build
+
+      - name: Deploy to Cloudflare Workers
+        uses: voila-voila-dev/.github/actions/cloudflare-workers-publish@main
+        with:
+          command: deploy
+          working-directory: apps/demo.content.voila.dev
+          api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # GitHub is the source of truth for the Worker's runtime secrets. Each
+      # deploy re-pushes them so the Worker never drifts from the repo secrets.
+      # Runs after deploy (the Worker must exist for `secret bulk`). Only the
+      # secrets actually configured in GitHub are included — an unset optional
+      # secret (e.g. RESEND_API_KEY) is skipped, not pushed as an empty value.
+      - name: Sync Worker secrets from GitHub
+        shell: bash
+        working-directory: apps/demo.content.voila.dev
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VOILA_AUTH_SECRET: ${{ secrets.VOILA_AUTH_SECRET }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          # Build a JSON of only the non-empty secrets (jq --arg keeps values
+          # off the command line / out of the logs), then bulk-upload.
+          jq -n \
+            ${VOILA_AUTH_SECRET:+--arg VOILA_AUTH_SECRET "$VOILA_AUTH_SECRET"} \
+            ${RESEND_API_KEY:+--arg RESEND_API_KEY "$RESEND_API_KEY"} \
+            '$ARGS.named' > "$RUNNER_TEMP/worker-secrets.json"
+          if [ "$(jq 'length' "$RUNNER_TEMP/worker-secrets.json")" -gt 0 ]; then
+            bunx wrangler secret bulk "$RUNNER_TEMP/worker-secrets.json"
+          else
+            echo "No DEMO_* secrets configured in GitHub; nothing to sync."
+          fi
+          rm -f "$RUNNER_TEMP/worker-secrets.json"

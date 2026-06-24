@@ -1,0 +1,104 @@
+---
+import BetterAuth from "#/components/logos/better-auth.astro";
+import Cloudflare from "#/components/logos/cloudflare.astro";
+import D1 from "#/components/logos/d1.astro";
+import R2 from "#/components/logos/r2.astro";
+import Resend from "#/components/logos/resend.astro";
+import TanStack from "#/components/logos/tanstack.astro";
+import Badge from "#/components/ui/badge.astro";
+import Button from "#/components/ui/button.astro";
+import Card from "#/components/ui/card.astro";
+import Container from "#/components/ui/container.astro";
+import Icon from "#/components/ui/icon.astro";
+
+const demo = "https://demo.content.voila.dev";
+
+const codeSnippet = [
+  '<span class="text-violet-400">import</span> { defineContent, collection, fields } <span class="text-violet-400">from</span> <span class="text-emerald-400">"@voila/content"</span>;',
+  "",
+  '<span class="text-violet-400">export default</span> <span class="text-sky-400">defineContent</span>({',
+  "  collections: {",
+  '    posts: <span class="text-sky-400">collection</span>({',
+  "      fields: {",
+  '        title:  fields.<span class="text-sky-400">text</span>({ required: <span class="text-orange-400">true</span> }),',
+  '        slug:   fields.<span class="text-sky-400">slug</span>({ from: <span class="text-emerald-400">"title"</span> }),',
+  '        body:   fields.<span class="text-sky-400">richText</span>(),',
+  '        status: fields.<span class="text-sky-400">select</span>([<span class="text-emerald-400">"draft"</span>, <span class="text-emerald-400">"published"</span>]),',
+  "      },",
+  "    }),",
+  "  },",
+  "});",
+].join("\n");
+---
+
+<section class="relative overflow-hidden">
+  <div class="pointer-events-none absolute inset-0 -z-10 bg-grid mask-radial-faded opacity-[0.4]">
+  </div>
+  <div
+    class="pointer-events-none absolute -top-40 left-1/2 -z-10 h-[36rem] w-[64rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl"
+  >
+  </div>
+
+  <Container class="flex flex-col items-center gap-8 py-24 text-center sm:py-32">
+    <Badge variant="outline" class="gap-2 bg-background/60 py-1 backdrop-blur">
+      <span class="inline-block size-1.5 rounded-full bg-primary"></span>
+      v0.1 — now open source
+    </Badge>
+
+    <h1 class="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
+      Content infrastructure, defined in TypeScript.
+    </h1>
+
+    <p class="max-w-xl text-balance text-lg text-muted-foreground">
+      A config-driven, type-safe content framework. Model your collections once and get a typed
+      client, a REST API, and an admin UI — deployed to the edge.
+    </p>
+
+    <div class="flex flex-col gap-3 sm:flex-row">
+      <Button href="#cta" size="lg">
+        Get started
+        <Icon name="arrow-right" />
+      </Button>
+      <Button href={demo} variant="outline" size="lg">
+        Live demo
+        <Icon name="arrow-up-right" />
+      </Button>
+    </div>
+
+    <div class="mt-8 flex flex-col items-center gap-4">
+      <span class="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">
+        Powered by
+      </span>
+      <div class="flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-foreground/85">
+        <span class="flex items-center gap-2 text-sm font-medium">
+          <Cloudflare class="h-5 w-auto" /> Workers
+        </span>
+        <span class="flex items-center gap-2 text-sm font-medium">
+          <D1 class="h-5 w-auto" /> D1
+        </span>
+        <span class="flex items-center gap-2 text-sm font-medium">
+          <R2 class="h-5 w-auto" /> R2
+        </span>
+        <span class="flex items-center gap-2 text-sm font-medium">
+          <TanStack class="h-5 w-auto" /> TanStack
+        </span>
+        <span class="flex items-center gap-2 text-sm font-medium">
+          <Resend class="h-[18px] w-auto" /> Resend
+        </span>
+        <span class="flex items-center gap-2 text-sm font-medium">
+          <BetterAuth class="h-[18px] w-auto" /> Better Auth
+        </span>
+      </div>
+    </div>
+
+    <Card class="mt-8 w-full max-w-2xl overflow-hidden border-white/10 bg-zinc-950 text-left shadow-2xl">
+      <div class="flex items-center gap-2 border-b border-white/10 px-4 py-3">
+        <span class="size-3 rounded-full bg-red-500/80"></span>
+        <span class="size-3 rounded-full bg-yellow-500/80"></span>
+        <span class="size-3 rounded-full bg-green-500/80"></span>
+        <span class="ml-2 font-mono text-xs text-zinc-400">content.config.ts</span>
+      </div>
+      <pre class="overflow-x-auto p-5 font-mono text-[13px] leading-relaxed text-zinc-300"><code set:html={codeSnippet}></code></pre>
+    </Card>
+  </Container>
+</section>

@@ -1,13 +1,17 @@
 {
-  "name": "demo",
+  "name": "@voila/demo.content.voila.dev",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "start": "node .output/server/index.mjs",
+    "preview": "vite preview",
+    "deploy": "vite build && wrangler deploy",
+    "deploy:preview": "vite build && wrangler versions upload",
+    "cf-typegen": "wrangler types",
     "migrate:generate": "voila migrate generate --auth",
-    "migrate:apply": "voila migrate apply"
+    "migrate:local": "voila migrate apply --target d1-local --db DB",
+    "migrate:remote": "voila migrate apply --target d1-remote --db DB"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.100.14",
@@ -23,11 +27,13 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.0.0",
     "@tailwindcss/vite": "^4",
     "@vitejs/plugin-react": "5",
     "@voila/content-cli": "workspace:*",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.0",
-    "vite": "^7.0.0"
+    "vite": "^7.0.0",
+    "wrangler": "^4.0.0"
   }
 }

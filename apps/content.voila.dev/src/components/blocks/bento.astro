@@ -1,0 +1,86 @@
+---
+import Badge from "#/components/ui/badge.astro";
+import Card from "#/components/ui/card.astro";
+import Container from "#/components/ui/container.astro";
+import Icon from "#/components/ui/icon.astro";
+import Section from "#/components/ui/section.astro";
+
+const capabilities = ["Drafts", "Revisions", "i18n", "Media", "Full-text search", "Webhooks"];
+---
+
+<Section id="why">
+  <Container>
+    <div class="mx-auto max-w-2xl text-center">
+      <Badge variant="muted">Why content.voila.dev</Badge>
+      <h2 class="mt-4 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+        A framework, not a vendor
+      </h2>
+      <p class="mt-4 text-pretty text-lg text-muted-foreground">
+        Own your data and your runtime. Config-driven, fully typed, and yours to deploy.
+      </p>
+    </div>
+
+    <div class="mt-16 grid gap-4 lg:grid-cols-3 lg:grid-rows-2">
+      <Card class="flex flex-col justify-between p-8 lg:col-span-2">
+        <div>
+          <Icon name="git-branch" class="size-6 text-foreground" />
+          <h3 class="mt-4 text-xl font-semibold">Config-driven, no eject</h3>
+          <p class="mt-2 max-w-md text-pretty text-muted-foreground">
+            Your <code class="rounded bg-muted px-1.5 py-0.5 font-mono text-sm">content.config.ts</code>
+            is the source of truth. The database schema, REST routes, typed client, and admin
+            screens are all derived from it.
+          </p>
+        </div>
+        <div class="mt-6 flex flex-wrap gap-2">
+          {capabilities.map((c) => <Badge variant="outline">{c}</Badge>)}
+        </div>
+      </Card>
+
+      <Card class="flex flex-col justify-between p-8">
+        <Icon name="globe" class="size-6 text-foreground" />
+        <div class="mt-4">
+          <h3 class="text-xl font-semibold">Edge-native by default</h3>
+          <p class="mt-2 text-pretty text-muted-foreground">
+            Cloudflare Workers, D1, and R2 — one worker, one database, one domain per site.
+          </p>
+        </div>
+      </Card>
+
+      <Card class="flex flex-col justify-between p-8">
+        <Icon name="zap" class="size-6 text-foreground" />
+        <div class="mt-4">
+          <h3 class="text-xl font-semibold">Typed end to end</h3>
+          <p class="mt-2 text-pretty text-muted-foreground">
+            From schema to client, types flow without a build step. Refactor with confidence.
+          </p>
+        </div>
+      </Card>
+
+      <Card class="flex flex-col justify-between p-8 lg:col-span-2">
+        <div>
+          <Icon name="layers" class="size-6 text-foreground" />
+          <h3 class="mt-4 text-xl font-semibold">Batteries included, swappable</h3>
+          <p class="mt-2 max-w-md text-pretty text-muted-foreground">
+            Auth, RBAC, media storage, and search ship in the box — each behind a seam you can
+            replace. Sensible defaults, no lock-in.
+          </p>
+        </div>
+        <div class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {
+            [
+              { icon: "shield", label: "Auth" },
+              { icon: "database", label: "Storage" },
+              { icon: "search", label: "Search" },
+              { icon: "sparkles", label: "Admin" },
+            ].map((s) => (
+              <div class="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-sm">
+                <Icon name={s.icon} class="size-4 text-muted-foreground" />
+                {s.label}
+              </div>
+            ))
+          }
+        </div>
+      </Card>
+    </div>
+  </Container>
+</Section>

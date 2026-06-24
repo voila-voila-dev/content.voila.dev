@@ -1,0 +1,47 @@
+---
+import Button from "#/components/ui/button.astro";
+import Container from "#/components/ui/container.astro";
+import Icon from "#/components/ui/icon.astro";
+
+const github = "https://github.com/voila-voila-dev";
+---
+
+<section id="cta" class="py-20 sm:py-28">
+  <Container>
+    <div
+      class="relative overflow-hidden rounded-3xl border border-border bg-card px-6 py-16 text-center shadow-sm sm:px-16"
+    >
+      <div class="pointer-events-none absolute inset-0 -z-10 bg-dots mask-radial-faded opacity-50">
+      </div>
+      <div
+        class="pointer-events-none absolute left-1/2 top-0 -z-10 h-72 w-[40rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl"
+      >
+      </div>
+
+      <h2 class="mx-auto max-w-2xl text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+        Ship content infrastructure this afternoon
+      </h2>
+      <p class="mx-auto mt-4 max-w-xl text-pretty text-lg text-muted-foreground">
+        Scaffold a fully typed, edge-ready content backend with a single command.
+      </p>
+
+      <div
+        class="mx-auto mt-8 flex max-w-md items-center justify-center gap-3 rounded-lg border border-border bg-background px-4 py-3 font-mono text-sm shadow-sm"
+      >
+        <span class="text-muted-foreground">$</span>
+        <span>bun create content-voila</span>
+      </div>
+
+      <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <Button href="#" size="lg">
+          Read the docs
+          <Icon name="arrow-right" />
+        </Button>
+        <Button href={github} variant="outline" size="lg">
+          <Icon name="github" />
+          Star on GitHub
+        </Button>
+      </div>
+    </div>
+  </Container>
+</section>

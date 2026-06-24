@@ -1,0 +1,110 @@
+---
+import { Font } from "astro:assets";
+import {
+  absoluteUrl,
+  formatTitle,
+  type JsonLd,
+  organizationSchema,
+  robotsContent,
+  type SeoProps,
+  SITE,
+  serializeJsonLd,
+  websiteSchema,
+} from "#/lib/seo";
+import "#/styles/globals.css";
+
+type Props = SeoProps;
+
+const {
+  title,
+  titleTemplate,
+  description = SITE.description,
+  canonical,
+  image = SITE.image,
+  imageAlt,
+  type = "website",
+  keywords,
+  noindex = false,
+  nofollow = false,
+  locale = SITE.locale,
+  publishedTime,
+  modifiedTime,
+  author,
+  jsonLd,
+} = Astro.props;
+
+const resolvedTitle = formatTitle(title, titleTemplate !== false);
+
+// Canonical: explicit prop, else the current path against the configured origin.
+const canonicalUrl = canonical
+  ? absoluteUrl(canonical)
+  : absoluteUrl(Astro.url.pathname, Astro.site ?? SITE.url);
+
+const ogImage = absoluteUrl(image, Astro.site ?? SITE.url);
+
+// Site-wide structured data always present, plus any page-supplied nodes.
+const pageJsonLd: JsonLd[] = jsonLd ? (Array.isArray(jsonLd) ? jsonLd : [jsonLd]) : [];
+const graph: JsonLd[] = [organizationSchema(), websiteSchema(), ...pageJsonLd];
+---
+
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="generator" content={Astro.generator} />
+
+{/* Set the color theme before paint to avoid a flash of the wrong theme. */}
+<script is:inline>
+  (() => {
+    const stored = localStorage.getItem("theme");
+    const dark = stored ? stored === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.classList.toggle("dark", dark);
+  })();
+</script>
+
+<title>{resolvedTitle}</title>
+<meta name="description" content={description} />
+{keywords && keywords.length > 0 && <meta name="keywords" content={keywords.join(", ")} />}
+{author && <meta name="author" content={author} />}
+<meta name="robots" content={robotsContent(noindex, nofollow)} />
+<link rel="canonical" href={canonicalUrl} />
+
+<meta name="theme-color" content={SITE.themeColor} />
+<meta name="color-scheme" content="light dark" />
+
+{/* Open Graph */}
+<meta property="og:site_name" content={SITE.name} />
+<meta property="og:type" content={type} />
+<meta property="og:locale" content={locale} />
+<meta property="og:title" content={resolvedTitle} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonicalUrl} />
+<meta property="og:image" content={ogImage} />
+{imageAlt && <meta property="og:image:alt" content={imageAlt} />}
+{type === "article" && publishedTime && (
+  <meta property="article:published_time" content={publishedTime} />
+)}
+{type === "article" && modifiedTime && (
+  <meta property="article:modified_time" content={modifiedTime} />
+)}
+{type === "article" && author && <meta property="article:author" content={author} />}
+
+{/* Twitter */}
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:site" content={SITE.twitter} />
+<meta name="twitter:creator" content={SITE.twitter} />
+<meta name="twitter:title" content={resolvedTitle} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImage} />
+{imageAlt && <meta name="twitter:image:alt" content={imageAlt} />}
+
+{/* Icons */}
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+
+{/* Self-hosted fonts (Astro Fonts API) */}
+<Font cssVariable="--font-geist-sans" preload />
+<Font cssVariable="--font-geist-mono" />
+
+{/* Structured data (JSON-LD, typed via google/schema-dts) */}
+<script type="application/ld+json" is:inline set:html={serializeJsonLd(graph)} />
+
+<slot />
