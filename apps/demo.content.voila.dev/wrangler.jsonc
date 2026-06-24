@@ -1,0 +1,41 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "demo-content-voila-dev",
+  "main": "@tanstack/react-start/server-entry",
+  "compatibility_date": "2026-06-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // The content + auth database. `createWorkerAdmin` binds `makeD1Driver(env.DB)`.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "demo-content-voila-dev",
+      "database_id": "2649903a-8925-456a-8f5a-55b92e24d71f",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // The media library (uploads). `createWorkerAdmin` binds `makeR2Storage(env.BUCKET)`.
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "demo-content-voila-dev-media" }],
+
+  // Non-secret runtime config. The origin gives Secure cookies + correct
+  // magic-link verify URLs; the from-address is used by the Resend mailer
+  // (RESEND_API_KEY is set as a secret, not here).
+  "vars": {
+    "VOILA_BASE_URL": "https://demo.content.voila.dev",
+    "VOILA_AUTH_FROM": "Voila Demo <noreply@updates.demo.content.voila.dev>"
+  },
+
+  // Serve the demo at demo.content.voila.dev. A custom_domain route makes
+  // Cloudflare create the DNS record + TLS cert automatically (the
+  // content.voila.dev zone is on this account).
+  "routes": [{ "pattern": "demo.content.voila.dev", "custom_domain": true }]
+
+  // Secrets are NOT committed and NOT set by hand. GitHub is the source of
+  // truth: the deploy workflow's "Sync Worker secrets from GitHub" step pushes
+  // them on every deploy. Manage the values in the `demo.content.voila.dev`
+  // GitHub Environment:
+  //   gh secret set VOILA_AUTH_SECRET --env demo.content.voila.dev  (signs sessions/CSRF/magic-link)
+  //   gh secret set RESEND_API_KEY    --env demo.content.voila.dev  (real magic-link email)
+}

@@ -7,5 +7,11 @@ dist
 *.db-*
 .voila
 .env
+.dev.vars
+.dev.vars.*
+.wrangler
+.mf
+worker-configuration.d.ts
 .DS_Store
 .playwright-cli
+.tanstack

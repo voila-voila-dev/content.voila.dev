@@ -1,0 +1,51 @@
+name: Preview (content.voila.dev)
+
+on:
+  pull_request:
+    paths:
+      - "apps/content.voila.dev/**"
+      - ".github/workflows/preview-content.voila.dev.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: preview-content-voila-dev-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Upload preview version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: voila-voila-dev/.github/actions/setup-bun@main
+      - uses: voila-voila-dev/.github/actions/install@main
+
+      - name: Build
+        shell: bash
+        working-directory: apps/content.voila.dev
+        run: bun run build
+
+      - name: Upload preview version to Cloudflare Workers
+        id: deploy
+        uses: voila-voila-dev/.github/actions/cloudflare-workers-publish@main
+        with:
+          command: versions upload --message "PR #${{ github.event.number }} @ ${{ github.sha }}"
+          working-directory: apps/content.voila.dev
+          api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request'
+        uses: voila-voila-dev/.github/actions/sticky-pr-comment@main
+        with:
+          id: preview-content-voila-dev
+          only-bot: "true"
+          body: |
+            ### 🚀 `content.voila.dev` — preview
+
+            Uploaded a new Worker **version** for commit `${{ github.sha }}`.
+
+            ${{ steps.deploy.outputs.deployment-url != '' && format('**Preview URL:** {0}', steps.deploy.outputs.deployment-url) || '_Open the latest version in the Cloudflare dashboard to grab its preview URL._' }}

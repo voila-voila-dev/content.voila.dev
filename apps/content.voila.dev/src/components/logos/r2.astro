@@ -1,0 +1,29 @@
+---
+interface Props {
+  class?: string;
+  [key: string]: unknown;
+}
+
+const { class: className, ...rest } = Astro.props;
+---
+
+<svg
+  class={className}
+  viewBox="0 0 44 44"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+  role="img"
+  aria-label="Cloudflare R2"
+  {...rest}
+>
+  <circle cx="22" cy="22" r="12" fill="#F6821F"></circle>
+  <ellipse
+    cx="22"
+    cy="22"
+    rx="20"
+    ry="7.5"
+    fill="none"
+    stroke="#F6821F"
+    stroke-width="3"
+    transform="rotate(-28 22 22)"></ellipse>
+</svg>

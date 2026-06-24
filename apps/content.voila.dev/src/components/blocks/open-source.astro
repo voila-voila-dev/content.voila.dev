@@ -1,0 +1,68 @@
+---
+import Badge from "#/components/ui/badge.astro";
+import Button from "#/components/ui/button.astro";
+import Card from "#/components/ui/card.astro";
+import Container from "#/components/ui/container.astro";
+import Icon from "#/components/ui/icon.astro";
+import Section from "#/components/ui/section.astro";
+
+const github = "https://github.com/voila-voila-dev";
+
+const included = [
+  "All collections & fields",
+  "Typed client & REST API",
+  "Built-in admin UI",
+  "Auth, RBAC & CSRF",
+  "Media, search & i18n",
+  "Drafts & revisions",
+];
+---
+
+<Section id="open-source">
+  <Container class="max-w-3xl">
+    <div class="text-center">
+      <Badge variant="muted">Open source</Badge>
+      <h2 class="mt-4 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+        Free and open source, forever
+      </h2>
+      <p class="mt-4 text-pretty text-lg text-muted-foreground">
+        No plans, no seats, no lock-in. content.voila.dev is MIT licensed — self-host it on your own
+        edge, fork it, and make it yours.
+      </p>
+    </div>
+
+    <Card class="mt-12 p-8 sm:p-10">
+      <div class="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:justify-between">
+        <div class="text-center sm:text-left">
+          <div class="flex items-baseline justify-center gap-2 sm:justify-start">
+            <span class="text-5xl font-semibold tracking-tight">$0</span>
+            <span class="text-muted-foreground">/ forever</span>
+          </div>
+          <p class="mt-2 text-sm text-muted-foreground">
+            MIT licensed · self-hosted on Cloudflare Workers
+          </p>
+        </div>
+        <div class="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          <Button href={github} size="lg">
+            <Icon name="github" />
+            Star on GitHub
+          </Button>
+          <Button href="#cta" variant="outline" size="lg">Read the docs</Button>
+        </div>
+      </div>
+
+      <hr class="my-8 border-border" />
+
+      <ul class="grid gap-3 sm:grid-cols-2">
+        {
+          included.map((f) => (
+            <li class="flex items-center gap-2 text-sm">
+              <Icon name="check" class="size-4 shrink-0 text-primary" />
+              <span>{f}</span>
+            </li>
+          ))
+        }
+      </ul>
+    </Card>
+  </Container>
+</Section>

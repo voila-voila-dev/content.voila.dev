@@ -1,0 +1,38 @@
+name: Deploy (content.voila.dev)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/content.voila.dev/**"
+      - ".github/workflows/deploy-content.voila.dev.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-content-voila-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare Workers
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: voila-voila-dev/.github/actions/setup-bun@main
+      - uses: voila-voila-dev/.github/actions/install@main
+
+      - name: Build
+        shell: bash
+        working-directory: apps/content.voila.dev
+        run: bun run build
+
+      - name: Deploy to Cloudflare Workers
+        uses: voila-voila-dev/.github/actions/cloudflare-workers-publish@main
+        with:
+          command: deploy
+          working-directory: apps/content.voila.dev
+          api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

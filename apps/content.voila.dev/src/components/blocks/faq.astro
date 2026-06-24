@@ -1,0 +1,57 @@
+---
+import Badge from "#/components/ui/badge.astro";
+import Container from "#/components/ui/container.astro";
+import Icon from "#/components/ui/icon.astro";
+import Section from "#/components/ui/section.astro";
+
+const faqs = [
+  {
+    q: "Is content.voila.dev a CMS or a framework?",
+    a: "A framework. You define content in TypeScript and own the runtime, database, and admin. There's no hosted black box — everything is derived from your config and runs in your infrastructure.",
+  },
+  {
+    q: "Where does my content live?",
+    a: "In your own database. The default runtime targets Cloudflare D1 with R2 for media, but the storage and database layers are seams you can swap.",
+  },
+  {
+    q: "Do I need a codegen step?",
+    a: "No. Types are inferred directly from your config, so the typed client and admin stay in sync without a generate command.",
+  },
+  {
+    q: "Can I customize the admin UI?",
+    a: "Yes. The admin is config-driven with an extension API for custom screens and fields, while sensible defaults are generated from your schema.",
+  },
+  {
+    q: "What about auth and permissions?",
+    a: "Magic-link auth, sessions, CSRF protection, and per-field role-based access control are built in and enabled by default.",
+  },
+];
+---
+
+<Section id="faq">
+  <Container class="max-w-3xl">
+    <div class="text-center">
+      <Badge variant="muted">FAQ</Badge>
+      <h2 class="mt-4 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+        Frequently asked questions
+      </h2>
+    </div>
+
+    <div class="mt-12 divide-y divide-border rounded-xl border border-border">
+      {
+        faqs.map((item) => (
+          <details class="group px-6">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 py-5 font-medium [&::-webkit-details-marker]:hidden">
+              {item.q}
+              <Icon
+                name="chevron-down"
+                class="size-5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180"
+              />
+            </summary>
+            <p class="pb-5 text-pretty leading-relaxed text-muted-foreground">{item.a}</p>
+          </details>
+        ))
+      }
+    </div>
+  </Container>
+</Section>

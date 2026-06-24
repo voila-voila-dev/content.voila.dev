@@ -7,7 +7,8 @@
     ".": "./src/index.ts",
     "./screens": "./src/screens/index.ts",
     "./server": "./src/server/index.ts",
-    "./cloudflare": "./src/cloudflare.ts"
+    "./cloudflare": "./src/cloudflare.ts",
+    "./tailwind": "./src/tailwind.css"
   },
   "publishConfig": {
     "access": "public"

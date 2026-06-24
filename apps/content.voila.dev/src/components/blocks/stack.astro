@@ -1,0 +1,74 @@
+---
+import BetterAuth from "#/components/logos/better-auth.astro";
+import Cloudflare from "#/components/logos/cloudflare.astro";
+import D1 from "#/components/logos/d1.astro";
+import R2 from "#/components/logos/r2.astro";
+import Resend from "#/components/logos/resend.astro";
+import TanStack from "#/components/logos/tanstack.astro";
+import Badge from "#/components/ui/badge.astro";
+import Card from "#/components/ui/card.astro";
+import Container from "#/components/ui/container.astro";
+import Section from "#/components/ui/section.astro";
+
+const stack = [
+  {
+    Logo: Cloudflare,
+    name: "Cloudflare Workers",
+    desc: "Your entire app runs as a single Worker, deployed to Cloudflare's global edge.",
+  },
+  {
+    Logo: D1,
+    name: "Cloudflare D1",
+    desc: "SQLite at the edge — your content database, replicated close to your users.",
+  },
+  {
+    Logo: R2,
+    name: "Cloudflare R2",
+    desc: "Zero-egress object storage for media, uploads, and generated assets.",
+  },
+  {
+    Logo: TanStack,
+    name: "TanStack Start",
+    desc: "Type-safe routing and data loading power the config-driven admin UI.",
+  },
+  {
+    Logo: BetterAuth,
+    name: "Better Auth",
+    desc: "Sessions, magic links, and RBAC — secure auth wired in by default.",
+  },
+  {
+    Logo: Resend,
+    name: "Resend",
+    desc: "Transactional email for magic-link auth and content notifications.",
+  },
+];
+---
+
+<Section id="stack" class="border-y border-border/60 bg-muted/30">
+  <Container>
+    <div class="mx-auto max-w-2xl text-center">
+      <Badge variant="muted">The stack</Badge>
+      <h2 class="mt-4 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+        Built on the modern edge
+      </h2>
+      <p class="mt-4 text-pretty text-lg text-muted-foreground">
+        No proprietary backend. content.voila.dev runs on open, edge-native infrastructure you
+        already trust.
+      </p>
+    </div>
+
+    <div class="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {
+        stack.map((item) => (
+          <Card class="flex flex-col p-6 transition-colors hover:border-foreground/20">
+            <div class="flex h-10 items-center">
+              <item.Logo class="h-8 w-auto" />
+            </div>
+            <h3 class="mt-5 text-base font-semibold">{item.name}</h3>
+            <p class="mt-2 text-sm leading-relaxed text-muted-foreground">{item.desc}</p>
+          </Card>
+        ))
+      }
+    </div>
+  </Container>
+</Section>

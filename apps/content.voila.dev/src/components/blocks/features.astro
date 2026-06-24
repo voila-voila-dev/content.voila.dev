@@ -1,0 +1,68 @@
+---
+import Badge from "#/components/ui/badge.astro";
+import Card from "#/components/ui/card.astro";
+import Container from "#/components/ui/container.astro";
+import Icon from "#/components/ui/icon.astro";
+import Section from "#/components/ui/section.astro";
+
+const features = [
+  {
+    icon: "code",
+    title: "Type-safe schema",
+    desc: "Define collections and fields in TypeScript. Your content shape is inferred everywhere — no codegen step.",
+  },
+  {
+    icon: "zap",
+    title: "Typed client, zero codegen",
+    desc: "A fully typed data client derived from your config. Autocomplete every collection, field, and query.",
+  },
+  {
+    icon: "layers",
+    title: "Built-in admin UI",
+    desc: "A config-driven admin to author content, with forms, tables, and validation generated from your schema.",
+  },
+  {
+    icon: "globe",
+    title: "Edge-native",
+    desc: "Runs on Cloudflare Workers with D1 and R2. Low-latency reads from anywhere, no servers to manage.",
+  },
+  {
+    icon: "database",
+    title: "Drafts, revisions & i18n",
+    desc: "Versioned content, draft/publish workflows, and per-locale fields are first-class, not bolted on.",
+  },
+  {
+    icon: "shield",
+    title: "Auth & RBAC included",
+    desc: "Magic-link auth, sessions, CSRF, and per-field access control wired in by default.",
+  },
+];
+---
+
+<Section id="features">
+  <Container>
+    <div class="mx-auto max-w-2xl text-center">
+      <Badge variant="muted">Features</Badge>
+      <h2 class="mt-4 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+        Everything you need to model content
+      </h2>
+      <p class="mt-4 text-pretty text-lg text-muted-foreground">
+        One config drives the database, API, client, and admin. Add capabilities by flipping a flag.
+      </p>
+    </div>
+
+    <div class="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {
+        features.map((f) => (
+          <Card class="p-6 transition-colors hover:border-foreground/20">
+            <div class="mb-4 grid size-11 place-items-center rounded-lg border border-border bg-muted text-foreground">
+              <Icon name={f.icon} class="size-5" />
+            </div>
+            <h3 class="text-base font-semibold">{f.title}</h3>
+            <p class="mt-2 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
+          </Card>
+        ))
+      }
+    </div>
+  </Container>
+</Section>

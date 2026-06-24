@@ -1,0 +1,44 @@
+---
+import { Icon as Iconify } from "astro-icon/components";
+import { cn } from "#/lib/utils";
+
+/**
+ * Semantic icon names mapped to Phosphor (Iconify `ph:*`) icons, rendered
+ * inline at build by astro-icon. Keeps a stable `<Icon name="check" />` API
+ * across blocks while using the Phosphor icon set under the hood.
+ */
+const PHOSPHOR: Record<string, string> = {
+  check: "ph:check",
+  "arrow-right": "ph:arrow-right",
+  "arrow-up-right": "ph:arrow-up-right",
+  menu: "ph:list",
+  x: "ph:x",
+  "chevron-down": "ph:caret-down",
+  zap: "ph:lightning",
+  code: "ph:code",
+  layers: "ph:stack",
+  globe: "ph:globe",
+  database: "ph:database",
+  shield: "ph:shield-check",
+  search: "ph:magnifying-glass",
+  sparkles: "ph:sparkle",
+  "git-branch": "ph:git-branch",
+  star: "ph:star-fill",
+  github: "ph:github-logo",
+  "x-social": "ph:x-logo",
+  sun: "ph:sun",
+  moon: "ph:moon",
+  heart: "ph:heart",
+};
+
+interface Props {
+  name: keyof typeof PHOSPHOR | (string & {});
+  class?: string;
+  [key: string]: unknown;
+}
+
+const { name, class: className, ...rest } = Astro.props;
+const icon = PHOSPHOR[name] ?? (name.includes(":") ? name : `ph:${name}`);
+---
+
+<Iconify name={icon} class={cn("size-5", className)} aria-hidden="true" {...rest} />

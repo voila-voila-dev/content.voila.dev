@@ -1,0 +1,46 @@
+---
+import type { SoftwareApplication, WithContext } from "schema-dts";
+import Bento from "#/components/blocks/bento.astro";
+import Cta from "#/components/blocks/cta.astro";
+import Faq from "#/components/blocks/faq.astro";
+import Features from "#/components/blocks/features.astro";
+import Footer from "#/components/blocks/footer.astro";
+import Hero from "#/components/blocks/hero.astro";
+import Navbar from "#/components/blocks/navbar.astro";
+import OpenSource from "#/components/blocks/open-source.astro";
+import Stack from "#/components/blocks/stack.astro";
+import Testimonials from "#/components/blocks/testimonials.astro";
+import Layout from "#/layouts/layout.astro";
+
+// Page-specific structured data, fully typed against schema.org.
+const app: WithContext<SoftwareApplication> = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "content.voila.dev",
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Web",
+  description: "A config-driven, type-safe content framework built on modern web primitives.",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+};
+---
+
+<Layout
+  title="content.voila.dev"
+  titleTemplate={false}
+  description="A config-driven, type-safe content framework. Model collections once and get a typed client, REST API, and admin UI — deployed to the edge."
+  type="website"
+  jsonLd={app}
+>
+  <Navbar />
+  <main>
+    <Hero />
+    <Stack />
+    <Features />
+    <Bento />
+    <Testimonials />
+    <OpenSource />
+    <Faq />
+    <Cta />
+  </main>
+  <Footer />
+</Layout>

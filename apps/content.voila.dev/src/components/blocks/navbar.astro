@@ -1,0 +1,91 @@
+---
+import Button from "#/components/ui/button.astro";
+import Container from "#/components/ui/container.astro";
+import Icon from "#/components/ui/icon.astro";
+import ThemeToggle from "#/components/ui/theme-toggle.astro";
+
+const links = [
+  { href: "#features", label: "Features" },
+  { href: "#why", label: "Why" },
+  { href: "#open-source", label: "Open source" },
+  { href: "#faq", label: "FAQ" },
+  { href: "https://demo.content.voila.dev", label: "Demo" },
+];
+const github = "https://github.com/voila-voila-dev";
+---
+
+<header
+  class="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+>
+  <Container class="flex h-16 items-center justify-between gap-4">
+    <a href="/" class="flex items-center gap-2 font-semibold tracking-tight">
+      <span class="grid size-7 place-items-center rounded-md bg-primary text-primary-foreground">
+        <Icon name="sparkles" class="size-4" />
+      </span>
+      <span>content<span class="text-muted-foreground">.voila.dev</span></span>
+    </a>
+
+    <nav class="hidden items-center gap-1 md:flex">
+      {
+        links.map((l) => (
+          <a
+            href={l.href}
+            class="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {l.label}
+          </a>
+        ))
+      }
+    </nav>
+
+    <div class="flex items-center gap-1">
+      <ThemeToggle />
+      <Button
+        href={github}
+        variant="ghost"
+        size="icon"
+        class="hidden sm:inline-flex"
+        aria-label="GitHub"
+      >
+        <Icon name="github" />
+      </Button>
+      <Button href="#cta" size="sm" class="hidden sm:inline-flex">Get started</Button>
+
+      <details class="group relative md:hidden">
+        <summary
+          class="flex size-10 cursor-pointer list-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground [&::-webkit-details-marker]:hidden"
+          aria-label="Open menu"
+        >
+          <Icon name="menu" class="group-open:hidden" />
+          <Icon name="x" class="hidden group-open:block" />
+        </summary>
+        <div
+          class="absolute right-0 mt-2 w-52 rounded-xl border border-border bg-popover p-2 shadow-lg"
+        >
+          {
+            links.map((l) => (
+              <a
+                href={l.href}
+                class="block rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                {l.label}
+              </a>
+            ))
+          }
+          <a
+            href={github}
+            class="block rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            GitHub
+          </a>
+          <a
+            href="#cta"
+            class="mt-1 block rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground"
+          >
+            Get started
+          </a>
+        </div>
+      </details>
+    </div>
+  </Container>
+</header>

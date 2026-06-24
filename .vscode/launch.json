@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "command": "bun run dev",
+      "name": "content.voila.dev: dev server",
+      "request": "launch",
+      "type": "node-terminal",
+      "cwd": "${workspaceFolder}/apps/content.voila.dev"
+    }
+  ]
+}

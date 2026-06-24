@@ -1,0 +1,58 @@
+---
+import Badge from "#/components/ui/badge.astro";
+import Card from "#/components/ui/card.astro";
+import Container from "#/components/ui/container.astro";
+import Icon from "#/components/ui/icon.astro";
+import Section from "#/components/ui/section.astro";
+
+const quotes = [
+  {
+    quote:
+      "We replaced a headless CMS and three glue services with one config file. The typed client alone paid for the migration.",
+    name: "Dana Whitmore",
+    role: "Staff Engineer, Northwind",
+  },
+  {
+    quote:
+      "Shipping content to the edge used to be a project. With content.voila.dev it's a deploy. Drafts and revisions just work.",
+    name: "Marco Silva",
+    role: "Founder, Globex",
+  },
+  {
+    quote:
+      "The admin UI is generated from our schema, so it never drifts. Our editors got a polished tool for free.",
+    name: "Priya Nair",
+    role: "Product Lead, Initech",
+  },
+];
+---
+
+<Section>
+  <Container>
+    <div class="mx-auto max-w-2xl text-center">
+      <Badge variant="muted">Loved by builders</Badge>
+      <h2 class="mt-4 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+        Teams ship faster with less glue
+      </h2>
+    </div>
+
+    <div class="mt-16 grid gap-6 md:grid-cols-3">
+      {
+        quotes.map((q) => (
+          <Card class="flex flex-col p-6">
+            <div class="flex gap-0.5 text-amber-400">
+              {[0, 1, 2, 3, 4].map(() => (
+                <Icon name="star" class="size-4" />
+              ))}
+            </div>
+            <blockquote class="mt-4 flex-1 text-pretty leading-relaxed">“{q.quote}”</blockquote>
+            <footer class="mt-6">
+              <div class="text-sm font-semibold">{q.name}</div>
+              <div class="text-sm text-muted-foreground">{q.role}</div>
+            </footer>
+          </Card>
+        ))
+      }
+    </div>
+  </Container>
+</Section>
