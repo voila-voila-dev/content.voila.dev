@@ -100,6 +100,12 @@ export interface ViewSwitcherProps {
   readonly geoField?: string;
   /** Pick the map's geo field. */
   readonly onGeoFieldChange?: (value: string) => void;
+  /** Whether the active view is the user's default for this collection. */
+  readonly activeIsDefault?: boolean;
+  /** Make the active view the default (or clear it). Enables the default toggle. */
+  readonly onSetDefault?: (isDefault: boolean) => void;
+  /** Rename the active view. Enables the Rename action. */
+  readonly onRename?: (name: string) => void;
 }
 
 export function ViewSwitcher({
@@ -119,10 +125,16 @@ export function ViewSwitcher({
   geoFields,
   geoField,
   onGeoFieldChange,
+  activeIsDefault = false,
+  onSetDefault,
+  onRename,
 }: ViewSwitcherProps): ReactNode {
   const [saveAsOpen, setSaveAsOpen] = useState(false);
   const [name, setName] = useState("");
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameName, setRenameName] = useState("");
   const types = VIEW_TYPE_LABELS.filter((t) => !availableTypes || availableTypes.includes(t.value));
+  const activeName = views.find((view) => view.id === activeViewId)?.name ?? "";
   // Offer a field picker only when there's a genuine choice (≥2 candidates) —
   // with one field the auto-pick already names it.
   const showKanbanField =
@@ -135,6 +147,18 @@ export function ViewSwitcher({
     onSaveAs(trimmed);
     setName("");
     setSaveAsOpen(false);
+  }
+
+  function openRename() {
+    setRenameName(activeName);
+    setRenameOpen(true);
+  }
+
+  function submitRename() {
+    const trimmed = renameName.trim();
+    if (trimmed === "" || trimmed === activeName) return setRenameOpen(false);
+    onRename?.(trimmed);
+    setRenameOpen(false);
   }
 
   return (
@@ -222,6 +246,58 @@ export function ViewSwitcher({
               <button
                 type="submit"
                 disabled={name.trim() === ""}
+                className={cn(buttonVariants({ size: "sm" }))}
+              >
+                Save
+              </button>
+            </Dialog.Footer>
+          </form>
+        </Dialog.Content>
+      </Dialog.Root>
+
+      {activeViewId !== null && onSetDefault ? (
+        <Button
+          variant={activeIsDefault ? "secondary" : "ghost"}
+          size="sm"
+          aria-pressed={activeIsDefault}
+          onClick={() => onSetDefault(!activeIsDefault)}
+        >
+          {activeIsDefault ? "★ Default" : "Set as default"}
+        </Button>
+      ) : null}
+
+      {activeViewId !== null && onRename ? (
+        <Button variant="ghost" size="sm" onClick={openRename}>
+          Rename
+        </Button>
+      ) : null}
+
+      <Dialog.Root open={renameOpen} onOpenChange={setRenameOpen}>
+        <Dialog.Content className="max-w-sm">
+          <Dialog.Header>
+            <Dialog.Title>Rename view</Dialog.Title>
+            <Dialog.Description>Give this saved view a new name.</Dialog.Description>
+          </Dialog.Header>
+          <form
+            className="space-y-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitRename();
+            }}
+          >
+            <Input
+              aria-label="New view name"
+              placeholder="View name"
+              value={renameName}
+              onChange={(event) => setRenameName(event.target.value)}
+            />
+            <Dialog.Footer>
+              <Dialog.Close className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+                Cancel
+              </Dialog.Close>
+              <button
+                type="submit"
+                disabled={renameName.trim() === ""}
                 className={cn(buttonVariants({ size: "sm" }))}
               >
                 Save
