@@ -7,4 +7,7 @@
 import { createWorkerAdmin } from "@voila/content-admin/cloudflare";
 import config from "../../content.config";
 
-export const runtime = createWorkerAdmin(config);
+// `dev` drops a pinned `VOILA_BASE_URL` under `vite dev` so magic-link sign-in
+// targets the local origin (vite replaces `import.meta.env.DEV` with `false` in
+// the production build, so the deployed Worker still pins its origin).
+export const runtime = createWorkerAdmin(config, { dev: import.meta.env.DEV });

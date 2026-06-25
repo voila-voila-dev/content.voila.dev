@@ -38,6 +38,16 @@ export interface CreateWorkerAdminOptions
   extends Pick<AdminRuntimeOptions, "basePath" | "sessionTtl" | "authenticator" | "access"> {
   /** Override the ambient `cloudflare:workers` env (used in tests). */
   readonly env?: WorkerAdminEnv;
+  /**
+   * Local development — ignore `env.VOILA_BASE_URL` so Better Auth infers the
+   * origin (and magic-link verify URLs) from each request. Under `vite dev` the
+   * Cloudflare plugin injects `wrangler.jsonc` `vars` (including a production
+   * `VOILA_BASE_URL`) into `env`, which would otherwise send the verify link to
+   * the live site. Pass `dev: import.meta.env.DEV` from your `app/lib/server.ts`
+   * — vite replaces it with `true` under `vite dev` and `false` in the
+   * production build, so the deployed Worker still pins its origin.
+   */
+  readonly dev?: boolean;
 }
 
 /**
@@ -71,7 +81,8 @@ export function createWorkerAdmin(
     secret,
     storage: env.BUCKET ? makeR2Storage(env.BUCKET) : undefined,
     mailer,
-    baseUrl: env.VOILA_BASE_URL,
+    // In dev, drop the pinned origin so auth tracks the actual localhost port.
+    baseUrl: options.dev ? undefined : env.VOILA_BASE_URL,
     basePath: options.basePath,
     sessionTtl: options.sessionTtl,
     authenticator: options.authenticator,

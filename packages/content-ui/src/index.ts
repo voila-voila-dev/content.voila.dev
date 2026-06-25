@@ -15,6 +15,7 @@ export { DetailView, type DetailViewProps, documentTitle } from "./detail-view";
 export { FieldCard } from "./field-card";
 export { FieldGroupNav, type FieldGroupNavProps, resolveGroupIcon } from "./field-group-nav";
 export { FieldRenderer, type FieldRendererProps } from "./field-renderer";
+export { FilterBuilder, type FilterBuilderProps } from "./filter-builder";
 export { KanbanView, type KanbanViewProps } from "./kanban-view";
 export type { Doc } from "./lib/doc";
 export {
@@ -73,6 +74,7 @@ export { SearchInput, type SearchInputProps } from "./search-input";
 export { StatusFilter, type StatusFilterProps, type StatusFilterValue } from "./status-filter";
 export { ThemeToggle } from "./theme-toggle";
 export {
+  type FieldChoice,
   type ViewOption,
   ViewSwitcher,
   type ViewSwitcherProps,
@@ -105,6 +107,11 @@ export {
   TextInput,
   UnsupportedInput,
 } from "./widgets/edit";
+export {
+  type CreateGeoInputOptions,
+  createGeoInput,
+  GeoInput,
+} from "./widgets/geo";
 export {
   type CreateMediaInputOptions,
   createMediaInput,

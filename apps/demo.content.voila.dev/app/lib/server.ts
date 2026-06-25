@@ -15,4 +15,8 @@ import config from "../../content.config";
 // restore the secure default.
 export const runtime = createWorkerAdmin(config, {
   access: () => true,
+  // Under `vite dev` the Cloudflare plugin injects the production `VOILA_BASE_URL`
+  // from `wrangler.jsonc`; `dev` drops it so the magic-link verify URL points at
+  // the local dev origin instead of the live site. `false` in the prod build.
+  dev: import.meta.env.DEV,
 });

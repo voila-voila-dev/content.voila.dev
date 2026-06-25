@@ -2,6 +2,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AdminProvider } from "@voila/content-admin";
 import { themeInitScript } from "@voila/content-ui";
+// maplibre-gl's stylesheet for map views + the geo field's map picker (controls,
+// markers, popups). Loaded as a URL + <link> like appCss — a stylesheet, never on
+// the dynamic JS path, so it doesn't affect SSR (the map JS is lazy-loaded). Drop
+// this (and the maplibre-gl dependency) if your admin has no geo fields.
+import maplibreCss from "maplibre-gl/dist/maplibre-gl.css?url";
 import { type ReactNode, useState } from "react";
 import { admin } from "../lib/admin";
 import appCss from "../styles.css?url";
@@ -20,6 +25,7 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "stylesheet", href: maplibreCss },
       { rel: "icon", href: faviconHref, type: "image/svg+xml" },
     ],
   }),

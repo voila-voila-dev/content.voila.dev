@@ -71,6 +71,17 @@ export interface CollectionFormProps<C extends Collection = Collection> {
   readonly activeGroup?: string;
   /** Called with a group id when the user picks one in the sub-nav. */
   readonly onGroupChange?: (id: string) => void;
+  /**
+   * How the form saves:
+   * - `"form"` (default) — one Save validates and submits every rendered field
+   *   at once (the whole form, or the whole active group's worth in one
+   *   `onSubmit`).
+   * - `"field"` — each field is its own card with its own Save, which validates
+   *   and submits just that field as a partial update. `onSubmit` receives a
+   *   one-key document, so it only suits a PATCH-style update (collections, not
+   *   the singleton's full-document `set`).
+   */
+  readonly saveMode?: "form" | "field";
 }
 
 function resolveFieldKeys(collection: Collection, fields?: ReadonlyArray<string>): string[] {
@@ -114,7 +125,9 @@ export function CollectionForm<C extends Collection = Collection>({
   serverErrors,
   activeGroup,
   onGroupChange,
+  saveMode = "form",
 }: CollectionFormProps<C>): ReactNode {
+  const perField = saveMode === "field";
   const keys = resolveFieldKeys(collection, fields);
   const { bySource, derivable } = slugDerivations(collection, keys);
   // Internally the form edits a loose record (widgets are kind-keyed, not
@@ -126,6 +139,10 @@ export function CollectionForm<C extends Collection = Collection>({
     ...serverErrors,
   }));
   const [submitting, setSubmitting] = useState(false);
+  // Per-field save (`saveMode="field"`): which field is mid-save, and which
+  // fields have unsaved edits — each card's footer reads these for its own Save.
+  const [savingField, setSavingField] = useState<string | null>(null);
+  const [dirtyFields, setDirtyFields] = useState<ReadonlySet<string>>(() => new Set());
   // Unsaved-changes guard: once the user edits a field, a full-page navigation
   // (reload / tab close / external link) prompts the native "leave site?"
   // confirm so in-progress input isn't lost silently. In-app router navigation
@@ -133,8 +150,12 @@ export function CollectionForm<C extends Collection = Collection>({
   // this covers the cases the component can see on its own. Cleared on a
   // successful submit (the values are persisted; leaving is now intended).
   const [dirty, setDirty] = useState(false);
+  // Whether there are unsaved edits. In per-field mode each card saves on its own
+  // (there's no whole-form submit to clear `dirty`), so the guard tracks the
+  // per-field `dirtyFields` set, which a successful per-field save empties.
+  const hasUnsavedChanges = perField ? dirtyFields.size > 0 : dirty;
   useEffect(() => {
-    if (!dirty) return;
+    if (!hasUnsavedChanges) return;
     function onBeforeUnload(event: BeforeUnloadEvent) {
       event.preventDefault();
       // Legacy assignment some browsers still require to show the prompt.
@@ -142,7 +163,7 @@ export function CollectionForm<C extends Collection = Collection>({
     }
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirty]);
+  }, [hasUnsavedChanges]);
   // Adopt each new `serverErrors` object into the field errors during render
   // (the React "derive state from a prop change" pattern), so a failed submit's
   // 422/409 lands on the offending fields and clears on edit like local errors.
@@ -220,6 +241,16 @@ export function CollectionForm<C extends Collection = Collection>({
   function handleChange(name: string, value: unknown) {
     setDirty(true);
     const derivedKeys = (bySource[name] ?? []).filter((k) => !latchedSlugs.has(k));
+    // Track the edited field (+ any slug just re-derived from it) as unsaved, so
+    // each per-field card knows whether to enable its Save.
+    if (perField) {
+      setDirtyFields((prev) => {
+        const next = new Set(prev);
+        next.add(name);
+        for (const k of derivedKeys) next.add(k);
+        return next;
+      });
+    }
     setValues((prev) => {
       // A localized widget passes a functional updater so its per-locale edits
       // merge against the latest record, not the (possibly stale) value it was
@@ -300,6 +331,42 @@ export function CollectionForm<C extends Collection = Collection>({
     }
   }
 
+  // Per-field save: validate + submit just this field as a one-key partial. A
+  // failed field surfaces its error inline and takes focus; a clean save clears
+  // the field's unsaved flag. The slug it derives (if any) is a separate card
+  // the user saves on its own.
+  async function submitField(key: string) {
+    const result = validateFields(collection.fields, values, [key]);
+    if (result.errors[key] !== undefined) {
+      setErrors((prev) => ({ ...prev, [key]: result.errors[key] as string }));
+      const localized = collection.fields[key]?.meta.localized === true && locales !== undefined;
+      const base = `${collection.slug}-${key}`;
+      document.getElementById(localized ? `${base}-${locales?.[0]}` : base)?.focus();
+      return;
+    }
+    setErrors((prev) => {
+      if (!(key in prev)) return prev;
+      const rest = { ...prev };
+      delete rest[key];
+      return rest;
+    });
+    setSavingField(key);
+    try {
+      // A cleared optional field validates to an OMITTED key; send an explicit
+      // null so the PATCH actually clears it (an absent key is a no-op server-side).
+      const value = key in result.values ? result.values[key] : null;
+      await onSubmit({ [key]: value } as FormValues<C>);
+      setDirtyFields((prev) => {
+        if (!prev.has(key)) return prev;
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    } finally {
+      setSavingField(null);
+    }
+  }
+
   // One field's label + widget + inline error, shared by the flat and grouped
   // layouts. `keys` order drives the flat layout; a group's `fieldKeys` order
   // drives the grouped one.
@@ -309,6 +376,9 @@ export function CollectionForm<C extends Collection = Collection>({
     const id = `${collection.slug}-${key}`;
     const fieldError = errors[key];
     const required = field.meta.required === true;
+    // In per-field mode, lock the field's input while its own save is in flight
+    // (otherwise a mid-save edit would be clobbered when the save clears dirty).
+    const fieldDisabled = submitting || savingField === key;
     const localized = field.meta.localized === true && locales !== undefined;
     const Widget = localized ? null : resolveEditWidget(field.meta, registry);
     // For a failed localized field, resolve the message down to the locale(s)
@@ -340,7 +410,7 @@ export function CollectionForm<C extends Collection = Collection>({
             labelId={`${id}-label`}
             registry={registry}
             errors={localeErrors}
-            disabled={submitting}
+            disabled={fieldDisabled}
           />
         ) : Widget ? (
           <Widget
@@ -350,7 +420,7 @@ export function CollectionForm<C extends Collection = Collection>({
             id={id}
             labelId={`${id}-label`}
             error={fieldError}
-            disabled={submitting}
+            disabled={fieldDisabled}
           />
         ) : null}
         {/* Field-level message — suppressed for a localized field once its
@@ -381,6 +451,68 @@ export function CollectionForm<C extends Collection = Collection>({
       {error}
     </p>
   ) : null;
+
+  // Per-field card: one field with its own footer Save (`saveMode="field"`).
+  function renderFieldCard(key: string): ReactNode {
+    if (!collection.fields[key]) return null;
+    const isDirty = dirtyFields.has(key);
+    const saving = savingField === key;
+    return (
+      <FieldCard.Root key={key}>
+        <FieldCard.Body>{renderField(key)}</FieldCard.Body>
+        <FieldCard.Footer>
+          <FieldCard.FooterDescription>
+            {isDirty ? "Unsaved changes" : ""}
+          </FieldCard.FooterDescription>
+          <button
+            type="button"
+            disabled={saving || !isDirty}
+            onClick={() => submitField(key)}
+            className={cn(buttonVariants({ size: "sm" }))}
+          >
+            {saving ? "Saving…" : submitLabel}
+          </button>
+        </FieldCard.Footer>
+      </FieldCard.Root>
+    );
+  }
+
+  // Per-field grouped layout: the sub-nav beside the active group's fields, each
+  // its own card + Save. No wrapping `<form>` — every card saves independently.
+  if (grouped && activeResolved && perField) {
+    return (
+      <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
+        <FieldGroupNav
+          groups={resolvedGroups}
+          activeGroup={activeResolved.id}
+          onSelect={selectGroup}
+          title="Sections"
+        />
+        <div className="min-w-0 flex-1 space-y-4">
+          <div className="space-y-1">
+            <h2 className="font-semibold text-xl">{activeResolved.label}</h2>
+            {activeResolved.description ? (
+              <p className="text-muted-foreground text-xs">{activeResolved.description}</p>
+            ) : null}
+          </div>
+          {activeResolved.fieldKeys.map(renderFieldCard)}
+          {formLevelErrors}
+          {formError}
+        </div>
+      </div>
+    );
+  }
+
+  // Per-field flat layout: every field its own card + Save.
+  if (perField) {
+    return (
+      <div className="space-y-4">
+        {keys.map(renderFieldCard)}
+        {formLevelErrors}
+        {formError}
+      </div>
+    );
+  }
 
   // Grouped layout: a left sub-nav + the active group's fields in a card, with a
   // single Save in the footer that submits (and validates) the whole form.

@@ -20,10 +20,53 @@ const VIEW_TYPE_LABELS: ReadonlyArray<{ readonly value: ViewType; readonly label
   { value: "map", label: "Map" },
 ];
 
+// Shared chrome for the inline `<select>`s (saved view + field pickers).
+const SELECT_CLASS = cn(
+  "h-8 rounded-md border border-input bg-transparent px-2 text-sm",
+  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+);
+
 /** A saved view, reduced to what the switcher needs to list it. */
 export interface ViewOption {
   readonly id: string;
   readonly name: string;
+}
+
+/** A field a kanban/map view can use, with its display label. */
+export interface FieldChoice {
+  readonly value: string;
+  readonly label: string;
+}
+
+/** A labeled inline `<select>` for picking the kanban/map field. */
+function FieldSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  readonly label: string;
+  readonly value: string;
+  readonly options: ReadonlyArray<FieldChoice>;
+  readonly onChange: (value: string) => void;
+}): ReactNode {
+  return (
+    <label className="flex items-center gap-1.5 text-muted-foreground text-sm">
+      {label}
+      <select
+        aria-label={label}
+        className={SELECT_CLASS}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
 export interface ViewSwitcherProps {
@@ -45,6 +88,18 @@ export interface ViewSwitcherProps {
   readonly dirty?: boolean;
   /** Restrict the offered view types (e.g. omit "map" without a geo field). */
   readonly availableTypes?: ReadonlyArray<ViewType>;
+  /** Enum/select fields a kanban board can group by (shown when ≥2 in kanban). */
+  readonly kanbanFields?: ReadonlyArray<FieldChoice>;
+  /** The field the kanban currently groups by. */
+  readonly kanbanField?: string;
+  /** Pick the kanban group field. */
+  readonly onKanbanFieldChange?: (value: string) => void;
+  /** Geo fields a map can plot (shown when ≥2 in map view). */
+  readonly geoFields?: ReadonlyArray<FieldChoice>;
+  /** The geo field the map currently plots. */
+  readonly geoField?: string;
+  /** Pick the map's geo field. */
+  readonly onGeoFieldChange?: (value: string) => void;
 }
 
 export function ViewSwitcher({
@@ -58,10 +113,21 @@ export function ViewSwitcher({
   onDelete,
   dirty = false,
   availableTypes,
+  kanbanFields,
+  kanbanField,
+  onKanbanFieldChange,
+  geoFields,
+  geoField,
+  onGeoFieldChange,
 }: ViewSwitcherProps): ReactNode {
   const [saveAsOpen, setSaveAsOpen] = useState(false);
   const [name, setName] = useState("");
   const types = VIEW_TYPE_LABELS.filter((t) => !availableTypes || availableTypes.includes(t.value));
+  // Offer a field picker only when there's a genuine choice (≥2 candidates) —
+  // with one field the auto-pick already names it.
+  const showKanbanField =
+    viewType === "kanban" && onKanbanFieldChange && (kanbanFields?.length ?? 0) > 1;
+  const showGeoField = viewType === "map" && onGeoFieldChange && (geoFields?.length ?? 0) > 1;
 
   function submitSaveAs() {
     const trimmed = name.trim();
@@ -83,13 +149,28 @@ export function ViewSwitcher({
         </Tabs.List>
       </Tabs.Root>
 
+      {showKanbanField && kanbanFields ? (
+        <FieldSelect
+          label="Group by"
+          value={kanbanField ?? ""}
+          options={kanbanFields}
+          onChange={onKanbanFieldChange}
+        />
+      ) : null}
+
+      {showGeoField && geoFields ? (
+        <FieldSelect
+          label="Plot"
+          value={geoField ?? ""}
+          options={geoFields}
+          onChange={onGeoFieldChange}
+        />
+      ) : null}
+
       {views.length > 0 ? (
         <select
           aria-label="Saved view"
-          className={cn(
-            "h-8 rounded-md border border-input bg-transparent px-2 text-sm",
-            "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-          )}
+          className={SELECT_CLASS}
           value={activeViewId ?? ""}
           onChange={(event) =>
             onSelectView?.(event.target.value === "" ? null : event.target.value)

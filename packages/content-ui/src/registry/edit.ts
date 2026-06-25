@@ -15,6 +15,7 @@ import {
   TextInput,
   UnsupportedInput,
 } from "../widgets/edit";
+import { GeoInput } from "../widgets/geo";
 import { mergeMaps } from "./merge";
 import { resolveWidget } from "./resolve";
 
@@ -36,6 +37,9 @@ export const defaultEditRegistry: EditRegistry = {
   time: DateInput,
   select: SelectInput,
   enum: SelectInput,
+  // The dependency-free lat/lng pair. The admin layer upgrades this to a map
+  // picker (`createGeoInput`) using its configured `mapStyleUrl`.
+  geo: GeoInput,
 };
 
 /** Merge a caller's overrides over the default edit widgets. */

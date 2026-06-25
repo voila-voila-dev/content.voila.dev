@@ -397,3 +397,97 @@ describe("CollectionForm — field groups", () => {
     expect((container.querySelector("#posts-slug") as HTMLInputElement).value).toBe("hello-world");
   });
 });
+
+describe('CollectionForm — per-field save (saveMode="field")', () => {
+  const grouped = defineCollection({
+    slug: "posts",
+    fields: {
+      title: fields.string({ required: true }),
+      body: fields.string(),
+      seo: fields.string({ required: true }),
+    },
+    groups: [
+      { id: "content", label: "Content", fields: ["title", "body"] },
+      { id: "meta", label: "Metadata", fields: ["seo"] },
+    ],
+  });
+
+  test("each active-group field gets its own Save, disabled until edited", () => {
+    render(
+      <CollectionForm
+        collection={grouped}
+        onSubmit={mock()}
+        saveMode="field"
+        defaultValues={{ title: "T", body: "B", seo: "S" }}
+      />,
+    );
+    const saves = screen.getAllByRole("button", { name: "Save" }) as HTMLButtonElement[];
+    expect(saves).toHaveLength(2);
+    expect(saves.every((b) => b.disabled)).toBe(true);
+  });
+
+  test("editing one field enables only its Save and submits a one-key partial", async () => {
+    const onSubmit = mock();
+    const { container } = render(
+      <CollectionForm
+        collection={grouped}
+        onSubmit={onSubmit}
+        saveMode="field"
+        defaultValues={{ title: "T", body: "B", seo: "S" }}
+      />,
+    );
+    fireEvent.change(container.querySelector("#posts-title") as HTMLInputElement, {
+      target: { value: "New title" },
+    });
+    const saves = screen.getAllByRole("button", { name: "Save" }) as HTMLButtonElement[];
+    const enabled = saves.filter((b) => !b.disabled);
+    expect(enabled).toHaveLength(1);
+    fireEvent.click(enabled[0] as HTMLButtonElement);
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0]?.[0]).toEqual({ title: "New title" });
+  });
+
+  test("clearing an optional field saves an explicit null (so the PATCH clears it)", async () => {
+    const onSubmit = mock();
+    const { container } = render(
+      <CollectionForm
+        collection={grouped}
+        onSubmit={onSubmit}
+        saveMode="field"
+        defaultValues={{ title: "T", body: "B", seo: "S" }}
+      />,
+    );
+    // Clear the optional `body` field and save its card.
+    fireEvent.change(container.querySelector("#posts-body") as HTMLInputElement, {
+      target: { value: "" },
+    });
+    fireEvent.click(
+      (screen.getAllByRole("button", { name: "Save" }) as HTMLButtonElement[]).find(
+        (b) => !b.disabled,
+      ) as HTMLButtonElement,
+    );
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0]?.[0]).toEqual({ body: null });
+  });
+
+  test("a field that fails validation isn't submitted", async () => {
+    const onSubmit = mock();
+    const { container } = render(
+      <CollectionForm
+        collection={grouped}
+        onSubmit={onSubmit}
+        saveMode="field"
+        defaultValues={{ title: "ok", body: "B", seo: "S" }}
+      />,
+    );
+    fireEvent.change(container.querySelector("#posts-title") as HTMLInputElement, {
+      target: { value: "" }, // required → invalid
+    });
+    fireEvent.click(
+      (screen.getAllByRole("button", { name: "Save" }) as HTMLButtonElement[]).find(
+        (b) => !b.disabled,
+      ) as HTMLButtonElement,
+    );
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+});
