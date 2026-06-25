@@ -186,4 +186,74 @@ describe("ViewSwitcher", () => {
     fireEvent.change(screen.getByLabelText("Plot"), { target: { value: "office" } });
     expect(onGeoFieldChange).toHaveBeenCalledWith("office");
   });
+
+  test("toggles the active view as default", () => {
+    const onSetDefault = mock();
+    const { rerender } = render(
+      <ViewSwitcher
+        viewType="table"
+        onViewTypeChange={() => {}}
+        views={views}
+        activeViewId="v1"
+        onSelectView={() => {}}
+        onSaveAs={() => {}}
+        onSetDefault={onSetDefault}
+        activeIsDefault={false}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Set as default" }));
+    expect(onSetDefault).toHaveBeenCalledWith(true);
+    rerender(
+      <ViewSwitcher
+        viewType="table"
+        onViewTypeChange={() => {}}
+        views={views}
+        activeViewId="v1"
+        onSelectView={() => {}}
+        onSaveAs={() => {}}
+        onSetDefault={onSetDefault}
+        activeIsDefault
+      />,
+    );
+    const toggle = screen.getByRole("button", { name: "★ Default" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(toggle);
+    expect(onSetDefault).toHaveBeenLastCalledWith(false);
+  });
+
+  test("renames the active view via a dialog pre-filled with its name", () => {
+    const onRename = mock();
+    render(
+      <ViewSwitcher
+        viewType="table"
+        onViewTypeChange={() => {}}
+        views={views}
+        activeViewId="v1"
+        onSelectView={() => {}}
+        onSaveAs={() => {}}
+        onRename={onRename}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    const input = screen.getByLabelText("New view name") as HTMLInputElement;
+    expect(input.value).toBe("Recent"); // seeded from the active view's name
+    fireEvent.change(input, { target: { value: "Latest" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" })); // dialog submit
+    expect(onRename).toHaveBeenCalledWith("Latest");
+  });
+
+  test("default + rename actions are hidden without an active view", () => {
+    render(
+      <ViewSwitcher
+        viewType="table"
+        onViewTypeChange={() => {}}
+        views={views}
+        onSaveAs={() => {}}
+        onSetDefault={() => {}}
+        onRename={() => {}}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Set as default" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Rename" })).toBeNull();
+  });
 });

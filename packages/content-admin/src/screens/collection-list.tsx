@@ -180,6 +180,18 @@ export function CollectionListScreen(): ReactNode {
       selectView(null);
     },
   });
+  const renameView = useMutation({
+    mutationFn: (input: { id: string; name: string }) =>
+      api.views.update(input.id, { name: input.name }),
+    onSuccess: invalidateViews,
+  });
+  // Setting a default clears any other default for this collection (enforced in
+  // the store); refetch so the star + auto-select reflect it.
+  const setDefaultView = useMutation({
+    mutationFn: (input: { id: string; isDefault: boolean }) =>
+      api.views.update(input.id, { isDefault: input.isDefault }),
+    onSuccess: invalidateViews,
+  });
 
   if (isSingleton) return <SingletonScreen slug={slug} />;
   // Not a collection or singleton → a custom screen caught by the `$collection`
@@ -257,6 +269,15 @@ export function CollectionListScreen(): ReactNode {
         }
         onSaveAs={(name) => createView.mutate({ name, type: viewType, config: working })}
         onDelete={activeViewId ? () => deleteView.mutate(activeViewId) : undefined}
+        activeIsDefault={activeView?.isDefault ?? false}
+        onSetDefault={
+          activeViewId
+            ? (isDefault) => setDefaultView.mutate({ id: activeViewId, isDefault })
+            : undefined
+        }
+        onRename={
+          activeViewId ? (name) => renameView.mutate({ id: activeViewId, name }) : undefined
+        }
         availableTypes={availableTypes}
         kanbanFields={fieldChoices(kanbanable)}
         kanbanField={kanbanField}
