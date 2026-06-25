@@ -3,18 +3,18 @@
 // singleton rather than a collection. Read view + inline edit; `set` upserts the
 // one row.
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import type { Collection } from "@voila/content";
 import { CollectionForm, DetailView, type Doc } from "@voila/content-ui";
 import { type ReactNode, useState } from "react";
 import { useAdmin } from "../context";
+import { useSingletonMutations } from "../hooks/use-singleton-mutations";
 import { singletonClient } from "../lib/client-access";
 import { errorMessage, fieldErrors } from "../lib/field-errors";
 
 export function SingletonScreen({ slug }: { readonly slug: string }): ReactNode {
   const { admin } = useAdmin();
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   // A singleton shares the runtime shape DetailView/CollectionForm read
@@ -35,13 +35,8 @@ export function SingletonScreen({ slug }: { readonly slug: string }): ReactNode 
   const api = singletonClient(admin.client, slug);
   const doc = useQuery({ queryKey: [slug, "singleton"], queryFn: () => api.get() });
 
-  const save = useMutation({
-    mutationFn: (values: Doc) => api.set(values),
-    onSuccess: (updated) => {
-      queryClient.setQueryData([slug, "singleton"], updated);
-      setEditing(false);
-    },
-  });
+  // The hook refreshes the singleton cache; this screen leaves edit mode per call.
+  const { save } = useSingletonMutations(slug);
 
   const label = singleton.label ?? slug;
 
@@ -60,7 +55,7 @@ export function SingletonScreen({ slug }: { readonly slug: string }): ReactNode 
           submitLabel="Save"
           activeGroup={activeGroup}
           onGroupChange={changeGroup}
-          onSubmit={(values) => save.mutate(values as Doc)}
+          onSubmit={(values) => save.mutate(values as Doc, { onSuccess: () => setEditing(false) })}
         />
       </section>
     );
