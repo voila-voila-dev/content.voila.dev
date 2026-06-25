@@ -19,4 +19,22 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  environments: {
+    // Opt the workerd SSR environment into dependency optimization (esbuild
+    // CJS->ESM). Without this the TanStack Start plugin leaves SSR deps
+    // un-optimized, so CJS deps like `use-sync-external-store` (a transitive dep
+    // of @base-ui-components / @voila/ui) throw "module is not defined" in the
+    // workerd dev runner at entry load. Production `vite build` bundles them, so
+    // deploys are unaffected — this only fixes `vite dev`.
+    ssr: {
+      optimizeDeps: {
+        noDiscovery: false,
+        include: [
+          "use-sync-external-store",
+          "use-sync-external-store/shim",
+          "use-sync-external-store/shim/with-selector",
+        ],
+      },
+    },
+  },
 });
