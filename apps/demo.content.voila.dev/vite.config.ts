@@ -19,6 +19,13 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  // The client environment also pre-bundles `use-sync-external-store` so its
+  // named exports are exposed (esbuild can't see them through the package's
+  // conditional-require shim file otherwise -> "does not provide an export
+  // named 'useSyncExternalStore'" at hydration).
+  optimizeDeps: {
+    include: ["use-sync-external-store/shim", "use-sync-external-store/shim/with-selector"],
+  },
   environments: {
     // Opt the workerd SSR environment into dependency optimization (esbuild
     // CJS->ESM). Without this the TanStack Start plugin leaves SSR deps
