@@ -17,13 +17,13 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@voila/content": "workspace:*"
+    "@voila/content": "workspace:*",
+    "@voila/content-ui": "workspace:*"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5",
     "@tanstack/react-router": "^1",
     "@tanstack/react-start": "^1",
-    "@voila/content-ui": "workspace:*",
     "better-auth": "^1.6.0",
     "react": "catalog:",
     "react-dom": "catalog:"
@@ -36,9 +36,6 @@
       "optional": true
     },
     "@tanstack/react-start": {
-      "optional": true
-    },
-    "@voila/content-ui": {
       "optional": true
     },
     "react": {

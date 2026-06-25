@@ -26,7 +26,8 @@
     "check": "biome check --write && tsc -b && bun test",
     "changeset": "changeset",
     "version": "changeset version",
-    "release": "changeset publish"
+    "release": "bun scripts/publish",
+    "release:dry": "bun scripts/publish --dry-run"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.15",

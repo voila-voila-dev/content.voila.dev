@@ -1,0 +1,15 @@
+{
+  "name": "@voila/publish",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "bin": {
+    "voila-publish": "./index.ts"
+  },
+  "devDependencies": {
+    "@voila/typescript-config": "workspace:*"
+  }
+}
