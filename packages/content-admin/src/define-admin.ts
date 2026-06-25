@@ -16,6 +16,10 @@ import type { AdminInstance, DefineAdminOptions } from "./types";
 // under a path instead.
 const DEFAULT_BASE_PATH = "";
 
+// The public MapLibre demo style — a sensible default so map views render out of
+// the box; production sites set their own `mapStyleUrl` (e.g. a MapTiler style).
+const DEFAULT_MAP_STYLE_URL = "https://demotiles.maplibre.org/style.json";
+
 /** Build the admin instance from a content config + optional extensions. */
 export function defineAdmin<C extends NormalizedConfig>(
   options: DefineAdminOptions<C>,
@@ -40,5 +44,6 @@ export function defineAdmin<C extends NormalizedConfig>(
     slots: options.slots ?? {},
     screens: options.screens ?? [],
     nav: options.nav,
+    mapStyleUrl: options.mapStyleUrl ?? DEFAULT_MAP_STYLE_URL,
   };
 }

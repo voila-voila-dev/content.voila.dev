@@ -84,6 +84,7 @@ function columnTypeFor(meta: FieldMetaLite): ColumnSchema["type"] {
     case "json":
     case "array":
     case "object":
+    case "geo":
     case "multiSelect":
     case "media":
     case "polymorphic":
@@ -170,6 +171,9 @@ export const MEDIA_TABLE = "voila_media";
 
 /** Table name of the engine-owned full-text index (one table for all collections). */
 export const SEARCH_TABLE = "voila_search";
+
+/** Table name of the engine-owned saved-views store (per-user admin list views). */
+export const VIEWS_TABLE = "voila_views";
 
 /**
  * The engine-owned media library: one row per uploaded file, keyed by the
@@ -282,6 +286,59 @@ function searchTable(): TableSchema {
   };
 }
 
+/**
+ * The engine-owned saved-views store: one row per saved admin list view, scoped
+ * to its owner. `config` is the view's JSON payload (visible columns + order,
+ * sort, filters, group-by / kanban / geo field choices); `type` is the view
+ * shape (`table`/`kanban`/`map`). `is_default` marks the owner's default view
+ * for a collection (the store enforces at most one). Indexed by
+ * `(owner_id, collection)` — the only access path (every query scopes by owner).
+ * Emitted whenever the config declares at least one collection.
+ */
+function viewsTable(): TableSchema {
+  return {
+    name: VIEWS_TABLE,
+    columns: [
+      { name: "id", fieldName: "id", type: TEXT, notNull: true, primaryKey: true },
+      { name: "collection", fieldName: "collection", type: TEXT, notNull: true },
+      { name: "owner_id", fieldName: "ownerId", type: TEXT, notNull: true },
+      { name: "name", fieldName: "name", type: TEXT, notNull: true },
+      { name: "type", fieldName: "type", type: TEXT, notNull: true },
+      { name: "config", fieldName: "config", type: JSON_TYPE, notNull: true },
+      {
+        name: "is_default",
+        fieldName: "isDefault",
+        type: BOOLEAN,
+        notNull: true,
+        defaultExpr: { sqlite: "0", postgres: "false" },
+      },
+      {
+        name: "created_at",
+        fieldName: "createdAt",
+        type: DATETIME,
+        notNull: true,
+        defaultExpr: { sqlite: "(unixepoch() * 1000)", postgres: "now()" },
+      },
+      {
+        name: "updated_at",
+        fieldName: "updatedAt",
+        type: DATETIME,
+        notNull: true,
+        defaultExpr: { sqlite: "(unixepoch() * 1000)", postgres: "now()" },
+      },
+    ],
+    indexes: [
+      {
+        name: `${VIEWS_TABLE}_owner_collection_idx`,
+        table: VIEWS_TABLE,
+        columns: ["owner_id", "collection"],
+        unique: false,
+      },
+    ],
+    system: true,
+  };
+}
+
 /** True when a collection's `search` opt is enabled (boolean `true` or a
  *  non-empty field list). */
 function searchEnabled(search: boolean | ReadonlyArray<string> | undefined): boolean {
@@ -386,5 +443,7 @@ export function deriveSchema(config: NormalizedConfig): ReadonlyArray<TableSchem
   if (anyRevisions) tables.push(revisionsTable());
   if (anyMedia) tables.push(mediaTable());
   if (anySearch) tables.push(searchTable());
+  // Saved views attach to collections, so the store ships whenever any exist.
+  if (Object.keys(collections).length > 0) tables.push(viewsTable());
   return tables;
 }

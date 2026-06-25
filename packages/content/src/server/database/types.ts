@@ -21,6 +21,17 @@ export type DraftFilter = "published" | "draft" | "scheduled" | "any";
 /** A decoded document: camelCase field names, JSON columns parsed. */
 export type Document = Record<string, unknown>;
 
+/** Comparison a list filter applies. `contains` is a substring `LIKE` (text). */
+export type FilterOp = "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "contains";
+
+/** One server-side `WHERE` predicate on a scalar field, folded into list scope. */
+export interface ListFilter {
+  /** Field name (camelCase) to filter on; must be a real scalar column. */
+  readonly field: string;
+  readonly op: FilterOp;
+  readonly value: FieldValue;
+}
+
 export interface ListOpts {
   /** Page size. Clamped to 1–100; defaults to 20. */
   readonly limit?: number;
@@ -32,6 +43,9 @@ export interface ListOpts {
   readonly direction?: OrderDirection;
   /** Draft scoping (draft-enabled collections only). Defaults to `published`. */
   readonly status?: DraftFilter;
+  /** Server-side field predicates, AND-ed into the scope (so the page *and* the
+   *  optional count both respect them). Unknown fields are rejected, like `orderBy`. */
+  readonly filters?: ReadonlyArray<ListFilter>;
   /** Also compute the total row count for the same scope (one extra `COUNT(*)`,
    *  cursor-independent). Off by default — most pages don't need it. */
   readonly count?: boolean;

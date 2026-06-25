@@ -55,3 +55,16 @@ CREATE TABLE "voila_media" (
   "created_at" INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );
 CREATE UNIQUE INDEX "voila_media_key_unique_idx" ON "voila_media" ("key");
+
+CREATE TABLE "voila_views" (
+  "id" TEXT PRIMARY KEY NOT NULL,
+  "collection" TEXT NOT NULL,
+  "owner_id" TEXT NOT NULL,
+  "name" TEXT NOT NULL,
+  "type" TEXT NOT NULL,
+  "config" TEXT NOT NULL,
+  "is_default" INTEGER NOT NULL DEFAULT 0,
+  "created_at" INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+  "updated_at" INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+);
+CREATE INDEX "voila_views_owner_collection_idx" ON "voila_views" ("owner_id", "collection");

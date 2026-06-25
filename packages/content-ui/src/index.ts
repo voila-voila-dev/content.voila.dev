@@ -7,12 +7,27 @@
 export { AdminShell, type AdminShellProps } from "./admin-shell";
 export { AppSidebar, type AppSidebarProps } from "./app-sidebar";
 export { CollectionForm, type CollectionFormProps, type FormValues } from "./collection-form";
+export { ColumnPicker, type ColumnPickerProps } from "./column-picker";
 export { ConfirmButton, type ConfirmButtonProps } from "./confirm-button";
 export { Dashboard, type DashboardProps } from "./dashboard";
 export { DataTable, type DataTableProps } from "./data-table";
 export { DetailView, type DetailViewProps, documentTitle } from "./detail-view";
+export { FieldCard } from "./field-card";
+export { FieldGroupNav, type FieldGroupNavProps, resolveGroupIcon } from "./field-group-nav";
 export { FieldRenderer, type FieldRendererProps } from "./field-renderer";
+export { KanbanView, type KanbanViewProps } from "./kanban-view";
 export type { Doc } from "./lib/doc";
+export {
+  type DeclaredColumn,
+  type GroupByOptions,
+  type GroupColumn,
+  groupBy,
+} from "./lib/group-by";
+export {
+  type ResolvedGroup,
+  type ResolveFieldGroupsOptions,
+  resolveFieldGroups,
+} from "./lib/groups";
 export { getFieldLabel, humanize } from "./lib/humanize";
 export {
   type BuildNavOptions,
@@ -34,6 +49,7 @@ export {
 export { type FormValidation, validateFields } from "./lib/validate";
 export { ListView, type ListViewProps } from "./list-view";
 export { LocalizedFieldEditor, type LocalizedFieldEditorProps } from "./localized-field";
+export { MapView, type MapViewProps } from "./map-view";
 export { PublishControls, type PublishControlsProps } from "./publish-controls";
 export {
   defaultEditRegistry,
@@ -56,6 +72,12 @@ export {
 export { SearchInput, type SearchInputProps } from "./search-input";
 export { StatusFilter, type StatusFilterProps, type StatusFilterValue } from "./status-filter";
 export { ThemeToggle } from "./theme-toggle";
+export {
+  type ViewOption,
+  ViewSwitcher,
+  type ViewSwitcherProps,
+  type ViewType,
+} from "./view-switcher";
 export {
   BooleanDisplay,
   ColorDisplay,

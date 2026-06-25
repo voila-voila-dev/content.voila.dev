@@ -31,6 +31,11 @@ export interface DataTableProps {
   /** When set, rows become clickable; each row also gets a visually-hidden
    *  "Open …" button (named from `titleField`) for keyboard/AT activation. */
   readonly onRowClick?: (row: Doc, index: number) => void;
+  /** The active sort (column key + direction), shown as a header indicator. */
+  readonly sort?: { readonly field: string; readonly direction: "asc" | "desc" };
+  /** When set, sortable column headers become buttons; clicking one calls this
+   *  with the column key (the host toggles direction + refetches). */
+  readonly onSortChange?: (field: string) => void;
   /** While true, an empty `rows` shows skeleton rows instead of `emptyMessage`. */
   readonly loading?: boolean;
   readonly emptyMessage?: string;
@@ -65,6 +70,32 @@ function defaultRowKey(row: Doc, index: number): string {
   return typeof id === "string" || typeof id === "number" ? String(id) : String(index);
 }
 
+// Field kinds that map to a single scalar column and so can be sorted server-side
+// (mirrors the engine's read-path gate). JSON-backed and localized fields aren't.
+const SORTABLE_KINDS: ReadonlySet<string> = new Set([
+  "string",
+  "slug",
+  "id",
+  "enum",
+  "select",
+  "color",
+  "code",
+  "markdown",
+  "secret",
+  "password",
+  "number",
+  "boolean",
+  "date",
+  "datetime",
+  "time",
+  "duration",
+  "position",
+]);
+
+function isSortable(field: Field): boolean {
+  return field.meta.localized !== true && SORTABLE_KINDS.has(field.meta.kind);
+}
+
 export function DataTable({
   collection,
   rows,
@@ -72,6 +103,8 @@ export function DataTable({
   registry,
   rowKey = defaultRowKey,
   onRowClick,
+  sort,
+  onSortChange,
   loading = false,
   emptyMessage = "No records.",
   loadingMessage = "Loading…",
@@ -89,11 +122,39 @@ export function DataTable({
       {caption ? <Table.Caption>{caption}</Table.Caption> : null}
       <Table.Header role="rowgroup">
         <Table.Row role="row">
-          {cols.map((col) => (
-            <Table.Head key={col.key} role="columnheader" scope="col" className="whitespace-nowrap">
-              {col.label}
-            </Table.Head>
-          ))}
+          {cols.map((col) => {
+            const sortable = onSortChange !== undefined && isSortable(col.field);
+            const active = sort?.field === col.key;
+            const ariaSort = active
+              ? sort?.direction === "asc"
+                ? "ascending"
+                : "descending"
+              : undefined;
+            return (
+              <Table.Head
+                key={col.key}
+                role="columnheader"
+                scope="col"
+                className="whitespace-nowrap"
+                aria-sort={ariaSort}
+              >
+                {sortable ? (
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 hover:text-foreground"
+                    onClick={() => onSortChange(col.key)}
+                  >
+                    {col.label}
+                    <span aria-hidden className="text-muted-foreground">
+                      {active ? (sort?.direction === "asc" ? "↑" : "↓") : "↕"}
+                    </span>
+                  </button>
+                ) : (
+                  col.label
+                )}
+              </Table.Head>
+            );
+          })}
         </Table.Row>
       </Table.Header>
       <Table.Body role="rowgroup">

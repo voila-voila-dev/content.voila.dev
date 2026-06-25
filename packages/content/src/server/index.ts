@@ -9,3 +9,4 @@ export * from "./database";
 export * from "./media";
 export * from "./rest";
 export * from "./storage";
+export * from "./views";

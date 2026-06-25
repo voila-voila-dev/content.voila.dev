@@ -215,6 +215,71 @@ describe("voila_media", () => {
   });
 });
 
+describe("voila_views", () => {
+  it("ships the saved-views table whenever the config has collections", () => {
+    const config = defineConfig({
+      branding: { name: "Acme" },
+      collections: {
+        things: defineCollection({ slug: "things", fields: { name: fields.string() } }),
+      },
+    });
+    const views = deriveSchema(config).find((t) => t.name === "voila_views");
+    expect(views?.system).toBe(true);
+    expect(views?.columns.map((c) => c.name)).toEqual([
+      "id",
+      "collection",
+      "owner_id",
+      "name",
+      "type",
+      "config",
+      "is_default",
+      "created_at",
+      "updated_at",
+    ]);
+    // `config` is JSON per dialect; `is_default` is a boolean.
+    expect(views?.columns.find((c) => c.name === "config")?.type).toEqual({
+      sqlite: "TEXT",
+      postgres: "JSONB",
+    });
+    expect(views?.columns.find((c) => c.name === "is_default")?.type).toEqual({
+      sqlite: "INTEGER",
+      postgres: "BOOLEAN",
+    });
+    expect(views?.indexes[0]).toEqual({
+      name: "voila_views_owner_collection_idx",
+      table: "voila_views",
+      columns: ["owner_id", "collection"],
+      unique: false,
+    });
+  });
+
+  it("stays out of a collection-free (singleton-only) schema", () => {
+    const config = defineConfig({
+      branding: { name: "Acme" },
+      collections: {},
+      singletons: {
+        settings: defineSingleton({ slug: "settings", fields: { x: fields.string() } }),
+      },
+    });
+    expect(deriveSchema(config).some((t) => t.name === "voila_views")).toBe(false);
+  });
+});
+
+describe("geo field", () => {
+  it("renders a geo field as JSON on both dialects (non-sortable structured value)", () => {
+    const places = defineCollection({
+      slug: "places",
+      fields: { name: fields.string(), location: fields.geo() },
+    });
+    const config = defineConfig({ branding: { name: "Acme" }, collections: { places } });
+    const table = deriveSchema(config).find((t) => t.name === "places");
+    expect(table?.columns.find((c) => c.fieldName === "location")?.type).toEqual({
+      sqlite: "TEXT",
+      postgres: "JSONB",
+    });
+  });
+});
+
 describe("voila_search", () => {
   const searchable = defineCollection({
     slug: "articles",

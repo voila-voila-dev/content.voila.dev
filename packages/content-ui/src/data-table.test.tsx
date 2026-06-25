@@ -142,3 +142,42 @@ describe("DataTable", () => {
     expect(screen.getByRole("button", { name: "Open row 2" })).toBeDefined();
   });
 });
+
+describe("DataTable — sorting", () => {
+  test("plain headers (not buttons) without onSortChange", () => {
+    render(<DataTable collection={posts} rows={rows} />);
+    expect(screen.queryByRole("button", { name: /Title/ })).toBeNull();
+  });
+
+  test("sortable headers become buttons and report the clicked column", () => {
+    const onSortChange = mock();
+    render(
+      <DataTable
+        collection={posts}
+        rows={rows}
+        columns={["title", "views"]}
+        onSortChange={onSortChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Title" }));
+    expect(onSortChange).toHaveBeenCalledWith("title");
+  });
+
+  test("marks the active sort column with aria-sort", () => {
+    render(
+      <DataTable
+        collection={posts}
+        rows={rows}
+        columns={["title", "views"]}
+        sort={{ field: "views", direction: "desc" }}
+        onSortChange={mock()}
+      />,
+    );
+    expect(
+      screen.getByRole("columnheader", { name: "Title" }).getAttribute("aria-sort"),
+    ).toBeNull();
+    expect(screen.getByRole("columnheader", { name: "Views" }).getAttribute("aria-sort")).toBe(
+      "descending",
+    );
+  });
+});

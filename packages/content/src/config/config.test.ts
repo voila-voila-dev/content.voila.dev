@@ -63,6 +63,48 @@ describe("defineConfig", () => {
     void defineCollection({ slug: "bad", titleField: "nope", fields: { name: fields.string() } });
   });
 
+  it("carries groups through locale narrowing on collections and singletons", () => {
+    const grouped = defineCollection({
+      slug: "grouped",
+      fields: { title: fields.string({ localized: true }), seo: fields.string() },
+      groups: [
+        { id: "content", icon: "FileText", fields: ["title"] },
+        { id: "meta", label: "Metadata", fields: ["seo"] },
+      ],
+    });
+    const groupedSettings = defineSingleton({
+      slug: "groupedSettings",
+      fields: { siteName: fields.string({ localized: true }), themeColor: fields.color() },
+      groups: [{ id: "branding", fields: ["siteName", "themeColor"] }],
+    });
+    const config = defineConfig({
+      branding: { name: "Acme" },
+      i18n: { locales: ["en-US", "fr-FR"], defaultLocale: "en-US" },
+      collections: { grouped },
+      singletons: { groupedSettings },
+    });
+    // `groups` survives the `NarrowCollection`/`NarrowSingleton` rewrite — a
+    // static member access (no `?.`) proves the type preserves it after narrowing.
+    expect(config.collections.grouped.groups?.[0]?.id).toBe("content");
+    expect(config.collections.grouped.groups?.[1]?.label).toBe("Metadata");
+    expect(config.singletons.groupedSettings.groups?.[0]?.fields).toEqual([
+      "siteName",
+      "themeColor",
+    ]);
+    void defineCollection({
+      slug: "bad2",
+      fields: { name: fields.string() },
+      // @ts-expect-error — a group's field key must name a declared field.
+      groups: [{ id: "g", fields: ["nope"] }],
+    });
+    void defineSingleton({
+      slug: "bad3",
+      fields: { name: fields.string() },
+      // @ts-expect-error — singleton group keys are checked too.
+      groups: [{ id: "g", fields: ["nope"] }],
+    });
+  });
+
   it("narrows localized fields' runtime schema to the selected locales", () => {
     const config = defineConfig({
       branding: { name: "Acme" },

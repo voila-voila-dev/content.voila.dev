@@ -64,6 +64,14 @@ import {
 import { handleGetRevision, handleListRevisions, handleRestoreRevision } from "./revisions";
 import { handleSearch } from "./search";
 import {
+  handleViewsCreate,
+  handleViewsDelete,
+  handleViewsList,
+  handleViewsUpdate,
+  VIEWS_SEGMENT,
+  type ViewsContext,
+} from "./views";
+import {
   handleCreate,
   handleDelete,
   handlePublish,
@@ -105,6 +113,12 @@ interface RouteRequest {
 // handlers don't re-narrow an optional.
 interface MediaRouteRequest extends RouteRequest {
   readonly media: MediaContext;
+}
+
+// Likewise the `_views` table sees the wired views context (scanned only once
+// `ctx.views` is present), so its handlers take a non-optional store.
+interface ViewsRouteRequest extends RouteRequest {
+  readonly views: ViewsContext;
 }
 
 // Param names captured by a pattern, derived from the literal: ":collection/:id"
@@ -331,6 +345,32 @@ const MEDIA_ROUTES: ReadonlyArray<RouteMatcher<MediaRouteRequest>> = [
   }),
 ];
 
+const views = routeTable<ViewsRouteRequest>();
+
+// The `_views` sub-table, nested under a real collection (`/:collection/_views`)
+// — so the guard authorizes against the collection (read for the list, the
+// mutating ops for writes → auth + CSRF), and the store scopes every row by the
+// resolved principal. The literal `_views` segment wins over `:id` (ids are
+// UUIDs, never `_views`), the same way `search` does.
+const VIEWS_ROUTES: ReadonlyArray<RouteMatcher<ViewsRouteRequest>> = [
+  views("GET", ":collection/_views", {
+    operation: "read",
+    run: (m, { collection }, p) => handleViewsList(m.views, collection, p),
+  }),
+  views("POST", ":collection/_views", {
+    operation: "create",
+    run: (m, { collection }, p) => handleViewsCreate(m.views, collection, m.request, p),
+  }),
+  views("PATCH", ":collection/_views/:id", {
+    operation: "update",
+    run: (m, { collection, id }, p) => handleViewsUpdate(m.views, collection, id, m.request, p),
+  }),
+  views("DELETE", ":collection/_views/:id", {
+    operation: "delete",
+    run: (m, { collection, id }, p) => handleViewsDelete(m.views, collection, id, p),
+  }),
+];
+
 // Thread a mount-time `onError` into the handler contexts. A hook the host
 // already set on `ctx`/`ctx.media` wins — it's the more specific wiring.
 function withErrorHook(ctx: RestContext, onError: RestErrorHook | undefined): RestContext {
@@ -339,6 +379,7 @@ function withErrorHook(ctx: RestContext, onError: RestErrorHook | undefined): Re
     onError,
     ...ctx,
     ...(ctx.media === undefined ? {} : { media: { onError, ...ctx.media } }),
+    ...(ctx.views === undefined ? {} : { views: { onError, ...ctx.views } }),
   };
 }
 
@@ -372,6 +413,14 @@ function matchRoute(ctx: RestContext, request: Request, basePath: string): Match
   if (segments[0] === MEDIA_SEGMENT) {
     if (ctx.media === undefined) return null;
     return matchTable(MEDIA_ROUTES, { ...m, media: ctx.media }, request.method, segments);
+  }
+
+  // `_views` is a reserved sub-segment of a collection (`/:collection/_views`);
+  // it wins over a document id (UUIDs never equal `_views`). Served only when a
+  // views context is wired — otherwise fall through to the host's own routes.
+  if (segments[1] === VIEWS_SEGMENT) {
+    if (ctx.views === undefined) return null;
+    return matchTable(VIEWS_ROUTES, { ...m, views: ctx.views }, request.method, segments);
   }
 
   return matchTable(CONTENT_ROUTES, m, request.method, segments);

@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { defineCollection, fields } from "@voila/content";
 import { DetailView, documentTitle } from "./detail-view";
 
@@ -56,13 +56,13 @@ describe("DetailView", () => {
   });
 
   test("titles with the document's titleField value when the collection declares one", () => {
-    const titled = defineCollection({ ...posts, titleField: "title" });
+    const titled = defineCollection({ ...posts, titleField: "title", groups: undefined });
     render(<DetailView collection={titled} doc={doc} />);
     expect(screen.getByRole("heading", { name: "Hello" })).toBeDefined();
   });
 
   test("falls back to the collection label when the titleField value is blank", () => {
-    const titled = defineCollection({ ...posts, titleField: "title" });
+    const titled = defineCollection({ ...posts, titleField: "title", groups: undefined });
     render(<DetailView collection={titled} doc={{ ...doc, title: "   " }} />);
     expect(screen.getByRole("heading", { name: "Blog Post" })).toBeDefined();
   });
@@ -124,8 +124,72 @@ describe("DetailView", () => {
   });
 });
 
+describe("DetailView — field groups", () => {
+  const grouped = defineCollection({
+    slug: "posts",
+    label: "Blog Post",
+    fields: {
+      title: fields.string(),
+      body: fields.string(),
+      seo: fields.string(),
+    },
+    groups: [
+      { id: "content", label: "Content", fields: ["title", "body"] },
+      { id: "meta", label: "Metadata", description: "Search engine bits", fields: ["seo"] },
+    ],
+  });
+  const gdoc = { id: "1", title: "Hello", body: "World", seo: "keywords" };
+
+  test("renders a sub-nav and only the first group's fields by default", () => {
+    const { container } = render(<DetailView collection={grouped} doc={gdoc} />);
+    expect(screen.getByRole("button", { name: "Content" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Metadata" })).toBeDefined();
+    const terms = Array.from(container.querySelectorAll("dt")).map((d) => d.textContent);
+    expect(terms).toEqual(["Title", "Body"]);
+  });
+
+  test("selecting a group switches the rendered fields and shows its description", () => {
+    const { container } = render(<DetailView collection={grouped} doc={gdoc} />);
+    fireEvent.click(screen.getByRole("button", { name: "Metadata" }));
+    const terms = Array.from(container.querySelectorAll("dt")).map((d) => d.textContent);
+    expect(terms).toEqual(["Seo"]);
+    expect(screen.getByText("Search engine bits")).toBeDefined();
+  });
+
+  test("honors a controlled activeGroup and reports selection via onGroupChange", () => {
+    const onGroupChange = mock();
+    const { container } = render(
+      <DetailView
+        collection={grouped}
+        doc={gdoc}
+        activeGroup="meta"
+        onGroupChange={onGroupChange}
+      />,
+    );
+    expect(Array.from(container.querySelectorAll("dt")).map((d) => d.textContent)).toEqual(["Seo"]);
+    fireEvent.click(screen.getByRole("button", { name: "Content" }));
+    expect(onGroupChange).toHaveBeenCalledWith("content");
+  });
+
+  test("falls back to the first group when activeGroup names no group", () => {
+    const { container } = render(
+      <DetailView collection={grouped} doc={gdoc} activeGroup="does-not-exist" />,
+    );
+    expect(Array.from(container.querySelectorAll("dt")).map((d) => d.textContent)).toEqual([
+      "Title",
+      "Body",
+    ]);
+  });
+
+  test("ungrouped collections keep the flat definition list (no sub-nav)", () => {
+    const { container } = render(<DetailView collection={posts} doc={doc} />);
+    expect(container.querySelector("nav")).toBeNull();
+    expect(container.querySelector("dl")).not.toBeNull();
+  });
+});
+
 describe("documentTitle", () => {
-  const titled = defineCollection({ ...posts, titleField: "views" });
+  const titled = defineCollection({ ...posts, titleField: "views", groups: undefined });
 
   test("returns undefined without a titleField", () => {
     expect(documentTitle(posts, doc)).toBeUndefined();

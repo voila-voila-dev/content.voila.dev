@@ -11,7 +11,14 @@
 
 import type { Field, FieldsMap } from "../../config/schema/fields";
 import { decodeCursor } from "../database/cursor";
-import type { DraftFilter, FieldValue, ListOpts, OrderDirection } from "../database/types";
+import type {
+  DraftFilter,
+  FieldValue,
+  FilterOp,
+  ListFilter,
+  ListOpts,
+  OrderDirection,
+} from "../database/types";
 import { badRequest, fail, invalidCursor, invalidOrder } from "./errors";
 
 const DEFAULT_LIMIT = 25;
@@ -82,8 +89,52 @@ export interface ListQuery extends ListOpts {
   readonly cursor?: string;
   /** Draft scoping (draft-enabled collections); absent → published-only. */
   readonly status?: DraftFilter;
+  /** Server-side field predicates from `?filter=field:op:value` (repeatable). */
+  readonly filters?: ReadonlyArray<ListFilter>;
   /** Compute the scope's total row count alongside the page (`?count=1`). */
   readonly count?: boolean;
+}
+
+const FILTER_OPS: ReadonlySet<FilterOp> = new Set([
+  "eq",
+  "ne",
+  "gt",
+  "gte",
+  "lt",
+  "lte",
+  "contains",
+]);
+
+/**
+ * Parse `?filter=field:op:value` params (repeatable) into list filters. The
+ * field must be a real scalar column (same gate as `orderBy` — JSON-backed and
+ * localized fields are rejected); the value is coerced to the column's type
+ * (`contains` keeps the raw string for its `LIKE`). A malformed entry is a 400.
+ */
+export function parseFilters(url: URL, collection: CollectionLike): ReadonlyArray<ListFilter> {
+  const out: ListFilter[] = [];
+  for (const raw of url.searchParams.getAll("filter")) {
+    const firstColon = raw.indexOf(":");
+    const secondColon = raw.indexOf(":", firstColon + 1);
+    if (firstColon < 1 || secondColon < 0) {
+      fail(badRequest({ field: "filter", expected: "field:op:value", value: raw }));
+    }
+    const field = raw.slice(0, firstColon);
+    const op = raw.slice(firstColon + 1, secondColon);
+    const valueRaw = raw.slice(secondColon + 1);
+    if (!FILTER_OPS.has(op as FilterOp)) {
+      fail(badRequest({ field: "filter", expected: "eq|ne|gt|gte|lt|lte|contains", op }));
+    }
+    const fieldDef = collection.fields[field] as Field | undefined;
+    if (fieldDef === undefined || !kindOfKey(collection, field)) {
+      fail(badRequest({ field: "filter", expected: "a known scalar field", name: field }));
+    }
+    // `contains` binds the raw substring (a `LIKE` pattern); other ops coerce to
+    // the column's stored type so the comparison binds correctly.
+    const value: FieldValue = op === "contains" ? valueRaw : coerceFieldValue(fieldDef, valueRaw);
+    out.push({ field, op: op as FilterOp, value });
+  }
+  return out;
 }
 
 /**
@@ -109,8 +160,9 @@ export function parseListQuery(url: URL, collection: CollectionLike): ListQuery 
   }
 
   const status = parseStatus(url.searchParams.get("status"));
+  const filters = parseFilters(url, collection);
   const count = parseCount(url.searchParams.get("count"));
-  return { limit, orderBy, direction, cursor, status, count };
+  return { limit, orderBy, direction, cursor, status, filters, count };
 }
 
 /** Parse a `?status` value into a draft filter, or `undefined` when absent.

@@ -5,7 +5,7 @@
 import { describe, expect, it } from "bun:test";
 import { type Field, fields } from "@voila/content";
 import { ApiError } from "./errors";
-import { coerceFieldValue } from "./query";
+import { type CollectionLike, coerceFieldValue, parseFilters } from "./query";
 
 // Narrow the public field constructors to the bare `Field` the helper accepts.
 const asField = (f: unknown): Field => f as Field;
@@ -55,5 +55,55 @@ describe("coerceFieldValue", () => {
 
   it("rejects a JSON-backed kind as unsupported", () => {
     expectBadRequest(asField(fields.json()), "{}");
+  });
+});
+
+describe("parseFilters", () => {
+  const collection: CollectionLike = {
+    slug: "posts",
+    fields: {
+      title: fields.string(),
+      views: fields.number(),
+      meta: fields.json(),
+    } as unknown as CollectionLike["fields"],
+  };
+  const parse = (qs: string) => parseFilters(new URL(`https://x/posts?${qs}`), collection);
+
+  it("parses a comparison filter, coercing the value to the field type", () => {
+    expect(parse("filter=views:gte:5")).toEqual([{ field: "views", op: "gte", value: 5 }]);
+  });
+
+  it("keeps a `contains` value as the raw string", () => {
+    expect(parse("filter=title:contains:hello")).toEqual([
+      { field: "title", op: "contains", value: "hello" },
+    ]);
+  });
+
+  it("parses multiple repeated filters in order", () => {
+    expect(parse("filter=title:eq:a&filter=views:lt:9")).toEqual([
+      { field: "title", op: "eq", value: "a" },
+      { field: "views", op: "lt", value: 9 },
+    ]);
+  });
+
+  it("returns no filters when none are present", () => {
+    expect(parse("limit=10")).toEqual([]);
+  });
+
+  function expectBadFilter(qs: string): void {
+    try {
+      parse(qs);
+    } catch (error) {
+      expect((error as ApiError).failure.code).toBe("BAD_REQUEST");
+      return;
+    }
+    throw new Error("expected parseFilters to reject");
+  }
+
+  it("rejects a malformed entry, an unknown op, an unknown field, and a JSON field", () => {
+    expectBadFilter("filter=title"); // no op/value
+    expectBadFilter("filter=title:bogus:x"); // unknown op
+    expectBadFilter("filter=nope:eq:x"); // unknown field
+    expectBadFilter("filter=meta:eq:x"); // JSON-backed field isn't filterable
   });
 });

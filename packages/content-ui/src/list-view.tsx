@@ -37,6 +37,9 @@ export interface ListViewProps {
   readonly actions?: ReactNode;
   /** Make rows clickable (e.g. to open a detail page). */
   readonly onRowClick?: (row: Doc, index: number) => void;
+  /** The active sort; when set with `onSortChange`, headers become sortable. */
+  readonly sort?: { readonly field: string; readonly direction: "asc" | "desc" };
+  readonly onSortChange?: (field: string) => void;
   readonly loading?: boolean;
   /** Form-level error message (e.g. a failed fetch). */
   readonly error?: string;
@@ -71,6 +74,8 @@ export function ListView({
   description,
   actions,
   onRowClick,
+  sort,
+  onSortChange,
   loading = false,
   error,
   emptyMessage,
@@ -143,6 +148,8 @@ export function ListView({
         columns={columns}
         registry={registry}
         onRowClick={onRowClick}
+        sort={sort}
+        onSortChange={onSortChange}
         loading={loading}
         emptyMessage={emptyMessage}
       />

@@ -35,6 +35,7 @@ export { type DurationOpts, duration } from "./duration";
 // `enum` is a reserved word; the file exports `enum_` and we re-export it
 // under the public name with a renamed binding.
 export { type EnumLike, type EnumOpts, enum_ as enum } from "./enum";
+export { type GeoMeta, type GeoOpts, type GeoValue, geo } from "./geo";
 export { type IdOpts, id } from "./id";
 export { type JsonOpts, json } from "./json";
 export { type MarkdownFlavor, type MarkdownOpts, markdown } from "./markdown";

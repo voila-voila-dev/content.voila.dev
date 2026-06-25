@@ -52,6 +52,8 @@ export interface RestContext {
   readonly config: NormalizedConfig;
   readonly database: Database;
   readonly media?: import("./media").MediaContext;
+  /** Saved-views store for the `_views` routes. Omit to disable them. */
+  readonly views?: import("./views").ViewsContext;
   /** Observes unexpected errors before they fold to `INTERNAL` (see `RestErrorHook`). */
   readonly onError?: RestErrorHook;
 }
