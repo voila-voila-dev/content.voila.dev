@@ -9,9 +9,17 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import type { Collection } from "@voila/content";
-import type { NewView, ViewConfig, ViewType } from "@voila/content/client";
-import type { Doc, ViewType as UiViewType } from "@voila/content-ui";
-import { ColumnPicker, KanbanView, ListView, MapView, ViewSwitcher } from "@voila/content-ui";
+import type { ListFilter, NewView, ViewConfig, ViewType } from "@voila/content/client";
+import type { Doc, FieldChoice, ViewType as UiViewType } from "@voila/content-ui";
+import {
+  ColumnPicker,
+  FilterBuilder,
+  getFieldLabel,
+  KanbanView,
+  ListView,
+  MapView,
+  ViewSwitcher,
+} from "@voila/content-ui";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useAdmin } from "../context";
 import { AdminLink } from "../lib/admin-link";
@@ -199,6 +207,15 @@ export function CollectionListScreen(): ReactNode {
   const geoField = working.geoField ?? geoable[0];
   const cappedOut = isBoardView && query.hasNextPage && loadedPages >= BOARD_PAGE_CAP;
 
+  // Field choices (key + display label) the view switcher offers for kanban
+  // grouping / map plotting, so the user can pick rather than take the first.
+  function fieldChoices(keys: ReadonlyArray<string>): FieldChoice[] {
+    return keys.flatMap((key) => {
+      const field = collection?.fields[key];
+      return field ? [{ value: key, label: getFieldLabel(key, field) }] : [];
+    });
+  }
+
   function changeColumns(columns: string[]) {
     setWorking((prev) => ({ ...prev, columns }));
   }
@@ -208,6 +225,15 @@ export function CollectionListScreen(): ReactNode {
         prev.sort?.field === field && prev.sort.direction === "asc" ? "desc" : "asc";
       return { ...prev, sort: { field, direction } };
     });
+  }
+  function changeFilters(filters: ListFilter[]) {
+    setWorking((prev) => ({ ...prev, filters }));
+  }
+  function changeKanbanField(field: string) {
+    setWorking((prev) => ({ ...prev, kanbanField: field }));
+  }
+  function changeGeoField(field: string) {
+    setWorking((prev) => ({ ...prev, geoField: field }));
   }
   function openRow(row: Doc) {
     navigate({ href: `${admin.basePath}/${slug}/${row.id}` });
@@ -232,6 +258,17 @@ export function CollectionListScreen(): ReactNode {
         onSaveAs={(name) => createView.mutate({ name, type: viewType, config: working })}
         onDelete={activeViewId ? () => deleteView.mutate(activeViewId) : undefined}
         availableTypes={availableTypes}
+        kanbanFields={fieldChoices(kanbanable)}
+        kanbanField={kanbanField}
+        onKanbanFieldChange={changeKanbanField}
+        geoFields={fieldChoices(geoable)}
+        geoField={geoField}
+        onGeoFieldChange={changeGeoField}
+      />
+      <FilterBuilder
+        collection={collection}
+        value={working.filters ?? []}
+        onChange={changeFilters}
       />
       {viewType === "table" ? (
         <ColumnPicker collection={collection} value={visibleColumns} onChange={changeColumns} />

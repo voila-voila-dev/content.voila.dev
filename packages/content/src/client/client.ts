@@ -66,8 +66,13 @@ export type DraftFilter = "published" | "draft" | "scheduled" | "any";
 /** Comparison a list filter applies; `contains` is a substring match (text). */
 export type FilterOp = "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "contains";
 
-/** One server-side field predicate (`?filter=field:op:value`). */
-export interface ListFilter<Doc = unknown> {
+/**
+ * One server-side field predicate (`?filter=field:op:value`). The default `Doc`
+ * is loose (any string field) so the untyped `ViewConfig.filters` can name any
+ * column; `ListParams<Doc>` passes a concrete `Doc` to constrain `field` to that
+ * collection's keys.
+ */
+export interface ListFilter<Doc = Record<string, unknown>> {
   readonly field: (keyof Doc & string) | "id" | "createdAt" | "updatedAt";
   readonly op: FilterOp;
   readonly value: LookupValue;

@@ -6,7 +6,7 @@
 
 import type { NormalizedConfig } from "@voila/content";
 import { makeClient, makeMediaClient } from "@voila/content/client";
-import { mergeDisplayRegistry, mergeEditRegistry } from "@voila/content-ui";
+import { createGeoInput, mergeDisplayRegistry, mergeEditRegistry } from "@voila/content-ui";
 import { makeAuthedFetch } from "./lib/authed-fetch";
 import type { AdminInstance, DefineAdminOptions } from "./types";
 
@@ -27,6 +27,7 @@ export function defineAdmin<C extends NormalizedConfig>(
   const basePath = options.basePath ?? DEFAULT_BASE_PATH;
   const apiPath = options.apiPath ?? `${basePath}/api`;
   const loginPath = `${basePath}/login`;
+  const mapStyleUrl = options.mapStyleUrl ?? DEFAULT_MAP_STYLE_URL;
 
   const fetch = options.fetch ?? makeAuthedFetch({ loginPath });
   const client = makeClient(options.config, { baseUrl: apiPath, fetch });
@@ -39,11 +40,17 @@ export function defineAdmin<C extends NormalizedConfig>(
     branding: options.branding ?? {},
     client,
     mediaClient,
-    editWidgets: mergeEditRegistry(options.widgets?.edit),
+    // Upgrade the plain lat/lng geo input to a map picker bound to this admin's
+    // `mapStyleUrl`, then layer the host's own widget overrides on top so they
+    // still win (a host that sets `widgets.edit.geo` replaces the picker).
+    editWidgets: mergeEditRegistry({
+      geo: createGeoInput({ mapStyleUrl }),
+      ...options.widgets?.edit,
+    }),
     displayWidgets: mergeDisplayRegistry(options.widgets?.display),
     slots: options.slots ?? {},
     screens: options.screens ?? [],
     nav: options.nav,
-    mapStyleUrl: options.mapStyleUrl ?? DEFAULT_MAP_STYLE_URL,
+    mapStyleUrl,
   };
 }

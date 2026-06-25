@@ -16,6 +16,7 @@ import { cn } from "@voila/ui/cn";
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { documentTitle } from "./detail-view";
 import type { Doc } from "./lib/doc";
+import { hasWebGL } from "./lib/webgl";
 
 export interface MapViewProps {
   readonly collection: Collection;
@@ -39,16 +40,6 @@ export function readPoint(value: unknown): Point | null {
   if (value === null || typeof value !== "object") return null;
   const { lat, lng } = value as { lat?: unknown; lng?: unknown };
   return typeof lat === "number" && typeof lng === "number" ? { lat, lng } : null;
-}
-
-/** Whether the environment can create a WebGL context (false in SSR / happy-dom). */
-function hasWebGL(): boolean {
-  try {
-    const canvas = document.createElement("canvas");
-    return Boolean(canvas.getContext("webgl") ?? canvas.getContext("experimental-webgl"));
-  } catch {
-    return false;
-  }
 }
 
 export function MapView({
@@ -81,34 +72,41 @@ export function MapView({
     let map: import("maplibre-gl").Map | undefined;
 
     void (async () => {
-      const maplibre = await import("maplibre-gl");
-      if (cancelled || !containerRef.current) return;
-      const live = liveRef.current;
+      // maplibre-gl is an optional peer dep; if it's absent (or WebGL/map init
+      // throws — e.g. the WebGL2 context the library needs) leave the empty
+      // container rather than crashing the admin with an unhandled rejection.
+      try {
+        const maplibre = await import("maplibre-gl");
+        if (cancelled || !containerRef.current) return;
+        const live = liveRef.current;
 
-      map = new maplibre.Map({
-        container: containerRef.current,
-        style: mapStyleUrl,
-        center: [0, 0],
-        zoom: 1,
-      });
-      const bounds = new maplibre.LngLatBounds();
-      let plotted = 0;
-      for (const row of live.rows) {
-        const point = readPoint(row[live.geoField]);
-        if (point === null) continue;
-        plotted += 1;
-        const title = documentTitle(live.collection, row) ?? "";
-        const popup = new maplibre.Popup({ closeButton: false }).setText(title);
-        const marker = new maplibre.Marker()
-          .setLngLat([point.lng, point.lat])
-          .setPopup(popup)
-          .addTo(map);
-        // Read the handler live at click time, not snapshotted — the effect
-        // doesn't re-run when only `onRowClick`'s identity changes.
-        marker.getElement().addEventListener("click", () => liveRef.current.onRowClick?.(row));
-        bounds.extend([point.lng, point.lat]);
+        map = new maplibre.Map({
+          container: containerRef.current,
+          style: mapStyleUrl,
+          center: [0, 0],
+          zoom: 1,
+        });
+        const bounds = new maplibre.LngLatBounds();
+        let plotted = 0;
+        for (const row of live.rows) {
+          const point = readPoint(row[live.geoField]);
+          if (point === null) continue;
+          plotted += 1;
+          const title = documentTitle(live.collection, row) ?? "";
+          const popup = new maplibre.Popup({ closeButton: false }).setText(title);
+          const marker = new maplibre.Marker()
+            .setLngLat([point.lng, point.lat])
+            .setPopup(popup)
+            .addTo(map);
+          // Read the handler live at click time, not snapshotted — the effect
+          // doesn't re-run when only `onRowClick`'s identity changes.
+          marker.getElement().addEventListener("click", () => liveRef.current.onRowClick?.(row));
+          bounds.extend([point.lng, point.lat]);
+        }
+        if (plotted > 0) map.fitBounds(bounds, { padding: 48, maxZoom: 12, duration: 0 });
+      } catch {
+        // Optional maplibre missing or map init failed — degrade to empty.
       }
-      if (plotted > 0) map.fitBounds(bounds, { padding: 48, maxZoom: 12, duration: 0 });
     })();
 
     return () => {

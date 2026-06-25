@@ -22,6 +22,10 @@ export function CollectionDetailScreen(): ReactNode {
     id: string;
   };
   const collection = admin.config.collections[slug] as Collection | undefined;
+  // Grouped collections edit per field (each card saves itself); ungrouped ones
+  // use a single whole-form Save. A grouped collection's form/read view also lays
+  // out a sub-nav beside a card, so it wants the full width.
+  const grouped = (collection?.groups?.length ?? 0) > 0;
   const [editing, setEditing] = useState(false);
   // The active field group (when the collection declares `groups`) lives in the
   // URL as `?group=`, so it survives reloads and the read⇄edit toggle. Read
@@ -48,7 +52,10 @@ export function CollectionDetailScreen(): ReactNode {
     onSuccess: (updated) => {
       queryClient.setQueryData([slug, id], updated);
       queryClient.invalidateQueries({ queryKey: [slug, "list"] });
-      setEditing(false);
+      // Per-field (grouped) edits stay in edit mode so the user can save other
+      // cards too — exiting would discard their unsaved edits. A whole-form
+      // (ungrouped) save persists everything, so it returns to the read view.
+      if (!grouped) setEditing(false);
     },
   });
 
@@ -64,15 +71,32 @@ export function CollectionDetailScreen(): ReactNode {
   if (!collection) return <CustomScreenDispatcher />;
   const label = collection.label ?? slug;
 
-  // A grouped collection's form/read view lays out a sub-nav beside a card, so
-  // it wants the full width; an ungrouped one stays in the narrow column.
-  const grouped = (collection.groups?.length ?? 0) > 0;
-
   if (editing && doc.data) {
     const serverErrors = fieldErrors(update.error);
     return (
       <section className={grouped ? "space-y-4" : "max-w-xl space-y-4"}>
-        <h1 className="text-lg font-semibold">Edit {label}</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-lg font-semibold">Edit {label}</h1>
+          {/* Per-field mode has no single Save to exit on, so offer an explicit
+              way back to the read view (and the list). */}
+          {grouped ? (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="text-sm font-medium text-primary"
+                onClick={() => setEditing(false)}
+              >
+                Done
+              </button>
+              <AdminLink
+                href={`${admin.basePath}/${slug}`}
+                className="text-sm text-muted-foreground"
+              >
+                Back
+              </AdminLink>
+            </div>
+          ) : null}
+        </div>
         <CollectionForm
           collection={collection}
           registry={admin.editWidgets}
@@ -83,6 +107,10 @@ export function CollectionDetailScreen(): ReactNode {
           submitLabel="Save"
           activeGroup={activeGroup}
           onGroupChange={changeGroup}
+          // Grouped collections save per field (each card patches its own field);
+          // ungrouped ones keep the single whole-form Save. `api.update` is a
+          // PATCH, so a one-field partial is safe.
+          saveMode={grouped ? "field" : "form"}
           onSubmit={(values) => update.mutate(values as Doc)}
         />
       </section>
