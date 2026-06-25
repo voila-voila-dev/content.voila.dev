@@ -1,5 +1,12 @@
 # create-content-voila
 
+## 0.1.4
+
+### Patch Changes
+
+- Republish of 0.1.3 with the `workspace:` dependency protocol resolved (0.1.3
+  was uninstallable and is deprecated). No code change.
+
 ## 0.1.3
 
 ### Patch Changes

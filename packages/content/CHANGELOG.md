@@ -1,5 +1,12 @@
 # @voila/content
 
+## 0.2.1
+
+### Patch Changes
+
+- Republish of 0.2.0 (the 0.2.0 suite was published with unresolved
+  `workspace:` / `catalog:` dependency protocols and deprecated). No code change.
+
 ## 0.2.0
 
 ### Minor Changes
