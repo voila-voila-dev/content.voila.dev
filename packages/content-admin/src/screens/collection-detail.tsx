@@ -2,12 +2,13 @@
 // edit via `CollectionForm`, soft-delete via `ConfirmButton`. Mounted by the
 // host's fixed `admin.$collection.$id.tsx` shim.
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { Collection } from "@voila/content";
 import { CollectionForm, ConfirmButton, DetailView, type Doc } from "@voila/content-ui";
 import { type ReactNode, useState } from "react";
 import { useAdmin } from "../context";
+import { useCollectionMutations } from "../hooks/use-collection-mutations";
 import { AdminLink } from "../lib/admin-link";
 import { collectionClient } from "../lib/client-access";
 import { errorMessage, fieldErrors } from "../lib/field-errors";
@@ -16,7 +17,6 @@ import { CustomScreenDispatcher } from "./custom-dispatcher";
 export function CollectionDetailScreen(): ReactNode {
   const { admin } = useAdmin();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { collection: slug, id } = useParams({ strict: false }) as {
     collection: string;
     id: string;
@@ -47,25 +47,9 @@ export function CollectionDetailScreen(): ReactNode {
     enabled: collection !== undefined,
   });
 
-  const update = useMutation({
-    mutationFn: (values: Doc) => api.update(id, values),
-    onSuccess: (updated) => {
-      queryClient.setQueryData([slug, id], updated);
-      queryClient.invalidateQueries({ queryKey: [slug, "list"] });
-      // Per-field (grouped) edits stay in edit mode so the user can save other
-      // cards too — exiting would discard their unsaved edits. A whole-form
-      // (ungrouped) save persists everything, so it returns to the read view.
-      if (!grouped) setEditing(false);
-    },
-  });
-
-  const remove = useMutation({
-    mutationFn: () => api.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [slug, "list"] });
-      navigate({ href: `${admin.basePath}/${slug}` });
-    },
-  });
+  // The hook refreshes the doc + list caches; this screen owns the edit-mode and
+  // navigation side-effects (per call).
+  const { update, remove } = useCollectionMutations(slug);
 
   // Not a collection → a custom screen path caught by `$collection/$id`.
   if (!collection) return <CustomScreenDispatcher />;
@@ -111,7 +95,14 @@ export function CollectionDetailScreen(): ReactNode {
           // ungrouped ones keep the single whole-form Save. `api.update` is a
           // PATCH, so a one-field partial is safe.
           saveMode={grouped ? "field" : "form"}
-          onSubmit={(values) => update.mutate(values as Doc)}
+          onSubmit={(values) =>
+            update.mutate(
+              { id, values: values as Doc },
+              // Per-field (grouped) edits stay in edit mode so other cards' unsaved
+              // edits aren't discarded; a whole-form (ungrouped) save returns to read.
+              { onSuccess: grouped ? undefined : () => setEditing(false) },
+            )
+          }
         />
       </section>
     );
@@ -138,7 +129,11 @@ export function CollectionDetailScreen(): ReactNode {
             Edit
           </button>
           <ConfirmButton
-            onConfirm={() => remove.mutate()}
+            onConfirm={() =>
+              remove.mutate(id, {
+                onSuccess: () => navigate({ href: `${admin.basePath}/${slug}` }),
+              })
+            }
             disabled={remove.isPending}
             title={`Delete this ${label}?`}
             description="It's a soft delete — the record is hidden but recoverable through the API."

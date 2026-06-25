@@ -6,10 +6,10 @@
 // visible columns and sortable headers drive the sort. Mounted by the host's
 // fixed `admin.$collection.index.tsx` shim.
 
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import type { Collection } from "@voila/content";
-import type { ListFilter, NewView, ViewConfig, ViewType } from "@voila/content/client";
+import type { ListFilter, ViewConfig, ViewType } from "@voila/content/client";
 import type { Doc, FieldChoice, ViewType as UiViewType } from "@voila/content-ui";
 import {
   ColumnPicker,
@@ -22,6 +22,8 @@ import {
 } from "@voila/content-ui";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useAdmin } from "../context";
+import { useCollectionMutations } from "../hooks/use-collection-mutations";
+import { useViewMutations } from "../hooks/use-view-mutations";
 import { AdminLink } from "../lib/admin-link";
 import { type AnyListParams, collectionClient } from "../lib/client-access";
 import { CustomScreenDispatcher } from "./custom-dispatcher";
@@ -67,7 +69,6 @@ function normalizeConfig(config: ViewConfig): string {
 export function CollectionListScreen(): ReactNode {
   const { admin } = useAdmin();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { collection: slug } = useParams({ strict: false }) as { collection: string };
   const collection = admin.config.collections[slug] as Collection | undefined;
   const isSingleton = admin.config.singletons[slug] !== undefined;
@@ -155,42 +156,13 @@ export function CollectionListScreen(): ReactNode {
     }
   }, [isBoardView, query.hasNextPage, query.isFetchingNextPage, loadedPages, query.fetchNextPage]);
 
-  const invalidateViews = () => queryClient.invalidateQueries({ queryKey: [slug, "views"] });
-  // Moving a kanban card patches the grouped field; the list refetches.
-  const updateRow = useMutation({
-    mutationFn: (input: { id: string; values: Doc }) => api.update(input.id, input.values),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [slug, "list"] }),
-  });
-  const createView = useMutation({
-    mutationFn: (view: NewView) => api.views.create(view),
-    onSuccess: (created) => {
-      invalidateViews();
-      setActiveViewId(created.id);
-    },
-  });
-  const updateView = useMutation({
-    mutationFn: (input: { id: string; config: ViewConfig; type: ViewType }) =>
-      api.views.update(input.id, { config: input.config, type: input.type }),
-    onSuccess: invalidateViews,
-  });
-  const deleteView = useMutation({
-    mutationFn: (id: string) => api.views.delete(id),
-    onSuccess: () => {
-      invalidateViews();
-      selectView(null);
-    },
-  });
-  const renameView = useMutation({
-    mutationFn: (input: { id: string; name: string }) =>
-      api.views.update(input.id, { name: input.name }),
-    onSuccess: invalidateViews,
-  });
-  // Setting a default clears any other default for this collection (enforced in
-  // the store); refetch so the star + auto-select reflect it.
-  const setDefaultView = useMutation({
-    mutationFn: (input: { id: string; isDefault: boolean }) =>
-      api.views.update(input.id, { isDefault: input.isDefault }),
-    onSuccess: invalidateViews,
+  // Moving a kanban card patches the grouped field; the hook refetches the list.
+  const { update: updateRow } = useCollectionMutations(slug);
+  // View CRUD; the hook invalidates the views query — the host owns selecting the
+  // new view / deselecting on delete.
+  const views = useViewMutations(slug, {
+    onCreated: (created) => setActiveViewId(created.id),
+    onDeleted: () => selectView(null),
   });
 
   if (isSingleton) return <SingletonScreen slug={slug} />;
@@ -264,19 +236,19 @@ export function CollectionListScreen(): ReactNode {
         dirty={dirty}
         onSave={
           activeViewId
-            ? () => updateView.mutate({ id: activeViewId, config: working, type: viewType })
+            ? () => views.update.mutate({ id: activeViewId, config: working, type: viewType })
             : undefined
         }
-        onSaveAs={(name) => createView.mutate({ name, type: viewType, config: working })}
-        onDelete={activeViewId ? () => deleteView.mutate(activeViewId) : undefined}
+        onSaveAs={(name) => views.create.mutate({ name, type: viewType, config: working })}
+        onDelete={activeViewId ? () => views.remove.mutate(activeViewId) : undefined}
         activeIsDefault={activeView?.isDefault ?? false}
         onSetDefault={
           activeViewId
-            ? (isDefault) => setDefaultView.mutate({ id: activeViewId, isDefault })
+            ? (isDefault) => views.setDefault.mutate({ id: activeViewId, isDefault })
             : undefined
         }
         onRename={
-          activeViewId ? (name) => renameView.mutate({ id: activeViewId, name }) : undefined
+          activeViewId ? (name) => views.rename.mutate({ id: activeViewId, name }) : undefined
         }
         availableTypes={availableTypes}
         kanbanFields={fieldChoices(kanbanable)}

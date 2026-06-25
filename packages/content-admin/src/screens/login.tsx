@@ -3,24 +3,12 @@
 // Submitting emails a sign-in link; in dev it prints to the server console. The
 // first account to sign in becomes the admin.
 
-import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, type ReactNode, useState } from "react";
-import { useAdmin } from "../context";
+import { useSignIn } from "../hooks/use-auth-mutations";
 
 export function LoginScreen(): ReactNode {
-  const { admin } = useAdmin();
   const [email, setEmail] = useState("");
-
-  const signIn = useMutation({
-    mutationFn: async (address: string) => {
-      const res = await fetch(`${admin.apiPath}/auth/sign-in/magic-link`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: address, callbackURL: admin.basePath || "/" }),
-      });
-      if (!res.ok) throw new Error(`Could not send the sign-in link (${res.status}).`);
-    },
-  });
+  const signIn = useSignIn();
 
   const sent = signIn.isSuccess;
   const pending = signIn.isPending;
