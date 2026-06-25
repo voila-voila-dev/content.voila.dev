@@ -37,6 +37,14 @@ export {
 } from "./revisions";
 export { createRestHandler, type RestHandlerOptions } from "./router";
 export {
+  handleViewsCreate,
+  handleViewsDelete,
+  handleViewsList,
+  handleViewsUpdate,
+  VIEWS_SEGMENT,
+  type ViewsContext,
+} from "./views";
+export {
   handleCreate,
   handleDelete,
   handlePublish,

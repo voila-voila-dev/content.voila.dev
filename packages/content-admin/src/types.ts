@@ -95,6 +95,9 @@ export interface DefineAdminOptions<C extends NormalizedConfig = NormalizedConfi
   readonly nav?: NavExtension;
   /** Override the CSRF-aware fetch (tests / custom transport). */
   readonly fetch?: Fetch;
+  /** maplibre-gl style URL used by map views. Defaults to the public MapLibre
+   *  demo style; set your own (e.g. a MapTiler style) for production. */
+  readonly mapStyleUrl?: string;
 }
 
 /** The built admin instance shared through context to every screen. */
@@ -110,4 +113,6 @@ export interface AdminInstance<C extends NormalizedConfig = NormalizedConfig> {
   readonly slots: AdminSlots<C>;
   readonly screens: readonly CustomScreen<C>[];
   readonly nav?: NavExtension;
+  /** maplibre-gl style URL for map views. */
+  readonly mapStyleUrl: string;
 }

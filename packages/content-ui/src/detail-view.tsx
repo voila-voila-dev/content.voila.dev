@@ -6,9 +6,12 @@
 // and passes it in as `doc`. Editing is the separate `CollectionForm`.
 
 import type { Collection } from "@voila/content";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
+import { FieldCard } from "./field-card";
+import { FieldGroupNav } from "./field-group-nav";
 import { FieldRenderer } from "./field-renderer";
 import type { Doc } from "./lib/doc";
+import { resolveFieldGroups } from "./lib/groups";
 import { getFieldLabel, humanize } from "./lib/humanize";
 import type { DisplayRegistry } from "./registry/registry";
 
@@ -38,6 +41,16 @@ export interface DetailViewProps {
   readonly error?: string;
   /** Shown when there's no `doc` and we're not loading. Defaults to "Not found." */
   readonly emptyMessage?: string;
+  /**
+   * The active field group's id, when the collection declares `groups`. The
+   * detail page renders a left sub-nav + one card per group; `activeGroup`
+   * selects which group is shown (e.g. from a `?group=` URL). Optional and
+   * controlled — omit it and the view manages its own active group internally,
+   * defaulting to the first group. Ignored when the collection has no `groups`.
+   */
+  readonly activeGroup?: string;
+  /** Called with a group id when the user picks one in the sub-nav. */
+  readonly onGroupChange?: (id: string) => void;
 }
 
 interface Row {
@@ -79,6 +92,8 @@ export function DetailView({
   loading = false,
   error,
   emptyMessage,
+  activeGroup,
+  onGroupChange,
 }: DetailViewProps): ReactNode {
   const hasDoc = doc !== null && doc !== undefined;
   const heading =
@@ -87,6 +102,33 @@ export function DetailView({
     collection.label ??
     humanize(collection.slug);
   const rows = hasDoc ? resolveRows(collection, fields) : [];
+
+  // Grouped layout: only when the collection declares `groups`. The active
+  // group is controlled by `activeGroup` when given, else tracked internally;
+  // either way it's clamped to a real group (falling back to the first).
+  const grouped = (collection.groups?.length ?? 0) > 0;
+  const resolvedGroups = grouped ? resolveFieldGroups(collection, { fields }) : [];
+  const [internalGroup, setInternalGroup] = useState<string | undefined>(undefined);
+  const currentGroupId = activeGroup ?? internalGroup;
+  const activeResolved = resolvedGroups.find((g) => g.id === currentGroupId) ?? resolvedGroups[0];
+  function selectGroup(id: string) {
+    onGroupChange?.(id);
+    setInternalGroup(id);
+  }
+
+  // One `<dt>/<dd>` pair for a field, shared by the flat and grouped layouts.
+  function fieldRow(key: string, d: Doc): ReactNode {
+    const field = collection.fields[key];
+    if (!field) return null;
+    return (
+      <div key={key} className="contents">
+        <dt className="font-medium text-muted-foreground">{getFieldLabel(key, field)}</dt>
+        <dd>
+          <FieldRenderer field={field} value={d[key]} registry={registry} />
+        </dd>
+      </div>
+    );
+  }
 
   // What an assistive-tech user hears when the view's state changes — mirroring
   // `ListView`. The visible loading / not-found text below isn't in a live
@@ -125,20 +167,33 @@ export function DetailView({
           {error}
         </p>
       ) : hasDoc ? (
-        <dl className="grid grid-cols-[minmax(8rem,12rem)_1fr] gap-x-4 gap-y-3 text-sm">
-          {rows.map((row) => {
-            const field = collection.fields[row.key];
-            if (!field) return null;
-            return (
-              <div key={row.key} className="contents">
-                <dt className="font-medium text-muted-foreground">{row.label}</dt>
-                <dd>
-                  <FieldRenderer field={field} value={doc[row.key]} registry={registry} />
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
+        grouped && activeResolved ? (
+          <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
+            <FieldGroupNav
+              groups={resolvedGroups}
+              activeGroup={activeResolved.id}
+              onSelect={selectGroup}
+              title="Sections"
+            />
+            <div className="min-w-0 flex-1">
+              <FieldCard.Root>
+                <FieldCard.Body>
+                  <FieldCard.Title>{activeResolved.label}</FieldCard.Title>
+                  {activeResolved.description ? (
+                    <FieldCard.Description>{activeResolved.description}</FieldCard.Description>
+                  ) : null}
+                  <dl className="grid grid-cols-[minmax(8rem,12rem)_1fr] gap-x-4 gap-y-3 text-sm">
+                    {activeResolved.fieldKeys.map((key) => fieldRow(key, doc))}
+                  </dl>
+                </FieldCard.Body>
+              </FieldCard.Root>
+            </div>
+          </div>
+        ) : (
+          <dl className="grid grid-cols-[minmax(8rem,12rem)_1fr] gap-x-4 gap-y-3 text-sm">
+            {rows.map((row) => fieldRow(row.key, doc))}
+          </dl>
+        )
       ) : (
         <p className="text-sm text-muted-foreground">
           {loading ? "Loading…" : (emptyMessage ?? "Not found.")}

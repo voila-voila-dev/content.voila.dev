@@ -236,3 +236,46 @@ describe("Database.findOne", () => {
     await expectDatabaseError(() => db.findOne("nope", "title", "x"));
   });
 });
+
+describe("Database.list — filters", () => {
+  it("scopes the page to a comparison filter", async () => {
+    const { documents } = await db.list("posts", {
+      filters: [{ field: "rank", op: "gte", value: 5 }],
+    });
+    // p2 (rank 5) and p4 (rank 10); p1/p3 are NULL, p5 is soft-deleted.
+    expect(documents.map((d) => d.id).sort()).toEqual(["p2", "p4"]);
+  });
+
+  it("supports a `contains` substring match", async () => {
+    const { documents } = await db.list("posts", {
+      filters: [{ field: "title", op: "contains", value: "ir" }],
+    });
+    // "First" and "Third" contain "ir".
+    expect(documents.map((d) => d.title).sort()).toEqual(["First", "Third"]);
+  });
+
+  it("makes the optional count match the filtered scope", async () => {
+    const { total } = await db.list("posts", {
+      filters: [{ field: "rank", op: "gt", value: 5 }],
+      count: true,
+    });
+    // Only p4 (rank 10) is > 5 among live rows.
+    expect(total).toBe(1);
+  });
+
+  it("AND-s multiple filters together", async () => {
+    const { documents } = await db.list("posts", {
+      filters: [
+        { field: "rank", op: "gte", value: 5 },
+        { field: "title", op: "eq", value: "Second" },
+      ],
+    });
+    expect(documents.map((d) => d.id)).toEqual(["p2"]);
+  });
+
+  it("rejects an unknown filter field with a DatabaseError", async () => {
+    await expectDatabaseError(() =>
+      db.list("posts", { filters: [{ field: "nope", op: "eq", value: 1 }] }),
+    );
+  });
+});

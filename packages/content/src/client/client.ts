@@ -63,6 +63,16 @@ export type OrderKey<Doc> = (keyof Doc & string) | "id" | "createdAt" | "updated
  */
 export type DraftFilter = "published" | "draft" | "scheduled" | "any";
 
+/** Comparison a list filter applies; `contains` is a substring match (text). */
+export type FilterOp = "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "contains";
+
+/** One server-side field predicate (`?filter=field:op:value`). */
+export interface ListFilter<Doc = unknown> {
+  readonly field: (keyof Doc & string) | "id" | "createdAt" | "updatedAt";
+  readonly op: FilterOp;
+  readonly value: LookupValue;
+}
+
 export interface ListParams<Doc> {
   /** Page size (server clamps to 1–100). */
   readonly limit?: number;
@@ -74,8 +84,71 @@ export interface ListParams<Doc> {
   readonly cursor?: string;
   /** Draft scoping; defaults to live published rows. Ignored for non-draft collections. */
   readonly status?: DraftFilter;
+  /** Server-side field predicates, AND-ed into the scope. */
+  readonly filters?: ReadonlyArray<ListFilter<Doc>>;
   /** Also fetch the total row count for the same scope (`total` on the page). */
   readonly count?: boolean;
+}
+
+/** The shape a saved view renders as. */
+export type ViewType = "table" | "kanban" | "map";
+
+/** A saved view's sort choice (maps to the list `orderBy`/`order`). */
+export interface ViewSort {
+  readonly field: string;
+  readonly direction: "asc" | "desc";
+}
+
+/** The JSON payload a saved view stores (columns, sort, filters, shape fields). */
+export interface ViewConfig {
+  readonly columns?: ReadonlyArray<string>;
+  readonly sort?: ViewSort;
+  readonly filters?: ReadonlyArray<ListFilter>;
+  /** The enum/select/status field a kanban view groups columns by. */
+  readonly kanbanField?: string;
+  /** The geo field a map view plots. */
+  readonly geoField?: string;
+}
+
+/** A saved admin list view, scoped to its owner. */
+export interface SavedView {
+  readonly id: string;
+  readonly collection: string;
+  readonly ownerId: string;
+  readonly name: string;
+  readonly type: ViewType;
+  readonly config: ViewConfig;
+  readonly isDefault: boolean;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+}
+
+/** Fields supplied to create a saved view (owner + collection come from context). */
+export interface NewView {
+  readonly name: string;
+  readonly type: ViewType;
+  readonly config: ViewConfig;
+  readonly isDefault?: boolean;
+}
+
+/** A partial update to a saved view. */
+export interface ViewPatch {
+  readonly name?: string;
+  readonly type?: ViewType;
+  readonly config?: ViewConfig;
+  readonly isDefault?: boolean;
+}
+
+/** The per-collection saved-views sub-API (owner-scoped server-side). */
+export interface ViewsClient {
+  /** The signed-in user's saved views for this collection. */
+  list(): Promise<ReadonlyArray<SavedView>>;
+  /** Save a new view; returns the stored row. */
+  create(view: NewView): Promise<SavedView>;
+  /** Update one of the user's views; returns the stored row. */
+  update(id: string, patch: ViewPatch): Promise<SavedView>;
+  /** Delete one of the user's views. */
+  delete(id: string): Promise<void>;
 }
 
 export interface ListPage<Doc, Drafts extends boolean = false> {
@@ -182,6 +255,8 @@ export interface CollectionClient<
   search(query: string, params: SearchParams & LocaleOption<L>): Promise<SearchPage<LDoc, Drafts>>;
   /** Full-text search the collection, ranked by relevance (search-enabled collections). */
   search(query: string, params?: SearchParams): Promise<SearchPage<Doc, Drafts>>;
+  /** Manage the signed-in user's saved list views for this collection. */
+  readonly views: ViewsClient;
 }
 
 /**
@@ -256,6 +331,9 @@ const INTERNAL: ApiFailure = { code: "INTERNAL" };
 
 const enc = encodeURIComponent;
 
+/** Reserved sub-segment for the saved-views routes (`/:collection/_views`). */
+const VIEWS_PATH = "_views";
+
 function trimBase(base: string): string {
   return base.endsWith("/") ? base.slice(0, -1) : base;
 }
@@ -268,6 +346,10 @@ function listQuery<Doc>(params: (ListParams<Doc> & { locale?: string }) | undefi
   if (params.order !== undefined) qs.set("order", params.order);
   if (params.cursor !== undefined) qs.set("cursor", params.cursor);
   if (params.status !== undefined) qs.set("status", params.status);
+  // Filters are repeatable: `filter=field:op:value`.
+  for (const filter of params.filters ?? []) {
+    qs.append("filter", `${filter.field}:${filter.op}:${String(filter.value)}`);
+  }
   if (params.count !== undefined) qs.set("count", params.count ? "1" : "0");
   if (params.locale !== undefined) qs.set("locale", params.locale);
   const query = qs.toString();
@@ -376,6 +458,19 @@ function makeCollectionClient(
       const body = (await res.json()) as Envelope;
       if (!res.ok) throw new ContentClientError(res.status, body.error ?? INTERNAL, body.message);
       return { data: (body.data as ReadonlyArray<Stored<unknown>>) ?? [] };
+    },
+    views: {
+      list: () => send<ReadonlyArray<SavedView>>(`${root}/${VIEWS_PATH}`),
+      create: (view) =>
+        send<SavedView>(`${root}/${VIEWS_PATH}`, { method: "POST", ...jsonBody(view) }),
+      update: (id, patch) =>
+        send<SavedView>(`${root}/${VIEWS_PATH}/${enc(id)}`, {
+          method: "PATCH",
+          ...jsonBody(patch),
+        }),
+      async delete(id) {
+        await send<unknown>(`${root}/${VIEWS_PATH}/${enc(id)}`, { method: "DELETE" });
+      },
     },
   };
   return impl;

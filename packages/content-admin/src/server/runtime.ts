@@ -20,6 +20,7 @@ import {
   type Database,
   makeDatabase,
   makeMediaStore,
+  makeViewStore,
   type SqlDriver,
   type Storage,
 } from "@voila/content/server";
@@ -108,8 +109,12 @@ export function createAdminRuntime(
       ? undefined
       : { storage: options.storage, store: makeMediaStore(driver) };
 
+  // Saved views are always available in the admin (auth is always wired here, so
+  // every `_views` request has an owner from the resolved principal).
+  const views = { store: makeViewStore(driver) };
+
   const restHandler = createRestHandler(
-    { config, database, media },
+    { config, database, media, views },
     {
       basePath,
       auth: auth.authenticator,

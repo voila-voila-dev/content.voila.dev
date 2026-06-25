@@ -28,6 +28,8 @@ import type {
   Document,
   DraftFilter,
   FieldValue,
+  FilterOp,
+  ListFilter,
   ListOpts,
   ListResult,
   OrderDirection,
@@ -247,6 +249,28 @@ function draftPredicate(table: TableInfo, status: DraftFilter): Sql | null {
   ]);
 }
 
+// SQL operator per filter op. `contains` is handled separately (a `LIKE` with
+// wildcards around the value), so it isn't in this map.
+const FILTER_SQL_OP: Record<Exclude<FilterOp, "contains">, string> = {
+  eq: "=",
+  ne: "<>",
+  gt: ">",
+  gte: ">=",
+  lt: "<",
+  lte: "<=",
+};
+
+// The `WHERE` fragment for one list filter, resolved against a known column.
+// `contains` matches a substring (case-insensitive `LIKE`); the rest compare the
+// value encoded to the column's storage form (so a boolean binds as 0/1, etc.).
+function filterPredicate(info: ColumnInfo, filter: ListFilter): Sql {
+  const col = quoteId(info.name);
+  if (filter.op === "contains") {
+    return frag(`${col} LIKE ?`, [`%${String(filter.value)}%`]);
+  }
+  return frag(`${col} ${FILTER_SQL_OP[filter.op]} ?`, [encodeValue(info, filter.value)]);
+}
+
 // Snapshot field names the server owns. Stripped when a revision is restored —
 // `update` re-stamps the timestamps, and publish state is managed by the
 // publish routes, not by time travel.
@@ -418,6 +442,19 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
     const scopeConditions: Array<Sql> = [frag(`${quoteId("deleted_at")} IS NULL`)];
     const draftScope = draftPredicate(table, opts.status ?? "published");
     if (draftScope !== null) scopeConditions.push(draftScope);
+
+    // Field filters fold into the scope (before the cursor) so both the page
+    // query and the optional COUNT honor them. Unknown fields are rejected, the
+    // same as `orderBy`.
+    for (const filter of opts.filters ?? []) {
+      const info = table.byField.get(filter.field);
+      if (info === undefined) {
+        throw new DatabaseError({
+          message: `Unknown filter field "${filter.field}" on "${collection}".`,
+        });
+      }
+      scopeConditions.push(filterPredicate(info, filter));
+    }
 
     const conditions: Array<Sql> = [...scopeConditions];
     if (opts.cursor !== undefined) {

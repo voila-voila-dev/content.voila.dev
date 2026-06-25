@@ -1,5 +1,6 @@
 // @voila/content/collection — defineCollection.
 
+import type { GroupDef } from "./_groups";
 import type { FieldsMap } from "./fields";
 
 /**
@@ -54,6 +55,14 @@ export interface CollectionDef<
    * `voila_search` store, so row shapes are unchanged and it isn't type-level.
    */
   readonly search?: SearchOption;
+  /**
+   * Optional field groups for the admin detail/edit page (a left sub-nav, one
+   * polished card per group). Order is array order. Held with the wide
+   * `GroupDef` (string keys) for the same reason as `titleField`;
+   * `defineCollection` checks each group's field keys against the declared
+   * fields at the authoring site. Omit for the flat (ungrouped) layout.
+   */
+  readonly groups?: ReadonlyArray<GroupDef>;
   readonly fields: Fields;
 }
 
@@ -74,6 +83,7 @@ export function defineCollection<
   readonly drafts?: Drafts;
   readonly revisions?: boolean;
   readonly search?: SearchOption;
+  readonly groups?: ReadonlyArray<GroupDef<keyof Fields & string>>;
   readonly fields: Fields;
 }): Collection<Slug, Fields, Drafts> {
   return {
@@ -84,6 +94,7 @@ export function defineCollection<
     drafts: def.drafts,
     revisions: def.revisions,
     search: def.search,
+    groups: def.groups,
     fields: def.fields,
   };
 }

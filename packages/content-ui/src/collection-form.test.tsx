@@ -253,3 +253,147 @@ describe("CollectionForm — unsaved-changes guard", () => {
     await waitFor(() => expect(wouldPromptOnLeave()).toBe(false));
   });
 });
+
+describe("CollectionForm — field groups", () => {
+  const grouped = defineCollection({
+    slug: "posts",
+    fields: {
+      title: fields.string({ required: true }),
+      body: fields.string(),
+      seo: fields.string({ required: true }),
+    },
+    groups: [
+      { id: "content", label: "Content", fields: ["title", "body"] },
+      { id: "meta", label: "Metadata", fields: ["seo"] },
+    ],
+  });
+
+  test("renders a sub-nav and only the active group's fields (first by default)", () => {
+    const { container } = render(<CollectionForm collection={grouped} onSubmit={mock()} />);
+    expect(screen.getByRole("button", { name: "Content" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Metadata" })).toBeDefined();
+    // Active = first group (content) → title/body shown, seo (group meta) hidden.
+    expect(container.querySelector("#posts-title")).not.toBeNull();
+    expect(container.querySelector("#posts-seo")).toBeNull();
+  });
+
+  test("selecting a group in the sub-nav switches the rendered fields", () => {
+    const { container } = render(<CollectionForm collection={grouped} onSubmit={mock()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Metadata" }));
+    expect(container.querySelector("#posts-seo")).not.toBeNull();
+    expect(container.querySelector("#posts-title")).toBeNull();
+  });
+
+  test("the footer Save submits the whole form, including other groups' fields", async () => {
+    const onSubmit = mock();
+    render(
+      <CollectionForm
+        collection={grouped}
+        onSubmit={onSubmit}
+        defaultValues={{ title: "T", body: "B", seo: "S" }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    // `seo` lives in the inactive `meta` group but is still validated + submitted.
+    expect(onSubmit.mock.calls[0]?.[0]).toEqual({ title: "T", body: "B", seo: "S" });
+  });
+
+  test("a failed submit switches to the failing field's group and focuses it", async () => {
+    const onSubmit = mock();
+    const { container } = render(
+      <CollectionForm
+        collection={grouped}
+        onSubmit={onSubmit}
+        defaultValues={{ title: "T", body: "B", seo: "" }}
+      />,
+    );
+    // `seo` (required, empty) lives in the inactive `meta` group.
+    fireEvent.submit(form(container));
+    expect(onSubmit).not.toHaveBeenCalled();
+    await waitFor(() => expect(container.querySelector("#posts-seo")).not.toBeNull());
+    // The form switched to `meta` and moved focus onto the offending field.
+    await waitFor(() => expect(document.activeElement?.id).toBe("posts-seo"));
+    expect(screen.getByRole("button", { name: "Metadata" }).getAttribute("aria-current")).toBe(
+      "page",
+    );
+  });
+
+  test("an in-group failure focuses synchronously without switching groups", () => {
+    const { container } = render(
+      <CollectionForm
+        collection={grouped}
+        onSubmit={mock()}
+        defaultValues={{ title: "", body: "B", seo: "S" }}
+      />,
+    );
+    fireEvent.submit(form(container));
+    // `title` is in the active `content` group → focus lands at once, no switch.
+    expect(document.activeElement?.id).toBe("posts-title");
+  });
+
+  test("notifies onGroupChange and reflects the controlled activeGroup", () => {
+    const onGroupChange = mock();
+    const { container, rerender } = render(
+      <CollectionForm
+        collection={grouped}
+        onSubmit={mock()}
+        activeGroup="meta"
+        onGroupChange={onGroupChange}
+      />,
+    );
+    expect(container.querySelector("#posts-seo")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Content" }));
+    expect(onGroupChange).toHaveBeenCalledWith("content");
+    // Controlled: a new prop value drives which group renders.
+    rerender(
+      <CollectionForm
+        collection={grouped}
+        onSubmit={mock()}
+        activeGroup="content"
+        onGroupChange={onGroupChange}
+      />,
+    );
+    expect(container.querySelector("#posts-title")).not.toBeNull();
+  });
+
+  test("surfaces a server error on a field in another group and switches to it", async () => {
+    // Regression: a 409/422 keyed to a field in a non-active group used to render
+    // nowhere (not inline, not form-level). It must now be visible.
+    const { container } = render(
+      <CollectionForm
+        collection={grouped}
+        onSubmit={mock()}
+        serverErrors={{ seo: "Already in use." }}
+      />,
+    );
+    // The effect switches to `seo`'s group (meta); its input mounts and the
+    // inline error shows.
+    await waitFor(() => expect(container.querySelector("#posts-seo")).not.toBeNull());
+    expect(screen.getByText("Already in use.")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Metadata" }).getAttribute("aria-current")).toBe(
+      "page",
+    );
+  });
+
+  test("slug derivation works across groups (shared form state)", () => {
+    const withSlug = defineCollection({
+      slug: "posts",
+      fields: {
+        title: fields.string({ required: true }),
+        slug: fields.slug({ from: "title" }),
+      },
+      groups: [
+        { id: "content", fields: ["title"] },
+        { id: "meta", fields: ["slug"] },
+      ],
+    });
+    const { container } = render(<CollectionForm collection={withSlug} onSubmit={mock()} />);
+    fireEvent.change(container.querySelector("#posts-title") as HTMLInputElement, {
+      target: { value: "Hello World" },
+    });
+    // Switch to the `meta` group: the slug derived from a field in another group.
+    fireEvent.click(screen.getByRole("button", { name: "Meta" }));
+    expect((container.querySelector("#posts-slug") as HTMLInputElement).value).toBe("hello-world");
+  });
+});

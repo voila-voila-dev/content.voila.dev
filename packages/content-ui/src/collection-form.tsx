@@ -10,7 +10,10 @@ import { buttonVariants } from "@voila/ui/button";
 import { cn } from "@voila/ui/cn";
 import { Label } from "@voila/ui/label";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import { FieldCard } from "./field-card";
+import { FieldGroupNav } from "./field-group-nav";
 import type { Doc } from "./lib/doc";
+import { resolveFieldGroups } from "./lib/groups";
 import { getFieldLabel, humanize } from "./lib/humanize";
 import { localizedFieldErrors, validateFields } from "./lib/validate";
 import { LocalizedFieldEditor } from "./localized-field";
@@ -58,6 +61,16 @@ export interface CollectionFormProps<C extends Collection = Collection> {
    * validation); keys without a rendered field surface in the form-level slot.
    */
   readonly serverErrors?: Readonly<Record<string, string>>;
+  /**
+   * The active field group's id, when the collection declares `groups`. The
+   * form renders a left sub-nav + one card per group, with a single Save in the
+   * active group's footer that submits (and validates) the whole form. Optional
+   * and controlled — omit it and the form tracks its own active group,
+   * defaulting to the first. Ignored when the collection has no `groups`.
+   */
+  readonly activeGroup?: string;
+  /** Called with a group id when the user picks one in the sub-nav. */
+  readonly onGroupChange?: (id: string) => void;
 }
 
 function resolveFieldKeys(collection: Collection, fields?: ReadonlyArray<string>): string[] {
@@ -99,6 +112,8 @@ export function CollectionForm<C extends Collection = Collection>({
   submitLabel = "Save",
   error,
   serverErrors,
+  activeGroup,
+  onGroupChange,
 }: CollectionFormProps<C>): ReactNode {
   const keys = resolveFieldKeys(collection, fields);
   const { bySource, derivable } = slugDerivations(collection, keys);
@@ -148,6 +163,60 @@ export function CollectionForm<C extends Collection = Collection>({
     return latched;
   });
 
+  // Grouped layout (when the collection declares `groups`): a left sub-nav + one
+  // card holding the active group's fields, with a single Save that submits the
+  // whole form. The form keeps ONE shared values/errors/slug state above —
+  // groups only partition which fields render, so validation and submit still
+  // cover every field (and slug derivation works across groups). The active
+  // group is internal state so a focus-driven switch (below) takes effect
+  // immediately; the controlled `activeGroup` prop is synced into it.
+  const grouped = (collection.groups?.length ?? 0) > 0;
+  const resolvedGroups = grouped ? resolveFieldGroups(collection, { fields }) : [];
+  const firstGroupId = resolvedGroups[0]?.id;
+  // Seed from the controlled prop so it's honored on the first render too (the
+  // sync below only fires on subsequent prop changes); fall back to the first
+  // group when uncontrolled.
+  const [internalGroup, setInternalGroup] = useState<string | undefined>(
+    activeGroup ?? firstGroupId,
+  );
+  const [prevActiveGroup, setPrevActiveGroup] = useState(activeGroup);
+  if (activeGroup !== prevActiveGroup) {
+    setPrevActiveGroup(activeGroup);
+    if (activeGroup !== undefined) setInternalGroup(activeGroup);
+  }
+  const activeGroupId = resolvedGroups.some((g) => g.id === internalGroup)
+    ? internalGroup
+    : firstGroupId;
+  const activeResolved = resolvedGroups.find((g) => g.id === activeGroupId);
+  function selectGroup(id: string) {
+    setInternalGroup(id);
+    onGroupChange?.(id);
+  }
+
+  // Focus a field that lives in another group on a failed submit: switching to
+  // its group mounts the input on the next render, so the focus is deferred to
+  // this effect (the in-group case stays synchronous in `focusFirstError`).
+  const [pendingFocusId, setPendingFocusId] = useState<string | null>(null);
+  useEffect(() => {
+    if (pendingFocusId === null) return;
+    document.getElementById(pendingFocusId)?.focus();
+    setPendingFocusId(null);
+  }, [pendingFocusId]);
+
+  // Server errors (a 422/409 on submit) can land on a field in a group that
+  // isn't currently shown. Switch to the first such field's group so its inline
+  // message is visible — the form-level mirror covers it regardless, but this
+  // brings the user to the field. Runs after render, so the parent
+  // `onGroupChange` call is safe.
+  useEffect(() => {
+    if (!grouped || serverErrors === undefined) return;
+    const firstKey = keys.find((key) => serverErrors[key] !== undefined);
+    if (firstKey === undefined) return;
+    const target = resolvedGroups.find((group) => group.fieldKeys.includes(firstKey));
+    if (target && target.id !== activeGroupId) selectGroup(target.id);
+    // Only react to a new serverErrors object.
+  }, [serverErrors]);
+
   function handleChange(name: string, value: unknown) {
     setDirty(true);
     const derivedKeys = (bySource[name] ?? []).filter((k) => !latchedSlugs.has(k));
@@ -195,6 +264,17 @@ export function CollectionForm<C extends Collection = Collection>({
     const localized = collection.fields[firstKey]?.meta.localized === true && locales !== undefined;
     const id = `${collection.slug}-${firstKey}`;
     const targetId = localized ? `${id}-${locales?.[0]}` : id;
+    // Grouped: if the first failed field lives in another group, switch to it
+    // and defer the focus until it's mounted (next render). Otherwise the
+    // control is already on-screen, so focus it synchronously.
+    if (grouped) {
+      const target = resolvedGroups.find((g) => g.fieldKeys.includes(firstKey));
+      if (target && target.id !== activeGroupId) {
+        selectGroup(target.id);
+        setPendingFocusId(targetId);
+        return;
+      }
+    }
     document.getElementById(targetId)?.focus();
   }
 
@@ -220,82 +300,140 @@ export function CollectionForm<C extends Collection = Collection>({
     }
   }
 
+  // One field's label + widget + inline error, shared by the flat and grouped
+  // layouts. `keys` order drives the flat layout; a group's `fieldKeys` order
+  // drives the grouped one.
+  function renderField(key: string): ReactNode {
+    const field = collection.fields[key];
+    if (!field) return null;
+    const id = `${collection.slug}-${key}`;
+    const fieldError = errors[key];
+    const required = field.meta.required === true;
+    const localized = field.meta.localized === true && locales !== undefined;
+    const Widget = localized ? null : resolveEditWidget(field.meta, registry);
+    // For a failed localized field, resolve the message down to the locale(s)
+    // that actually failed so the error doesn't repeat under every locale.
+    // Empty (e.g. a server error client validation can't reproduce) → fall
+    // back to the single field-level message below.
+    const localeErrors =
+      localized && fieldError !== undefined
+        ? localizedFieldErrors(field, values[key], locales ?? [])
+        : undefined;
+    const hasLocaleErrors = localeErrors !== undefined && Object.keys(localeErrors).length > 0;
+    return (
+      <div key={key} className="space-y-1.5">
+        <Label id={`${id}-label`} htmlFor={localized ? `${id}-${locales?.[0]}` : id}>
+          {getFieldLabel(key, field)}
+          {required ? (
+            <span aria-hidden className="ml-0.5 text-destructive">
+              *
+            </span>
+          ) : null}
+        </Label>
+        {localized ? (
+          <LocalizedFieldEditor
+            field={field}
+            locales={locales ?? []}
+            value={values[key]}
+            onChange={(v) => handleChange(key, v)}
+            id={id}
+            labelId={`${id}-label`}
+            registry={registry}
+            errors={localeErrors}
+            disabled={submitting}
+          />
+        ) : Widget ? (
+          <Widget
+            value={values[key]}
+            onChange={(v) => handleChange(key, v)}
+            field={field}
+            id={id}
+            labelId={`${id}-label`}
+            error={fieldError}
+            disabled={submitting}
+          />
+        ) : null}
+        {/* Field-level message — suppressed for a localized field once its
+            per-locale errors render inline, to avoid showing it twice. */}
+        {fieldError && !hasLocaleErrors ? (
+          <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
+            {fieldError}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  // The field keys actually mounted right now: every eligible field in the flat
+  // layout, but only the ACTIVE group's fields when grouped. An error keyed to
+  // an unmounted field (a hidden field, or — when grouped — a field in another
+  // group) renders nowhere inline, so it must surface form-level.
+  const renderedKeys = grouped && activeResolved ? activeResolved.fieldKeys : keys;
+  const formLevelErrors = Object.entries(errors)
+    .filter(([key]) => !renderedKeys.includes(key))
+    .map(([key, message]) => (
+      <p key={key} role="alert" className="text-sm text-destructive">
+        {humanize(key)}: {message}
+      </p>
+    ));
+  const formError = error ? (
+    <p role="alert" className="text-sm text-destructive">
+      {error}
+    </p>
+  ) : null;
+
+  // Grouped layout: a left sub-nav + the active group's fields in a card, with a
+  // single Save in the footer that submits (and validates) the whole form.
+  if (grouped && activeResolved) {
+    return (
+      <form onSubmit={handleSubmit} noValidate>
+        <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
+          <FieldGroupNav
+            groups={resolvedGroups}
+            activeGroup={activeResolved.id}
+            onSelect={selectGroup}
+            title="Sections"
+          />
+          <div className="min-w-0 flex-1">
+            <FieldCard.Root>
+              <FieldCard.Body className="space-y-4">
+                <div className="space-y-1">
+                  <FieldCard.Title>{activeResolved.label}</FieldCard.Title>
+                  {activeResolved.description ? (
+                    <FieldCard.Description>{activeResolved.description}</FieldCard.Description>
+                  ) : null}
+                </div>
+                {activeResolved.fieldKeys.map(renderField)}
+                {formLevelErrors}
+                {formError}
+              </FieldCard.Body>
+              <FieldCard.Footer>
+                <FieldCard.FooterDescription>
+                  {dirty ? "Unsaved changes" : ""}
+                </FieldCard.FooterDescription>
+                {/* Native submit button (not `FieldCard.Button`): the @voila/ui
+                    Button keeps its own `type="button"`, which wouldn't submit. */}
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className={cn(buttonVariants({ size: "sm" }))}
+                >
+                  {submitLabel}
+                </button>
+              </FieldCard.Footer>
+            </FieldCard.Root>
+          </div>
+        </div>
+      </form>
+    );
+  }
+
+  // Flat layout (no `groups`): every field stacked, one submit button.
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
-      {keys.map((key) => {
-        const field = collection.fields[key];
-        if (!field) return null;
-        const id = `${collection.slug}-${key}`;
-        const fieldError = errors[key];
-        const required = field.meta.required === true;
-        const localized = field.meta.localized === true && locales !== undefined;
-        const Widget = localized ? null : resolveEditWidget(field.meta, registry);
-        // For a failed localized field, resolve the message down to the locale(s)
-        // that actually failed so the error doesn't repeat under every locale.
-        // Empty (e.g. a server error client validation can't reproduce) → fall
-        // back to the single field-level message below.
-        const localeErrors =
-          localized && fieldError !== undefined
-            ? localizedFieldErrors(field, values[key], locales ?? [])
-            : undefined;
-        const hasLocaleErrors = localeErrors !== undefined && Object.keys(localeErrors).length > 0;
-        return (
-          <div key={key} className="space-y-1.5">
-            <Label id={`${id}-label`} htmlFor={localized ? `${id}-${locales?.[0]}` : id}>
-              {getFieldLabel(key, field)}
-              {required ? (
-                <span aria-hidden className="ml-0.5 text-destructive">
-                  *
-                </span>
-              ) : null}
-            </Label>
-            {localized ? (
-              <LocalizedFieldEditor
-                field={field}
-                locales={locales ?? []}
-                value={values[key]}
-                onChange={(v) => handleChange(key, v)}
-                id={id}
-                labelId={`${id}-label`}
-                registry={registry}
-                errors={localeErrors}
-                disabled={submitting}
-              />
-            ) : Widget ? (
-              <Widget
-                value={values[key]}
-                onChange={(v) => handleChange(key, v)}
-                field={field}
-                id={id}
-                labelId={`${id}-label`}
-                error={fieldError}
-                disabled={submitting}
-              />
-            ) : null}
-            {/* Field-level message — suppressed for a localized field once its
-                per-locale errors render inline, to avoid showing it twice. */}
-            {fieldError && !hasLocaleErrors ? (
-              <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
-                {fieldError}
-              </p>
-            ) : null}
-          </div>
-        );
-      })}
-      {/* Errors keyed to a field the form doesn't render (a conflict on a
-          hidden field, say) must still be visible — show them form-level. */}
-      {Object.entries(errors)
-        .filter(([key]) => !keys.includes(key))
-        .map(([key, message]) => (
-          <p key={key} role="alert" className="text-sm text-destructive">
-            {humanize(key)}: {message}
-          </p>
-        ))}
-      {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
+      {keys.map(renderField)}
+      {formLevelErrors}
+      {formError}
       {/* A native submit button so pressing Enter / clicking submits the form;
           styled with the @voila/ui button tokens. */}
       <button type="submit" disabled={submitting} className={cn(buttonVariants())}>
