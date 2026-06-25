@@ -15,6 +15,7 @@ import { cn } from "@voila/ui/cn";
 import { Input } from "@voila/ui/input";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { hasWebGL } from "../lib/webgl";
+import { type DisplayWidgetProps, Empty } from "./display";
 import type { EditWidget, EditWidgetProps } from "./edit";
 
 /** Read a geo value loosely — each coordinate is present only if it's a number. */
@@ -25,6 +26,32 @@ export function readGeoValue(value: unknown): { lat?: number; lng?: number } {
     ...(typeof lat === "number" ? { lat } : {}),
     ...(typeof lng === "number" ? { lng } : {}),
   };
+}
+
+/** Trim a coordinate to ~1 m precision without trailing-zero noise. */
+function formatCoord(n: number): string {
+  return n.toFixed(5).replace(/\.?0+$/, "");
+}
+
+/**
+ * Read-only geo renderer for tables + detail rows: the `{ lat, lng }` point as
+ * trimmed `lat, lng`, linking out to OpenStreetMap. Without it, a geo field
+ * falls through to the raw-JSON display.
+ */
+export function GeoDisplay({ value }: DisplayWidgetProps): ReactNode {
+  const { lat, lng } = readGeoValue(value);
+  if (lat === undefined || lng === undefined) return <Empty />;
+  return (
+    <a
+      href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=12/${lat}/${lng}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Open in OpenStreetMap"
+      className="text-primary hover:underline"
+    >
+      {formatCoord(lat)}, {formatCoord(lng)}
+    </a>
+  );
 }
 
 /**

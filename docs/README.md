@@ -7,6 +7,12 @@
 - [dx.md](./dx.md) — the target developer experience (the north star)
 - [roadmap.md](./roadmap.md) — what's done and what's next
 
+**Guides** (how to use it):
+
+- [admin-features.md](./admin-features.md) — field groups, saved views, filters,
+  kanban/map, geo fields, per-field save, local-dev auth (the 0.2 surface)
+- [releasing.md](./releasing.md) — how to cut a release
+
 **Standing reviews** (current state; updated in place, not re-dated):
 
 - [dx-review.md](./dx-review.md) — DX findings, P1→P3

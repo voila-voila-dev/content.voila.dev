@@ -16,6 +16,7 @@ import {
   RichTextValueDisplay,
   TextDisplay,
 } from "../widgets/display";
+import { GeoDisplay } from "../widgets/geo";
 import { MediaDisplay } from "../widgets/media";
 import { mergeMaps } from "./merge";
 import { resolveWidget } from "./resolve";
@@ -44,6 +45,7 @@ export const defaultDisplayRegistry: DisplayRegistry = {
   datetime: DateDisplay,
   time: DateDisplay,
   media: MediaDisplay,
+  geo: GeoDisplay,
 };
 
 /** Merge a caller's overrides over the default display widgets. */
