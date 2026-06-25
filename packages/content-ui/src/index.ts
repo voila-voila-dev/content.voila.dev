@@ -110,6 +110,7 @@ export {
 export {
   type CreateGeoInputOptions,
   createGeoInput,
+  GeoDisplay,
   GeoInput,
 } from "./widgets/geo";
 export {

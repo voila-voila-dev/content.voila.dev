@@ -6,7 +6,7 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { type Field, fields } from "@voila/content";
 import { useState } from "react";
-import { createGeoInput, GeoInput, nextGeo, readGeoValue } from "./geo";
+import { createGeoInput, GeoDisplay, GeoInput, nextGeo, readGeoValue } from "./geo";
 
 afterEach(cleanup);
 
@@ -99,5 +99,25 @@ describe("createGeoInput", () => {
     );
     expect(screen.getByLabelText("Latitude")).toBeDefined();
     expect(screen.getByLabelText("Location picker")).toBeDefined();
+  });
+});
+
+describe("GeoDisplay", () => {
+  test("renders trimmed coordinates linking to OpenStreetMap", () => {
+    render(<GeoDisplay value={{ lat: 48.8566, lng: 2.35221 }} meta={geoField.meta} />);
+    const link = screen.getByRole("link", { name: "48.8566, 2.35221" });
+    expect(link.getAttribute("href")).toContain("openstreetmap.org");
+    expect(link.getAttribute("href")).toContain("mlat=48.8566");
+  });
+
+  test("trims trailing zeros and whole numbers", () => {
+    render(<GeoDisplay value={{ lat: 48, lng: -0.5 }} meta={geoField.meta} />);
+    expect(screen.getByRole("link", { name: "48, -0.5" })).toBeDefined();
+  });
+
+  test("shows the empty marker for an incomplete or missing point", () => {
+    const { container } = render(<GeoDisplay value={{ lat: 48 }} meta={geoField.meta} />);
+    expect(container.querySelector("a")).toBeNull();
+    expect(container.textContent).toContain("—");
   });
 });
