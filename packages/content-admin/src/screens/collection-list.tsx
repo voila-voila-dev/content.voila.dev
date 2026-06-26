@@ -256,23 +256,11 @@ export function CollectionListScreen(): ReactNode {
     navigate({ href: `${admin.basePath}/${slug}/${row.id}` });
   }
 
-  // The view tab bar (create / switch / configure shared views).
-  const tabs = (
-    <ViewTabs
-      views={savedViews}
-      activeViewId={activeViewId}
-      onSelect={selectView}
-      onCreate={(input) => views.create.mutate(input)}
-      onRename={(id, name) => views.rename.mutate({ id, name })}
-      onDelete={(id) => views.remove.mutate(id)}
-      onSetDefault={(id, isDefault) => views.setDefault.mutate({ id, isDefault })}
-      fields={viewFields}
-    />
-  );
-
-  // The per-view controls — filters always; the column picker on the table view.
-  const controls = (
-    <div className="flex flex-wrap items-center gap-3">
+  // The per-view editor — filters always; columns on the table view, card fields
+  // on a board/map/calendar. Lives inside the view's "Edit view" dialog (opened
+  // from a tab's context menu), bound to the active view's config.
+  const viewEditor = (
+    <>
       <FilterBuilder
         collection={collection}
         value={working.filters ?? []}
@@ -289,6 +277,29 @@ export function CollectionListScreen(): ReactNode {
           label="Card fields"
         />
       ) : null}
+    </>
+  );
+
+  // The view tab bar (create / switch / configure shared views).
+  const tabs = (
+    <ViewTabs
+      views={savedViews}
+      activeViewId={activeViewId}
+      onSelect={selectView}
+      onCreate={(input) => views.create.mutate(input)}
+      onRename={(id, name) => views.rename.mutate({ id, name })}
+      onDelete={(id) => views.remove.mutate(id)}
+      onSetDefault={(id, isDefault) => views.setDefault.mutate({ id, isDefault })}
+      onReorder={(ids) => views.reorder.mutate(ids)}
+      fields={viewFields}
+      editor={viewEditor}
+    />
+  );
+
+  // Toolbar actions kept beside the title (filters/columns now live in the view
+  // editor). Host-supplied list actions + the New link remain.
+  const controls = (
+    <div className="flex flex-wrap items-center gap-3">
       {admin.slots.collection?.listActions?.({ slug, client: admin.client })}
       <AdminLink
         href={`${admin.basePath}/${slug}/new`}

@@ -27,6 +27,7 @@ function setup(overrides: Partial<React.ComponentProps<typeof ViewTabs>> = {}) {
     onRename: mock(),
     onDelete: mock(),
     onSetDefault: mock(),
+    onReorder: mock(),
     fields,
     ...overrides,
   };
@@ -75,18 +76,53 @@ describe("ViewTabs", () => {
     expect(options).toEqual(["Table"]);
   });
 
-  test("the seeded default view can be set-as-default but not deleted", () => {
+  test("right-clicking the seeded default view offers default toggle but not delete", () => {
     const props = setup({ activeViewId: "default-posts" });
-    fireEvent.click(screen.getByRole("button", { name: "Table settings" }));
-    expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Default/ }));
-    expect(props.onSetDefault).toHaveBeenCalled();
+    fireEvent.contextMenu(screen.getByRole("tab", { name: /Table/ }));
+    expect(screen.queryByRole("menuitem", { name: "Delete" })).toBeNull();
+    // It's already the default, so the toggle reads "Remove default".
+    fireEvent.click(screen.getByRole("menuitem", { name: "Remove default" }));
+    expect(props.onSetDefault).toHaveBeenCalledWith("default-posts", false);
   });
 
-  test("a non-seeded view can be deleted", () => {
+  test("a non-seeded view can be deleted from its context menu", () => {
     const props = setup({ activeViewId: "v2" });
-    fireEvent.click(screen.getByRole("button", { name: "Board settings" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.contextMenu(screen.getByRole("tab", { name: "Board" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
     expect(props.onDelete).toHaveBeenCalledWith("v2");
+  });
+
+  test("editing a view selects it and shows the host editor", () => {
+    const props = setup({
+      activeViewId: "default-posts",
+      editor: <button type="button">My filters</button>,
+    });
+    fireEvent.contextMenu(screen.getByRole("tab", { name: "Board" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit view" }));
+    // Opening the editor selects the view it edits.
+    expect(props.onSelect).toHaveBeenCalledWith("v2");
+    // The host-provided editor renders inside the dialog.
+    expect(screen.getByRole("button", { name: "My filters" })).toBeDefined();
+  });
+
+  test("dragging a tab onto another emits the reordered id list", () => {
+    const props = setup({ activeViewId: "default-posts" });
+    const board = screen.getByRole("tab", { name: "Board" }).parentElement as HTMLElement;
+    const table = screen.getByRole("tab", { name: /Table/ }).parentElement as HTMLElement;
+    const dataTransfer = {
+      data: {} as Record<string, string>,
+      setData(type: string, val: string) {
+        this.data[type] = val;
+      },
+      getData(type: string) {
+        return this.data[type] ?? "";
+      },
+      effectAllowed: "",
+    };
+    fireEvent.dragStart(board, { dataTransfer });
+    fireEvent.dragOver(table, { dataTransfer });
+    fireEvent.drop(table, { dataTransfer });
+    // Board (v2) moved before Table (default-posts).
+    expect(props.onReorder).toHaveBeenCalledWith(["v2", "default-posts"]);
   });
 });

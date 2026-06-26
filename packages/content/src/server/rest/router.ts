@@ -67,6 +67,7 @@ import {
   handleViewsCreate,
   handleViewsDelete,
   handleViewsList,
+  handleViewsReorder,
   handleViewsUpdate,
   VIEWS_SEGMENT,
   type ViewsContext,
@@ -360,6 +361,11 @@ const VIEWS_ROUTES: ReadonlyArray<RouteMatcher<ViewsRouteRequest>> = [
   views("POST", ":collection/_views", {
     operation: "create",
     run: (m, { collection }, p) => handleViewsCreate(m.views, collection, m.request, p),
+  }),
+  // Literal `reorder` wins over `:id` (no id is ever "reorder"), like `search`.
+  views("POST", ":collection/_views/reorder", {
+    operation: "update",
+    run: (m, { collection }, p) => handleViewsReorder(m.views, collection, m.request, p),
   }),
   views("PATCH", ":collection/_views/:id", {
     operation: "update",

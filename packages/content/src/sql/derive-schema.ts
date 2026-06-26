@@ -312,6 +312,15 @@ function viewsTable(): TableSchema {
         notNull: true,
         defaultExpr: { sqlite: "0", postgres: "false" },
       },
+      // The tab order within a collection (ascending). New views append at the
+      // end; the `reorder` store method rewrites these. Ties break on created_at.
+      {
+        name: "position",
+        fieldName: "position",
+        type: INTEGER,
+        notNull: true,
+        defaultExpr: { sqlite: "0", postgres: "0" },
+      },
       {
         name: "created_at",
         fieldName: "createdAt",

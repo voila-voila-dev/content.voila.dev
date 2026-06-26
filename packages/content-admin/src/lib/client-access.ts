@@ -34,6 +34,7 @@ export interface AnyViewsClient {
   create(view: NewView): Promise<SavedView>;
   update(id: string, patch: ViewPatch): Promise<SavedView>;
   delete(id: string): Promise<void>;
+  reorder(ids: ReadonlyArray<string>): Promise<void>;
 }
 
 /** The CRUD surface the generic screens use, erased of per-collection typing. */
