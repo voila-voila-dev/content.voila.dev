@@ -13,6 +13,7 @@ import { FieldRenderer } from "./field-renderer";
 import type { Doc } from "./lib/doc";
 import { resolveFieldGroups } from "./lib/groups";
 import { getFieldLabel, humanize } from "./lib/humanize";
+import { PageLayout } from "./page-layout";
 import type { DisplayRegistry } from "./registry/registry";
 
 export interface DetailViewProps {
@@ -141,64 +142,68 @@ export function DetailView({
         ? (emptyMessage ?? "Not found.")
         : "";
 
+  // The read card's body: an optional group description over the field list.
+  // A self-contained (fully-closed) `FieldCard.Card` — there's no Save footer
+  // in the read view, so an open-bottomed `Body` would look unfinished.
+  function readCard(fieldKeys: readonly string[], groupDescription?: string): ReactNode {
+    return (
+      <FieldCard.Root>
+        <FieldCard.Card className="space-y-3">
+          {groupDescription ? (
+            <FieldCard.Description className="mt-0">{groupDescription}</FieldCard.Description>
+          ) : null}
+          <dl className="grid grid-cols-[minmax(8rem,12rem)_1fr] gap-x-4 gap-y-3 text-sm">
+            {fieldKeys.map((key) => fieldRow(key, doc as Doc))}
+          </dl>
+        </FieldCard.Card>
+      </FieldCard.Root>
+    );
+  }
+
   return (
-    <section className="space-y-4">
+    <PageLayout.Root>
       <p aria-live="polite" className="sr-only">
         {liveMessage}
       </p>
 
-      <header className="flex items-start gap-4">
+      <PageLayout.Header>
         <div className="space-y-1">
-          {/* `tabIndex={-1}` makes the page heading programmatically focusable so
-              a host can move focus here on a route / mode change (SPA focus
-              management) without it landing in the tab order. */}
-          <h1 tabIndex={-1} className="text-lg font-semibold focus:outline-none">
-            {heading}
-          </h1>
-          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+          <PageLayout.Title>{heading}</PageLayout.Title>
+          {description ? <PageLayout.Description>{description}</PageLayout.Description> : null}
         </div>
-        {actions && hasDoc ? (
-          <div className="ml-auto flex items-center gap-2">{actions}</div>
-        ) : null}
-      </header>
+        {actions && hasDoc ? <div className="flex items-center gap-2">{actions}</div> : null}
+      </PageLayout.Header>
 
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
+        <PageLayout.Body>
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        </PageLayout.Body>
       ) : hasDoc ? (
         grouped && activeResolved ? (
-          <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
+          // The sub-nav stays pinned full-height beside the scrolling card body.
+          <PageLayout.NavigationLayout>
             <FieldGroupNav
               groups={resolvedGroups}
               activeGroup={activeResolved.id}
               onSelect={selectGroup}
               title="Sections"
             />
-            <div className="min-w-0 flex-1">
-              <FieldCard.Root>
-                <FieldCard.Body>
-                  <FieldCard.Title>{activeResolved.label}</FieldCard.Title>
-                  {activeResolved.description ? (
-                    <FieldCard.Description>{activeResolved.description}</FieldCard.Description>
-                  ) : null}
-                  <dl className="grid grid-cols-[minmax(8rem,12rem)_1fr] gap-x-4 gap-y-3 text-sm">
-                    {activeResolved.fieldKeys.map((key) => fieldRow(key, doc))}
-                  </dl>
-                </FieldCard.Body>
-              </FieldCard.Root>
-            </div>
-          </div>
+            <PageLayout.Body>
+              {readCard(activeResolved.fieldKeys, activeResolved.description)}
+            </PageLayout.Body>
+          </PageLayout.NavigationLayout>
         ) : (
-          <dl className="grid grid-cols-[minmax(8rem,12rem)_1fr] gap-x-4 gap-y-3 text-sm">
-            {rows.map((row) => fieldRow(row.key, doc))}
-          </dl>
+          <PageLayout.Body>{readCard(rows.map((row) => row.key))}</PageLayout.Body>
         )
       ) : (
-        <p className="text-sm text-muted-foreground">
-          {loading ? "Loading…" : (emptyMessage ?? "Not found.")}
-        </p>
+        <PageLayout.Body>
+          <p className="text-sm text-muted-foreground">
+            {loading ? "Loading…" : (emptyMessage ?? "Not found.")}
+          </p>
+        </PageLayout.Body>
       )}
-    </section>
+    </PageLayout.Root>
   );
 }

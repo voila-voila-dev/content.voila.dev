@@ -91,12 +91,15 @@ export interface ListParams<Doc> {
   readonly status?: DraftFilter;
   /** Server-side field predicates, AND-ed into the scope. */
   readonly filters?: ReadonlyArray<ListFilter<Doc>>;
+  /** Fetch only these fields (`?fields=`); `id` always comes back. A performance
+   *  hint — projected-away fields are simply absent from each returned doc. */
+  readonly fields?: ReadonlyArray<string>;
   /** Also fetch the total row count for the same scope (`total` on the page). */
   readonly count?: boolean;
 }
 
 /** The shape a saved view renders as. */
-export type ViewType = "table" | "kanban" | "map";
+export type ViewType = "table" | "kanban" | "map" | "calendar";
 
 /** A saved view's sort choice (maps to the list `orderBy`/`order`). */
 export interface ViewSort {
@@ -107,23 +110,35 @@ export interface ViewSort {
 /** The JSON payload a saved view stores (columns, sort, filters, shape fields). */
 export interface ViewConfig {
   readonly columns?: ReadonlyArray<string>;
+  /** Fields shown on a board/map/calendar card. Absent → the view's defaults. */
+  readonly cardFields?: ReadonlyArray<string>;
   readonly sort?: ViewSort;
   readonly filters?: ReadonlyArray<ListFilter>;
   /** The enum/select/status field a kanban view groups columns by. */
   readonly kanbanField?: string;
   /** The geo field a map view plots. */
   readonly geoField?: string;
+  /** The date/datetime field a calendar view starts its events on. */
+  readonly calendarField?: string;
+  /** Optional date/datetime field a calendar event ends on (range events). */
+  readonly calendarEndField?: string;
+  /** The calendar's granularity. */
+  readonly calendarView?: "month" | "week" | "day";
 }
 
-/** A saved admin list view, scoped to its owner. */
+/** A shared admin list view (visible to and editable by every signed-in user). */
 export interface SavedView {
   readonly id: string;
   readonly collection: string;
+  /** The id of the user who created the view (audit only — views are shared). */
   readonly ownerId: string;
   readonly name: string;
   readonly type: ViewType;
   readonly config: ViewConfig;
+  /** The collection's default view (loads first; at most one). */
   readonly isDefault: boolean;
+  /** The auto-seeded, undeletable default Table view for the collection. */
+  readonly seeded: boolean;
   readonly createdAt: number;
   readonly updatedAt: number;
 }
@@ -144,15 +159,15 @@ export interface ViewPatch {
   readonly isDefault?: boolean;
 }
 
-/** The per-collection saved-views sub-API (owner-scoped server-side). */
+/** The per-collection saved-views sub-API (shared across all admin users). */
 export interface ViewsClient {
-  /** The signed-in user's saved views for this collection. */
+  /** The collection's shared views (the default Table view is seeded on first read). */
   list(): Promise<ReadonlyArray<SavedView>>;
-  /** Save a new view; returns the stored row. */
+  /** Save a new shared view; returns the stored row. */
   create(view: NewView): Promise<SavedView>;
-  /** Update one of the user's views; returns the stored row. */
+  /** Update a shared view; returns the stored row. */
   update(id: string, patch: ViewPatch): Promise<SavedView>;
-  /** Delete one of the user's views. */
+  /** Delete a shared view (the seeded default is undeletable). */
   delete(id: string): Promise<void>;
 }
 
@@ -355,6 +370,7 @@ function listQuery<Doc>(params: (ListParams<Doc> & { locale?: string }) | undefi
   for (const filter of params.filters ?? []) {
     qs.append("filter", `${filter.field}:${filter.op}:${String(filter.value)}`);
   }
+  if (params.fields && params.fields.length > 0) qs.set("fields", params.fields.join(","));
   if (params.count !== undefined) qs.set("count", params.count ? "1" : "0");
   if (params.locale !== undefined) qs.set("locale", params.locale);
   const query = qs.toString();

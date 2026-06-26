@@ -55,8 +55,13 @@ export function AdminShell({
         footer={sidebarFooter}
         extraGroups={extraGroups}
       />
-      <Sidebar.Inset>
-        <header className="flex h-14 items-center gap-2 border-b px-4">
+      {/* The inset variant (set on `AppSidebar`'s `Sidebar.Root`) floats the
+          content as a bordered, rounded panel inset from the viewport — the
+          "inner layer" look. Cap it to the viewport height and clip so the app
+          chrome stays pinned and the page below owns its own scroll; mobile has
+          no inset margin (`h-svh`), `md` accounts for the `m-2` (1rem total). */}
+      <Sidebar.Inset className="h-svh overflow-hidden border md:h-[calc(100svh-theme(spacing.4))]">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <Sidebar.Trigger />
           {/* Persistent app chrome, not a document heading — each page view owns
               its single <h1>, so this stays a plain styled label to avoid two
@@ -68,9 +73,13 @@ export function AdminShell({
           </div>
         </header>
         {/* `Sidebar.Inset` is itself the `<main>` landmark, so the body is a
-            plain padded `<div>` — a nested second `<main>` would give the screen
-            two main landmarks. */}
-        <div className="flex-1 p-4">{children}</div>
+            plain `<div>` — a nested second `<main>` would give the screen two
+            main landmarks. A `PageLayout` page fills this exactly (`flex-1` +
+            its own clipped, internally-scrolling body), so it pins its header
+            and the outer scrollbar never engages; a plain screen (the dashboard,
+            a custom screen) instead overflows and this `overflow-y-auto` scrolls
+            it. `min-h-0` lets it shrink within the flex column. */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
       </Sidebar.Inset>
     </Sidebar.Provider>
   );

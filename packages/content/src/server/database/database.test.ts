@@ -193,6 +193,45 @@ describe("Database.list", () => {
   });
 });
 
+describe("Database.list — field projection", () => {
+  it("returns only the requested fields, plus id", async () => {
+    const { documents } = await db.list("posts", { fields: ["title"] });
+    const first = documents[0];
+    expect(first?.id).toBeDefined();
+    expect(first?.title).toBeDefined();
+    // Unrequested columns are absent from the projected document.
+    expect("meta" in (first ?? {})).toBe(false);
+    expect("rank" in (first ?? {})).toBe(false);
+    expect("createdAt" in (first ?? {})).toBe(false);
+  });
+
+  it("still paginates correctly when projecting away the order column's neighbours", async () => {
+    // Order by `rank` while projecting only `title` — the cursor needs `rank`
+    // and `id`, which the projection must keep regardless of the field list.
+    const seen: string[] = [];
+    let cursor: string | undefined;
+    for (let i = 0; i < 20; i++) {
+      const page: Awaited<ReturnType<typeof db.list>> = await db.list("posts", {
+        fields: ["title"],
+        orderBy: "rank",
+        direction: "asc",
+        limit: 1,
+        cursor,
+      });
+      seen.push(...page.documents.map((d) => String(d.id)));
+      if (page.nextCursor === null) break;
+      cursor = page.nextCursor;
+    }
+    // All four live rows, no overlap or drops.
+    expect(seen.sort()).toEqual(["p1", "p2", "p3", "p4"]);
+  });
+
+  it("ignores an unknown projected field rather than erroring", async () => {
+    const { documents } = await db.list("posts", { fields: ["nope", "title"] });
+    expect(documents[0]?.title).toBeDefined();
+  });
+});
+
 describe("Database.get", () => {
   it("returns a mapped document for a live id", async () => {
     expect(await db.get("posts", "p2")).toMatchObject({

@@ -46,6 +46,11 @@ export interface ListOpts {
   /** Server-side field predicates, AND-ed into the scope (so the page *and* the
    *  optional count both respect them). Unknown fields are rejected, like `orderBy`. */
   readonly filters?: ReadonlyArray<ListFilter>;
+  /** Project the SELECT to just these fields (plus `id` and the order column,
+   *  which pagination needs). Absent → every column. A performance hint only —
+   *  field-RBAC redaction still runs on whatever is returned, so this never widens
+   *  access. Unknown names are ignored. */
+  readonly fields?: ReadonlyArray<string>;
   /** Also compute the total row count for the same scope (one extra `COUNT(*)`,
    *  cursor-independent). Off by default — most pages don't need it. */
   readonly count?: boolean;

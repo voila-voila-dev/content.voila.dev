@@ -5,7 +5,7 @@
 import { describe, expect, it } from "bun:test";
 import { type Field, fields } from "@voila/content";
 import { ApiError } from "./errors";
-import { type CollectionLike, coerceFieldValue, parseFilters } from "./query";
+import { type CollectionLike, coerceFieldValue, parseFields, parseFilters } from "./query";
 
 // Narrow the public field constructors to the bare `Field` the helper accepts.
 const asField = (f: unknown): Field => f as Field;
@@ -105,5 +105,36 @@ describe("parseFilters", () => {
     expectBadFilter("filter=title:bogus:x"); // unknown op
     expectBadFilter("filter=nope:eq:x"); // unknown field
     expectBadFilter("filter=meta:eq:x"); // JSON-backed field isn't filterable
+  });
+});
+
+describe("parseFields", () => {
+  const collection: CollectionLike = {
+    slug: "posts",
+    fields: { title: asField(fields.string()), meta: asField(fields.json()) },
+  };
+
+  function parse(qs: string): ReadonlyArray<string> | undefined {
+    return parseFields(new URL(`https://x/posts?${qs}`), collection);
+  }
+
+  it("returns undefined when no fields param is present or it's empty", () => {
+    expect(parse("")).toBeUndefined();
+    expect(parse("fields=")).toBeUndefined();
+  });
+
+  it("parses a comma list of config + system fields", () => {
+    expect(parse("fields=title,meta,createdAt,id")).toEqual(["title", "meta", "createdAt", "id"]);
+  });
+
+  it("rejects an unknown field with a 400", () => {
+    try {
+      parse("fields=title,nope");
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).failure.code).toBe("BAD_REQUEST");
+      return;
+    }
+    throw new Error("expected parseFields to reject an unknown field");
   });
 });

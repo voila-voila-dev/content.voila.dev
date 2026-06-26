@@ -1,7 +1,7 @@
 // The typed client's `.<collection>.views` sub-API end to end against the real
 // `_views` routes — the same fetch-into-dispatcher bridge the other client tests
-// use, with an authenticator pinning a fixed principal so the owner-scoped store
-// has an owner.
+// use, with an authenticator pinning a fixed principal (views are shared, so the
+// principal is just the recorded creator). Listing seeds the default Table view.
 
 import { beforeEach, describe, expect, it } from "bun:test";
 import { defineCollection, defineConfig, fields, type NormalizedConfig } from "@voila/content";
@@ -77,8 +77,11 @@ describe("client.<collection>.views", () => {
     expect(created.name).toBe("Recent");
     expect(created.config.columns).toEqual(["title"]);
 
+    // The list seeds the undeletable default Table view alongside the new one.
     const listed = await client.posts.views.list();
-    expect(listed.map((v) => v.id)).toEqual([created.id]);
+    expect(listed.map((v) => v.name).sort()).toEqual(["Recent", "Table"]);
+    expect(listed.some((v) => v.id === created.id)).toBe(true);
+    expect(listed.find((v) => v.seeded)?.name).toBe("Table");
 
     const updated = await client.posts.views.update(created.id, {
       name: "Latest",
@@ -88,6 +91,7 @@ describe("client.<collection>.views", () => {
     expect(updated.isDefault).toBe(true);
 
     await client.posts.views.delete(created.id);
-    expect(await client.posts.views.list()).toEqual([]);
+    // Only the seeded default survives a delete of the created view.
+    expect((await client.posts.views.list()).map((v) => v.name)).toEqual(["Table"]);
   });
 });

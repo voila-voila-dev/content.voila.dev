@@ -17,6 +17,7 @@ import { resolveFieldGroups } from "./lib/groups";
 import { getFieldLabel, humanize } from "./lib/humanize";
 import { localizedFieldErrors, validateFields } from "./lib/validate";
 import { LocalizedFieldEditor } from "./localized-field";
+import { PageLayout } from "./page-layout";
 import { defaultEditRegistry, type EditRegistry, resolveEditWidget } from "./registry/edit";
 
 /**
@@ -51,6 +52,16 @@ export interface CollectionFormProps<C extends Collection = Collection> {
   /** Called with the decoded, validated values when the form is submitted. */
   readonly onSubmit: (values: FormValues<C>) => void | Promise<void>;
   readonly submitLabel?: string;
+  /**
+   * The page title shown in the pinned header (e.g. "Edit Post" / "New Post").
+   * When set (or `actions` is), the form renders a `PageLayout` frame: a fixed
+   * header over a single scrolling body, matching the read/list views. Omit
+   * both to render the bare form (e.g. embedded elsewhere).
+   */
+  readonly title?: ReactNode;
+  readonly description?: ReactNode;
+  /** Header actions shown on the right of the page header (e.g. Done / Back). */
+  readonly actions?: ReactNode;
   /** Form-level error (e.g. a server conflict) shown above the submit button. */
   readonly error?: string;
   /**
@@ -121,6 +132,9 @@ export function CollectionForm<C extends Collection = Collection>({
   locales,
   onSubmit,
   submitLabel = "Save",
+  title,
+  description,
+  actions,
   error,
   serverErrors,
   activeGroup,
@@ -452,6 +466,22 @@ export function CollectionForm<C extends Collection = Collection>({
     </p>
   ) : null;
 
+  // The pinned page header, rendered when the host supplies a title/actions (the
+  // create/edit screens do). Without either, the form renders bare inside the
+  // frame — e.g. when embedded in a host-owned layout.
+  const header =
+    title !== undefined || description !== undefined || actions !== undefined ? (
+      <PageLayout.Header>
+        <div className="space-y-1">
+          {title !== undefined ? <PageLayout.Title>{title}</PageLayout.Title> : null}
+          {description !== undefined ? (
+            <PageLayout.Description>{description}</PageLayout.Description>
+          ) : null}
+        </div>
+        {actions !== undefined ? <div className="flex items-center gap-2">{actions}</div> : null}
+      </PageLayout.Header>
+    ) : null;
+
   // Per-field card: one field with its own footer Save (`saveMode="field"`).
   function renderFieldCard(key: string): ReactNode {
     if (!collection.fields[key]) return null;
@@ -477,100 +507,115 @@ export function CollectionForm<C extends Collection = Collection>({
     );
   }
 
-  // Per-field grouped layout: the sub-nav beside the active group's fields, each
-  // its own card + Save. No wrapping `<form>` — every card saves independently.
+  // Per-field grouped layout: the pinned full-height sub-nav beside the active
+  // group's fields, each its own card + Save. No wrapping `<form>` — every card
+  // saves independently. The active section is already named by the page header
+  // and the highlighted nav item, so there's no redundant group heading.
   if (grouped && activeResolved && perField) {
     return (
-      <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
-        <FieldGroupNav
-          groups={resolvedGroups}
-          activeGroup={activeResolved.id}
-          onSelect={selectGroup}
-          title="Sections"
-        />
-        <div className="min-w-0 flex-1 space-y-4">
-          <div className="space-y-1">
-            <h2 className="font-semibold text-xl">{activeResolved.label}</h2>
-            {activeResolved.description ? (
-              <p className="text-muted-foreground text-xs">{activeResolved.description}</p>
-            ) : null}
-          </div>
-          {activeResolved.fieldKeys.map(renderFieldCard)}
-          {formLevelErrors}
-          {formError}
-        </div>
-      </div>
-    );
-  }
-
-  // Per-field flat layout: every field its own card + Save.
-  if (perField) {
-    return (
-      <div className="space-y-4">
-        {keys.map(renderFieldCard)}
-        {formLevelErrors}
-        {formError}
-      </div>
-    );
-  }
-
-  // Grouped layout: a left sub-nav + the active group's fields in a card, with a
-  // single Save in the footer that submits (and validates) the whole form.
-  if (grouped && activeResolved) {
-    return (
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="flex flex-col gap-4 lg:flex-row lg:gap-6">
+      <PageLayout.Root>
+        {header}
+        <PageLayout.NavigationLayout>
           <FieldGroupNav
             groups={resolvedGroups}
             activeGroup={activeResolved.id}
             onSelect={selectGroup}
             title="Sections"
           />
-          <div className="min-w-0 flex-1">
-            <FieldCard.Root>
-              <FieldCard.Body className="space-y-4">
-                <div className="space-y-1">
-                  <FieldCard.Title>{activeResolved.label}</FieldCard.Title>
+          <PageLayout.Body className="space-y-4">
+            {activeResolved.description ? (
+              <p className="text-muted-foreground text-xs">{activeResolved.description}</p>
+            ) : null}
+            {activeResolved.fieldKeys.map(renderFieldCard)}
+            {formLevelErrors}
+            {formError}
+          </PageLayout.Body>
+        </PageLayout.NavigationLayout>
+      </PageLayout.Root>
+    );
+  }
+
+  // Per-field flat layout: every field its own card + Save.
+  if (perField) {
+    return (
+      <PageLayout.Root>
+        {header}
+        <PageLayout.Body className="max-w-2xl space-y-4">
+          {keys.map(renderFieldCard)}
+          {formLevelErrors}
+          {formError}
+        </PageLayout.Body>
+      </PageLayout.Root>
+    );
+  }
+
+  // Grouped layout: a pinned full-height sub-nav + the active group's fields in
+  // a card, with a single Save in the footer that submits (and validates) the
+  // whole form. The active section is named by the page header + nav highlight,
+  // so the card carries no redundant group heading. The `<form>` uses
+  // `display:contents` so it doesn't break the page frame's flex column.
+  if (grouped && activeResolved) {
+    return (
+      <PageLayout.Root>
+        {header}
+        <form onSubmit={handleSubmit} noValidate className="contents">
+          <PageLayout.NavigationLayout>
+            <FieldGroupNav
+              groups={resolvedGroups}
+              activeGroup={activeResolved.id}
+              onSelect={selectGroup}
+              title="Sections"
+            />
+            <PageLayout.Body>
+              <FieldCard.Root>
+                <FieldCard.Body className="space-y-4">
                   {activeResolved.description ? (
-                    <FieldCard.Description>{activeResolved.description}</FieldCard.Description>
+                    <FieldCard.Description className="mt-0">
+                      {activeResolved.description}
+                    </FieldCard.Description>
                   ) : null}
-                </div>
-                {activeResolved.fieldKeys.map(renderField)}
-                {formLevelErrors}
-                {formError}
-              </FieldCard.Body>
-              <FieldCard.Footer>
-                <FieldCard.FooterDescription>
-                  {dirty ? "Unsaved changes" : ""}
-                </FieldCard.FooterDescription>
-                {/* Native submit button (not `FieldCard.Button`): the @voila/ui
-                    Button keeps its own `type="button"`, which wouldn't submit. */}
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className={cn(buttonVariants({ size: "sm" }))}
-                >
-                  {submitLabel}
-                </button>
-              </FieldCard.Footer>
-            </FieldCard.Root>
-          </div>
-        </div>
-      </form>
+                  {activeResolved.fieldKeys.map(renderField)}
+                  {formLevelErrors}
+                  {formError}
+                </FieldCard.Body>
+                <FieldCard.Footer>
+                  <FieldCard.FooterDescription>
+                    {dirty ? "Unsaved changes" : ""}
+                  </FieldCard.FooterDescription>
+                  {/* Native submit button (not `FieldCard.Button`): the @voila/ui
+                      Button keeps its own `type="button"`, which wouldn't submit. */}
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className={cn(buttonVariants({ size: "sm" }))}
+                  >
+                    {submitLabel}
+                  </button>
+                </FieldCard.Footer>
+              </FieldCard.Root>
+            </PageLayout.Body>
+          </PageLayout.NavigationLayout>
+        </form>
+      </PageLayout.Root>
     );
   }
 
   // Flat layout (no `groups`): every field stacked, one submit button.
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-4">
-      {keys.map(renderField)}
-      {formLevelErrors}
-      {formError}
-      {/* A native submit button so pressing Enter / clicking submits the form;
-          styled with the @voila/ui button tokens. */}
-      <button type="submit" disabled={submitting} className={cn(buttonVariants())}>
-        {submitLabel}
-      </button>
-    </form>
+    <PageLayout.Root>
+      {header}
+      <form onSubmit={handleSubmit} noValidate className="contents">
+        <PageLayout.Body className="max-w-2xl space-y-4">
+          {keys.map(renderField)}
+          {formLevelErrors}
+          {formError}
+          {/* A native submit button so pressing Enter / clicking submits the form;
+              styled with the @voila/ui button tokens. */}
+          <button type="submit" disabled={submitting} className={cn(buttonVariants())}>
+            {submitLabel}
+          </button>
+        </PageLayout.Body>
+      </form>
+    </PageLayout.Root>
   );
 }

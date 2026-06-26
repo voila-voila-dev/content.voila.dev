@@ -187,6 +187,50 @@ describe("ViewSwitcher", () => {
     expect(onGeoFieldChange).toHaveBeenCalledWith("office");
   });
 
+  test("calendar view offers Start + End field pickers", () => {
+    const onCalendarFieldChange = mock();
+    const onCalendarEndFieldChange = mock();
+    const calendarFields = [
+      { value: "startsAt", label: "Starts at" },
+      { value: "endsAt", label: "Ends at" },
+    ];
+    const { rerender } = render(
+      <ViewSwitcher
+        viewType="calendar"
+        onViewTypeChange={() => {}}
+        views={[]}
+        onSaveAs={() => {}}
+        calendarFields={calendarFields}
+        calendarField="startsAt"
+        onCalendarFieldChange={onCalendarFieldChange}
+        calendarEndField=""
+        onCalendarEndFieldChange={onCalendarEndFieldChange}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Start"), { target: { value: "endsAt" } });
+    expect(onCalendarFieldChange).toHaveBeenCalledWith("endsAt");
+    // The End picker carries a "no end" option and reports the chosen field.
+    fireEvent.change(screen.getByLabelText("End"), { target: { value: "endsAt" } });
+    expect(onCalendarEndFieldChange).toHaveBeenCalledWith("endsAt");
+
+    // Both hidden in the table view.
+    rerender(
+      <ViewSwitcher
+        viewType="table"
+        onViewTypeChange={() => {}}
+        views={[]}
+        onSaveAs={() => {}}
+        calendarFields={calendarFields}
+        calendarField="startsAt"
+        onCalendarFieldChange={onCalendarFieldChange}
+        calendarEndField=""
+        onCalendarEndFieldChange={onCalendarEndFieldChange}
+      />,
+    );
+    expect(screen.queryByLabelText("Start")).toBeNull();
+    expect(screen.queryByLabelText("End")).toBeNull();
+  });
+
   test("toggles the active view as default", () => {
     const onSetDefault = mock();
     const { rerender } = render(

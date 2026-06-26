@@ -91,8 +91,42 @@ export interface ListQuery extends ListOpts {
   readonly status?: DraftFilter;
   /** Server-side field predicates from `?filter=field:op:value` (repeatable). */
   readonly filters?: ReadonlyArray<ListFilter>;
+  /** Project the page to just these fields (`?fields=a,b,c`); absent → all columns. */
+  readonly fields?: ReadonlyArray<string>;
   /** Compute the scope's total row count alongside the page (`?count=1`). */
   readonly count?: boolean;
+}
+
+/** System columns a `?fields` projection may name alongside the config fields. */
+const PROJECTABLE_SYSTEM_FIELDS: ReadonlySet<string> = new Set([
+  "id",
+  "createdAt",
+  "updatedAt",
+  "status",
+  "publishedAt",
+]);
+
+/**
+ * Parse `?fields=a,b,c` into a projection list, or `undefined` when absent. Each
+ * name must be a known config field or a projectable system field — an unknown
+ * one is a 400 (catching a typo before it silently returns a thinner row).
+ */
+export function parseFields(
+  url: URL,
+  collection: CollectionLike,
+): ReadonlyArray<string> | undefined {
+  const raw = url.searchParams.get("fields");
+  if (raw === null || raw.trim() === "") return undefined;
+  const names = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s !== "");
+  for (const name of names) {
+    if (collection.fields[name] === undefined && !PROJECTABLE_SYSTEM_FIELDS.has(name)) {
+      fail(badRequest({ field: "fields", expected: "a known field", name }));
+    }
+  }
+  return names.length > 0 ? names : undefined;
 }
 
 const FILTER_OPS: ReadonlySet<FilterOp> = new Set([
@@ -161,8 +195,9 @@ export function parseListQuery(url: URL, collection: CollectionLike): ListQuery 
 
   const status = parseStatus(url.searchParams.get("status"));
   const filters = parseFilters(url, collection);
+  const fields = parseFields(url, collection);
   const count = parseCount(url.searchParams.get("count"));
-  return { limit, orderBy, direction, cursor, status, filters, count };
+  return { limit, orderBy, direction, cursor, status, filters, fields, count };
 }
 
 /** Parse a `?status` value into a draft filter, or `undefined` when absent.

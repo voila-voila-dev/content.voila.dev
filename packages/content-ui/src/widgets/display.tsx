@@ -32,6 +32,32 @@ export function TextDisplay({ value }: DisplayWidgetProps): ReactNode {
 }
 
 /**
+ * An enum/select value as a small neutral chip, so a fixed-vocabulary field
+ * (status, type, category) reads as a tag in a table cell / detail row — the
+ * guide-scpi admin's status-column look, generalized (no domain-specific
+ * coloring). The label is the field's option label when one matches the stored
+ * value, else the raw value.
+ */
+export function EnumDisplay({ value, meta }: DisplayWidgetProps): ReactNode {
+  if (isEmpty(value)) return <Empty />;
+  return <Badge variant="secondary">{enumLabel(meta, value)}</Badge>;
+}
+
+// The human label for an enum/select value: an `enum`'s `values` maps label →
+// stored raw, so reverse-look it up (string-compared, since a numeric raw is
+// stored as itself); a `select`'s `options` are already the labels.
+function enumLabel(meta: FieldMetaBase, value: unknown): string {
+  if (meta.kind === "enum") {
+    const values = (meta as { values?: Record<string, string | number> }).values;
+    const hit = values
+      ? Object.entries(values).find(([, raw]) => String(raw) === String(value))
+      : undefined;
+    return hit?.[0] ?? String(value);
+  }
+  return String(value);
+}
+
+/**
  * Multi-line source text (markdown, code) — preserves line breaks and
  * indentation instead of letting HTML whitespace collapsing flatten the body
  * into one line in DataTable/DetailView.
