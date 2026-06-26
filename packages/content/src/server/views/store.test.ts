@@ -181,3 +181,31 @@ describe("makeViewStore — seeded default", () => {
     expect(updated?.name).toBe("Renamed");
   });
 });
+
+describe("makeViewStore — ordering", () => {
+  it("appends new views and reorders by a complete id list", async () => {
+    const seeded = await store.ensureDefault("posts", "alice");
+    const a = await store.create("posts", { name: "A", type: "table", config: {} }, "alice");
+    const b = await store.create("posts", { name: "B", type: "table", config: {} }, "alice");
+
+    // New views land after the seeded default (creation order).
+    expect((await store.list("posts")).map((v) => v.name)).toEqual(["Table", "A", "B"]);
+    expect(a.position).toBe(1);
+    expect(b.position).toBe(2);
+
+    // Reorder writes each id's position to its index in the supplied list.
+    await store.reorder("posts", [b.id, seeded.id, a.id]);
+    const listed = await store.list("posts");
+    expect(listed.map((v) => v.name)).toEqual(["B", "Table", "A"]);
+    expect(listed.map((v) => v.position)).toEqual([0, 1, 2]);
+  });
+
+  it("ignores ids from another collection when reordering", async () => {
+    const post = await store.create("posts", { name: "P", type: "table", config: {} }, "alice");
+    const other = await store.create("tags", { name: "T", type: "table", config: {} }, "alice");
+    await store.reorder("posts", [other.id, post.id]);
+    // `tags` view untouched; `posts` view still present.
+    expect((await store.get(other.id))?.position).toBe(0);
+    expect((await store.get(post.id))?.position).toBe(1);
+  });
+});

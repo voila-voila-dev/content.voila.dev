@@ -6,7 +6,13 @@
 
 import type { NormalizedConfig } from "@voila/content";
 import { makeClient, makeMediaClient } from "@voila/content/client";
-import { createGeoInput, mergeDisplayRegistry, mergeEditRegistry } from "@voila/content-ui";
+import {
+  createGeoInput,
+  DEFAULT_MAP_DARK_STYLE_URL,
+  DEFAULT_MAP_STYLE_URL,
+  mergeDisplayRegistry,
+  mergeEditRegistry,
+} from "@voila/content-ui";
 import { makeAuthedFetch } from "./lib/authed-fetch";
 import type { AdminInstance, DefineAdminOptions } from "./types";
 
@@ -16,10 +22,6 @@ import type { AdminInstance, DefineAdminOptions } from "./types";
 // under a path instead.
 const DEFAULT_BASE_PATH = "";
 
-// The public MapLibre demo style — a sensible default so map views render out of
-// the box; production sites set their own `mapStyleUrl` (e.g. a MapTiler style).
-const DEFAULT_MAP_STYLE_URL = "https://demotiles.maplibre.org/style.json";
-
 /** Build the admin instance from a content config + optional extensions. */
 export function defineAdmin<C extends NormalizedConfig>(
   options: DefineAdminOptions<C>,
@@ -27,7 +29,16 @@ export function defineAdmin<C extends NormalizedConfig>(
   const basePath = options.basePath ?? DEFAULT_BASE_PATH;
   const apiPath = options.apiPath ?? `${basePath}/api`;
   const loginPath = `${basePath}/login`;
-  const mapStyleUrl = options.mapStyleUrl ?? DEFAULT_MAP_STYLE_URL;
+  // Basemap styles resolve from `defineAdmin` options first, then the content
+  // config's `map`, then the free OpenFreeMap defaults — so maps render out of
+  // the box with no API key. A custom light style without a dark counterpart opts
+  // out of theme-swapping; the OpenFreeMap default keeps its dark variant so the
+  // map follows the admin theme by default.
+  const customStyleUrl = options.mapStyleUrl ?? options.config.map?.styleUrl;
+  const customDarkStyleUrl = options.mapDarkStyleUrl ?? options.config.map?.darkStyleUrl;
+  const mapStyleUrl = customStyleUrl ?? DEFAULT_MAP_STYLE_URL;
+  const mapDarkStyleUrl =
+    customDarkStyleUrl ?? (customStyleUrl === undefined ? DEFAULT_MAP_DARK_STYLE_URL : undefined);
 
   const fetch = options.fetch ?? makeAuthedFetch({ loginPath });
   const client = makeClient(options.config, { baseUrl: apiPath, fetch });
@@ -44,7 +55,7 @@ export function defineAdmin<C extends NormalizedConfig>(
     // `mapStyleUrl`, then layer the host's own widget overrides on top so they
     // still win (a host that sets `widgets.edit.geo` replaces the picker).
     editWidgets: mergeEditRegistry({
-      geo: createGeoInput({ mapStyleUrl }),
+      geo: createGeoInput({ mapStyleUrl, darkStyleUrl: mapDarkStyleUrl }),
       ...options.widgets?.edit,
     }),
     displayWidgets: mergeDisplayRegistry(options.widgets?.display),
@@ -52,5 +63,6 @@ export function defineAdmin<C extends NormalizedConfig>(
     screens: options.screens ?? [],
     nav: options.nav,
     mapStyleUrl,
+    mapDarkStyleUrl,
   };
 }

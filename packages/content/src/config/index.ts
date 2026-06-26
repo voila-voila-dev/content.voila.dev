@@ -4,6 +4,7 @@ export { defineConfig } from "./config";
 export type { I18nConfig } from "./i18n";
 export { localeChain } from "./i18n";
 export { localizeDocument } from "./localize";
+export type { MapConfig } from "./map";
 export type { GroupDef } from "./schema/_groups";
 export type { Collection, CollectionDef } from "./schema/collection";
 export { defineCollection } from "./schema/collection";

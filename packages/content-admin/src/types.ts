@@ -95,9 +95,13 @@ export interface DefineAdminOptions<C extends NormalizedConfig = NormalizedConfi
   readonly nav?: NavExtension;
   /** Override the CSRF-aware fetch (tests / custom transport). */
   readonly fetch?: Fetch;
-  /** maplibre-gl style URL used by map views. Defaults to the public MapLibre
-   *  demo style; set your own (e.g. a MapTiler style) for production. */
+  /** maplibre-gl style URL used by map views. Defaults to the free OpenFreeMap
+   *  "liberty" basemap (or the project's `config.map.styleUrl`); set your own
+   *  (e.g. a MapTiler style) for richer cartography. */
   readonly mapStyleUrl?: string;
+  /** Dark-theme basemap; when set (here or via `config.map.darkStyleUrl`), map
+   *  surfaces follow the admin's light/dark theme. */
+  readonly mapDarkStyleUrl?: string;
 }
 
 /** The built admin instance shared through context to every screen. */
@@ -115,4 +119,6 @@ export interface AdminInstance<C extends NormalizedConfig = NormalizedConfig> {
   readonly nav?: NavExtension;
   /** maplibre-gl style URL for map views. */
   readonly mapStyleUrl: string;
+  /** Dark-theme basemap; when set, map surfaces follow the admin theme. */
+  readonly mapDarkStyleUrl?: string;
 }

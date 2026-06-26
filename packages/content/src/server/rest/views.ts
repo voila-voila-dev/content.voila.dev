@@ -147,6 +147,26 @@ export function handleViewsUpdate(
   }, views.onError);
 }
 
+/** `POST /:collection/_views/reorder` — set the collection's tab order from a
+ *  complete ordered list of view ids (`{ ids: [...] }`). */
+export function handleViewsReorder(
+  views: ViewsContext,
+  collection: string,
+  request: Request,
+  principal: Principal | null,
+): Promise<Response> {
+  return runHandler(async () => {
+    requireCaller(principal);
+    const body = await readBody(request);
+    const ids = body.ids;
+    if (!Array.isArray(ids) || !ids.every((id) => typeof id === "string")) {
+      fail(badRequest({ field: "ids", expected: "array of view ids" }));
+    }
+    await views.store.reorder(collection, ids as string[]);
+    return Response.json({ data: { ids } });
+  }, views.onError);
+}
+
 /** `DELETE /:collection/_views/:id` — delete a shared view (the seeded default
  *  is undeletable; the store treats that as a no-op). */
 export function handleViewsDelete(

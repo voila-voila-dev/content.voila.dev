@@ -64,6 +64,7 @@ CREATE TABLE "voila_views" (
   "type" TEXT NOT NULL,
   "config" TEXT NOT NULL,
   "is_default" INTEGER NOT NULL DEFAULT 0,
+  "position" INTEGER NOT NULL DEFAULT 0,
   "created_at" INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
   "updated_at" INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
 );

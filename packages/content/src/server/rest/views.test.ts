@@ -131,6 +131,31 @@ describe("_views routes — CRUD", () => {
     expect(after.map((v) => v.name)).toEqual(["Table"]);
   });
 
+  it("reorders the collection's views from an ordered id list", async () => {
+    const handle = handler({ auth: headerAuth });
+    const a = await dataOf<WireView>(
+      await send(
+        handle,
+        "/posts/_views",
+        asUser("u1", {
+          method: "POST",
+          body: JSON.stringify({ data: { name: "A", type: "table", config: {} } }),
+        }),
+      ),
+    );
+    const seeded = (
+      await dataOf<WireView[]>(await send(handle, "/posts/_views", asUser("u1")))
+    ).find((v) => v.name === "Table");
+
+    await send(
+      handle,
+      "/posts/_views/reorder",
+      asUser("u1", { method: "POST", body: JSON.stringify({ data: { ids: [a.id, seeded?.id] } }) }),
+    );
+    const listed = await dataOf<WireView[]>(await send(handle, "/posts/_views", asUser("u1")));
+    expect(listed.map((v) => v.name)).toEqual(["A", "Table"]);
+  });
+
   it("ignores any owner in the body — the creator is the principal", async () => {
     const handle = handler({ auth: headerAuth });
     const created = await dataOf<WireView>(

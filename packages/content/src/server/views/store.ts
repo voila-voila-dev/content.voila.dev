@@ -59,6 +59,8 @@ export interface SavedView {
   readonly config: ViewConfig;
   /** The collection's default view (loads first; at most one — enforced here). */
   readonly isDefault: boolean;
+  /** Tab order within the collection (ascending); `reorder` rewrites it. */
+  readonly position: number;
   /** The auto-seeded, undeletable default Table view for the collection. */
   readonly seeded: boolean;
   readonly createdAt: number;
@@ -98,6 +100,10 @@ export interface ViewStore {
   /** Idempotently ensure the collection has its undeletable default Table view,
    *  returning it. Safe to call on every list (PK conflict → ignored). */
   ensureDefault(collection: string, createdBy: string): Promise<SavedView>;
+  /** Set the tab order for a collection from a complete ordered list of view
+   *  ids; each id's `position` becomes its index. Ids from other collections (or
+   *  unknown ids) are ignored. */
+  reorder(collection: string, orderedIds: ReadonlyArray<string>): Promise<void>;
 }
 
 /** The reserved, deterministic id of a collection's seeded default Table view. */
@@ -129,6 +135,7 @@ function mapRow(row: SqlRow): SavedView {
     config: parseConfig(row.config),
     // SQLite/D1 store the boolean as 0/1; a native-boolean driver returns true.
     isDefault: row.is_default === 1 || row.is_default === true,
+    position: Number(row.position ?? 0),
     seeded: id === defaultViewId(collection),
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
@@ -152,11 +159,20 @@ export function makeViewStore(driver: SqlDriver): ViewStore {
     return row === undefined ? null : mapRow(row);
   }
 
+  // Where a freshly created view lands: after every existing one in the collection.
+  async function nextPosition(collection: string): Promise<number> {
+    const rows = await driver.all(
+      `SELECT COALESCE(MAX("position"), -1) + 1 AS "next" FROM "${VIEWS_TABLE}" WHERE "collection" = ?`,
+      [collection],
+    );
+    return Number(rows[0]?.next ?? 0);
+  }
+
   const store: ViewStore = {
     async list(collection) {
       const rows = await driver.all(
         `SELECT * FROM "${VIEWS_TABLE}" WHERE "collection" = ?
-         ORDER BY "created_at" ASC, "id" ASC`,
+         ORDER BY "position" ASC, "created_at" ASC, "id" ASC`,
         [collection],
       );
       return rows.map(mapRow);
@@ -168,11 +184,12 @@ export function makeViewStore(driver: SqlDriver): ViewStore {
       const id = crypto.randomUUID();
       const now = Date.now();
       const isDefault = view.isDefault === true;
+      const position = await nextPosition(collection);
       if (isDefault) await clearDefaults(collection, id);
       await driver.run(
         `INSERT INTO "${VIEWS_TABLE}"
-           ("id", "collection", "owner_id", "name", "type", "config", "is_default", "created_at", "updated_at")
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           ("id", "collection", "owner_id", "name", "type", "config", "is_default", "position", "created_at", "updated_at")
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           collection,
@@ -181,6 +198,7 @@ export function makeViewStore(driver: SqlDriver): ViewStore {
           view.type,
           JSON.stringify(view.config ?? {}),
           isDefault ? 1 : 0,
+          position,
           now,
           now,
         ],
@@ -193,6 +211,7 @@ export function makeViewStore(driver: SqlDriver): ViewStore {
         type: view.type,
         config: view.config ?? {},
         isDefault,
+        position,
         seeded: false,
         createdAt: now,
         updatedAt: now,
@@ -252,8 +271,8 @@ export function makeViewStore(driver: SqlDriver): ViewStore {
       try {
         await driver.run(
           `INSERT INTO "${VIEWS_TABLE}"
-             ("id", "collection", "owner_id", "name", "type", "config", "is_default", "created_at", "updated_at")
-           VALUES (?, ?, ?, ?, 'table', '{}', 1, ?, ?)`,
+             ("id", "collection", "owner_id", "name", "type", "config", "is_default", "position", "created_at", "updated_at")
+           VALUES (?, ?, ?, ?, 'table', '{}', 1, 0, ?, ?)`,
           [id, collection, createdBy, "Table", now, now],
         );
       } catch {
@@ -269,11 +288,25 @@ export function makeViewStore(driver: SqlDriver): ViewStore {
           type: "table",
           config: {},
           isDefault: true,
+          position: 0,
           seeded: true,
           createdAt: now,
           updatedAt: now,
         }
       );
+    },
+
+    async reorder(collection, orderedIds) {
+      // Rewrite each listed view's position to its index. Scoped by collection so
+      // a stray id can never move another collection's view.
+      let index = 0;
+      for (const id of orderedIds) {
+        await driver.run(
+          `UPDATE "${VIEWS_TABLE}" SET "position" = ? WHERE "id" = ? AND "collection" = ?`,
+          [index, id, collection],
+        );
+        index += 1;
+      }
     },
   };
 

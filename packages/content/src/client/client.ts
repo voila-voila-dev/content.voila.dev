@@ -169,6 +169,8 @@ export interface ViewsClient {
   update(id: string, patch: ViewPatch): Promise<SavedView>;
   /** Delete a shared view (the seeded default is undeletable). */
   delete(id: string): Promise<void>;
+  /** Set the collection's tab order from a complete ordered list of view ids. */
+  reorder(ids: ReadonlyArray<string>): Promise<void>;
 }
 
 export interface ListPage<Doc, Drafts extends boolean = false> {
@@ -491,6 +493,12 @@ function makeCollectionClient(
         }),
       async delete(id) {
         await send<unknown>(`${root}/${VIEWS_PATH}/${enc(id)}`, { method: "DELETE" });
+      },
+      async reorder(ids) {
+        await send<unknown>(`${root}/${VIEWS_PATH}/reorder`, {
+          method: "POST",
+          ...jsonBody({ ids }),
+        });
       },
     },
   };

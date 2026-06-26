@@ -17,6 +17,7 @@ import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { documentTitle } from "./detail-view";
 import type { Doc } from "./lib/doc";
 import { getFieldLabel } from "./lib/humanize";
+import { activeMapStyleUrl, followThemeStyle } from "./lib/map-style";
 import { hasWebGL } from "./lib/webgl";
 
 export interface MapViewProps {
@@ -26,6 +27,8 @@ export interface MapViewProps {
   readonly geoField: string;
   /** A maplibre style URL the host provides (e.g. a MapTiler/MapLibre style). */
   readonly mapStyleUrl: string;
+  /** Dark-theme basemap; when set, the map follows the admin's `.dark` theme. */
+  readonly darkStyleUrl?: string;
   /** Open a row when its marker is clicked. */
   readonly onRowClick?: (row: Doc) => void;
   /** Extra fields to list in a marker's popup, below the title. */
@@ -66,6 +69,7 @@ export function MapView({
   geoField,
   cardFields,
   mapStyleUrl,
+  darkStyleUrl,
   onRowClick,
   className,
 }: MapViewProps): ReactNode {
@@ -97,6 +101,7 @@ export function MapView({
 
     let cancelled = false;
     let map: import("maplibre-gl").Map | undefined;
+    let stopThemeFollow: (() => void) | undefined;
 
     void (async () => {
       // maplibre-gl is an optional peer dep; if it's absent (or WebGL/map init
@@ -109,10 +114,13 @@ export function MapView({
 
         map = new maplibre.Map({
           container: containerRef.current,
-          style: mapStyleUrl,
+          style: activeMapStyleUrl(mapStyleUrl, darkStyleUrl),
           center: [0, 0],
           zoom: 1,
         });
+        // Swap to the dark basemap when the admin theme toggles (no-op without a
+        // dark variant). Markers are DOM overlays, so they survive the swap.
+        stopThemeFollow = followThemeStyle(map, mapStyleUrl, darkStyleUrl);
         const bounds = new maplibre.LngLatBounds();
         let plotted = 0;
         for (const row of live.rows) {
@@ -148,15 +156,27 @@ export function MapView({
 
     return () => {
       cancelled = true;
+      stopThemeFollow?.();
       map?.remove();
     };
-  }, [mapStyleUrl, signature]);
+  }, [mapStyleUrl, darkStyleUrl, signature]);
 
+  // The styled box is an OUTER element React owns; maplibre attaches to the inner
+  // `<section>` and adds its own `maplibregl-map` class there. Keeping that inner
+  // className constant means a parent re-render (a new `className` prop, a layout
+  // change) never rewrites it — otherwise React would drop maplibre's class, the
+  // map would lose `position: relative`, and its canvas would escape its box.
+  // maplibre's control chrome (zoom buttons, attribution) ships light; invert it
+  // — hue-rotated back so link colors survive — when the map sits in dark mode.
   return (
-    <section
-      ref={containerRef}
-      aria-label="Map"
-      className={cn("h-[60vh] w-full overflow-hidden rounded-lg border", className)}
-    />
+    <div
+      className={cn(
+        "h-[60vh] w-full overflow-hidden rounded-lg border",
+        "dark:[&_.maplibregl-ctrl]:hue-rotate-180 dark:[&_.maplibregl-ctrl]:invert",
+        className,
+      )}
+    >
+      <section ref={containerRef} aria-label="Map" className="h-full w-full" />
+    </div>
   );
 }

@@ -233,6 +233,7 @@ describe("voila_views", () => {
       "type",
       "config",
       "is_default",
+      "position",
       "created_at",
       "updated_at",
     ]);

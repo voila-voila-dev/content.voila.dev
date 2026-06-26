@@ -14,6 +14,7 @@
 import { cn } from "@voila/ui/cn";
 import { Input } from "@voila/ui/input";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { activeMapStyleUrl, followThemeStyle } from "../lib/map-style";
 import { hasWebGL } from "../lib/webgl";
 import { type DisplayWidgetProps, Empty } from "./display";
 import type { EditWidget, EditWidgetProps } from "./edit";
@@ -141,6 +142,8 @@ export function GeoInput({
 export interface CreateGeoInputOptions {
   /** A maplibre style URL the picker renders (e.g. `admin.mapStyleUrl`). */
   readonly mapStyleUrl: string;
+  /** Dark-theme basemap; when set, the picker follows the admin's `.dark` theme. */
+  readonly darkStyleUrl?: string;
 }
 
 /**
@@ -156,6 +159,7 @@ export function createGeoInput(options: CreateGeoInputOptions): EditWidget {
         <GeoMapPicker
           value={props.value}
           mapStyleUrl={options.mapStyleUrl}
+          darkStyleUrl={options.darkStyleUrl}
           disabled={props.disabled}
           onChange={props.onChange}
         />
@@ -167,6 +171,7 @@ export function createGeoInput(options: CreateGeoInputOptions): EditWidget {
 interface GeoMapPickerProps {
   readonly value: unknown;
   readonly mapStyleUrl: string;
+  readonly darkStyleUrl?: string;
   readonly disabled?: boolean;
   readonly onChange: (value: unknown) => void;
 }
@@ -198,7 +203,13 @@ function placeMarker(
  * point. CLIENT-ONLY by construction — the dynamic import is WebGL-guarded inside
  * the effect, so SSR and happy-dom render only the container shell.
  */
-function GeoMapPicker({ value, mapStyleUrl, disabled, onChange }: GeoMapPickerProps): ReactNode {
+function GeoMapPicker({
+  value,
+  mapStyleUrl,
+  darkStyleUrl,
+  disabled,
+  onChange,
+}: GeoMapPickerProps): ReactNode {
   const containerRef = useRef<HTMLElement>(null);
   const mapRef = useRef<import("maplibre-gl").Map | undefined>(undefined);
   const markerRef = useRef<import("maplibre-gl").Marker | undefined>(undefined);
@@ -221,6 +232,7 @@ function GeoMapPicker({ value, mapStyleUrl, disabled, onChange }: GeoMapPickerPr
     if (!container || !hasWebGL()) return;
 
     let cancelled = false;
+    let stopThemeFollow: (() => void) | undefined;
     void (async () => {
       try {
         const maplibre = await import("maplibre-gl");
@@ -230,11 +242,14 @@ function GeoMapPicker({ value, mapStyleUrl, disabled, onChange }: GeoMapPickerPr
         const hasPoint = start.lat !== undefined && start.lng !== undefined;
         const map = new maplibre.Map({
           container: containerRef.current,
-          style: mapStyleUrl,
+          style: activeMapStyleUrl(mapStyleUrl, darkStyleUrl),
           center: hasPoint ? [start.lng as number, start.lat as number] : [0, 0],
           zoom: hasPoint ? 12 : 1,
         });
         mapRef.current = map;
+        // Swap to the dark basemap when the admin theme toggles (no-op without a
+        // dark variant). The marker is a DOM overlay, so it survives the swap.
+        stopThemeFollow = followThemeStyle(map, mapStyleUrl, darkStyleUrl);
         map.on("click", (event) => {
           if (liveRef.current.disabled) return;
           liveRef.current.onChange({ lat: event.lngLat.lat, lng: event.lngLat.lng });
@@ -251,13 +266,16 @@ function GeoMapPicker({ value, mapStyleUrl, disabled, onChange }: GeoMapPickerPr
 
     return () => {
       cancelled = true;
+      stopThemeFollow?.();
       mapRef.current?.remove();
       mapRef.current = undefined;
       markerRef.current = undefined;
     };
-  }, [mapStyleUrl]);
+  }, [mapStyleUrl, darkStyleUrl]);
 
   // Keep the marker in sync when the value changes from the inputs (or clears).
+  // The map view is deliberately left where it is — placing or nudging a pin
+  // shouldn't yank the map back to center; the user keeps their current frame.
   useEffect(() => {
     const maplibre = maplibreRef.current;
     const map = mapRef.current;
@@ -268,20 +286,27 @@ function GeoMapPicker({ value, mapStyleUrl, disabled, onChange }: GeoMapPickerPr
       return;
     }
     placeMarker(maplibre, map, markerRef, lat, lng, liveRef);
-    map.easeTo({ center: [lng, lat], duration: 0 });
   }, [lat, lng]);
 
   // maplibre absent / failed → render nothing; the GeoInput pair still works.
   if (unavailable) return null;
 
+  // The styled box is an OUTER element React owns; maplibre attaches to the inner
+  // `<section>`, where it adds its own `maplibregl-map` class (which supplies
+  // `position: relative`). That inner className is constant, so a parent
+  // re-render — e.g. `disabled` toggling while the field's per-field Save is in
+  // flight — never rewrites it. Putting the toggling classes on the same element
+  // maplibre mutated would make React drop the `maplibregl-map` class on the next
+  // render, and the map's absolutely-positioned canvas would escape to the
+  // top-left of the page, leaving the box empty.
   return (
-    <section
-      ref={containerRef}
-      aria-label="Location picker"
+    <div
       className={cn(
         "h-64 w-full overflow-hidden rounded-md border",
         disabled && "pointer-events-none opacity-60",
       )}
-    />
+    >
+      <section ref={containerRef} aria-label="Location picker" className="h-full w-full" />
+    </div>
   );
 }

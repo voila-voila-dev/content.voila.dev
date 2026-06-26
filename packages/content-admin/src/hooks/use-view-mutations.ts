@@ -58,5 +58,11 @@ export function useViewMutations(slug: string, callbacks: ViewMutationCallbacks 
     onSuccess: invalidate,
   });
 
-  return { create, update, remove, rename, setDefault };
+  // Persist a drag-reordered tab order (the complete ordered list of view ids).
+  const reorder = useMutation({
+    mutationFn: (ids: ReadonlyArray<string>) => api.views.reorder(ids),
+    onSuccess: invalidate,
+  });
+
+  return { create, update, remove, rename, setDefault, reorder };
 }

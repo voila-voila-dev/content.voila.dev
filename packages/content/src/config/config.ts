@@ -1,5 +1,6 @@
 import type { Branding } from "./branding";
 import type { I18nConfig } from "./i18n";
+import type { MapConfig } from "./map";
 import type { Collection } from "./schema/collection";
 import { type Field, makeField } from "./schema/fields/_base";
 import type { Locale } from "./schema/fields/_locale";
@@ -25,6 +26,8 @@ export interface Config<
   readonly collections?: Collections;
   /** Map of singletons keyed by slug. */
   readonly singletons?: Singletons;
+  /** Basemap styles for the admin's map surfaces (defaults to OpenFreeMap). */
+  readonly map?: MapConfig;
 }
 
 // Narrow every collection's/singleton's localized fields to the selected
@@ -56,6 +59,7 @@ export interface NormalizedConfig<
   readonly i18n?: I18nConfig<Locales>;
   readonly collections: NarrowCollections<Collections, Locales[number]>;
   readonly singletons: NarrowSingletons<Singletons, Locales[number]>;
+  readonly map?: MapConfig;
 }
 
 function narrowFieldsRuntime(fields: FieldsMap, locales: ReadonlyArray<Locale>): FieldsMap {
@@ -118,6 +122,7 @@ export function defineConfig<
   return {
     branding: config.branding,
     i18n: config.i18n,
+    map: config.map,
     collections: narrowCollectionsRuntime(rawCollections, locales) as NarrowCollections<
       Collections,
       Locales[number]

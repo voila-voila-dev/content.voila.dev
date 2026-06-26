@@ -2,14 +2,15 @@
 // Views are shared, so every tab is the same for everyone; clicking one switches
 // the active view (the host reflects it in the URL). "+ Add view" opens a dialog
 // to name a view, pick its type, and choose the field(s) that type needs (a
-// kanban group field, a calendar start/end field, a map geo field). The active
-// tab carries a settings button to rename, set-as-default, or delete it (the
-// seeded default Table view can't be deleted). Purely presentational and
+// kanban group field, a calendar start/end field, a map geo field). Right-click
+// any tab for a context menu to rename, set-as-default, or delete it (the seeded
+// default Table view can't be deleted). Purely presentational and
 // callback-driven: the host owns persistence through the typed client.
 
 import type { ViewConfig, ViewType } from "@voila/content/client";
-import { Button, buttonVariants } from "@voila/ui/button";
+import { buttonVariants } from "@voila/ui/button";
 import { cn } from "@voila/ui/cn";
+import { ContextMenu } from "@voila/ui/context-menu";
 import { Dialog } from "@voila/ui/dialog";
 import { Input } from "@voila/ui/input";
 import { type ReactNode, useState } from "react";
@@ -53,7 +54,27 @@ export interface ViewTabsProps {
   readonly onRename: (id: string, name: string) => void;
   readonly onDelete: (id: string) => void;
   readonly onSetDefault: (id: string, isDefault: boolean) => void;
+  /** Persist a drag-reordered tab order (the complete ordered list of view ids). */
+  readonly onReorder: (ids: string[]) => void;
   readonly fields: ViewFieldChoices;
+  /** Per-view editor controls (filters / columns) shown in the edit dialog. The
+   *  host binds these to the *active* view's config, so opening the editor also
+   *  selects the view being edited. */
+  readonly editor?: ReactNode;
+}
+
+/**
+ * Move `from` to sit where `to` currently is within the ordered id list (insert
+ * before `to`). A no-op when either id is missing or they're equal — so a stray
+ * drop never drops or duplicates a tab.
+ */
+export function reorderIds(ids: readonly string[], from: string, to: string): string[] {
+  if (from === to) return [...ids];
+  const without = ids.filter((id) => id !== from);
+  const targetIdx = without.indexOf(to);
+  if (targetIdx < 0 || !ids.includes(from)) return [...ids];
+  without.splice(targetIdx, 0, from);
+  return without;
 }
 
 /** The view types the collection can offer, given which fields it has. */
@@ -218,13 +239,37 @@ export function ViewTabs({
   onRename,
   onDelete,
   onSetDefault,
+  onReorder,
   fields,
+  editor,
 }: ViewTabsProps): ReactNode {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ViewTabItem | null>(null);
   const [renameValue, setRenameValue] = useState("");
 
+  // Transient drag state: the id being dragged + the id it's hovering, for the
+  // visual cues. The reorder reads the source from the drag's dataTransfer, so
+  // it stays correct even if a render lags the cursor.
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+
+  function dropOn(targetId: string, source: string | null) {
+    setDragId(null);
+    setOverId(null);
+    if (!source || source === targetId) return;
+    onReorder(
+      reorderIds(
+        views.map((v) => v.id),
+        source,
+        targetId,
+      ),
+    );
+  }
+
   function openEdit(view: ViewTabItem) {
+    // Editing filters/columns acts on the active view, so select it first; the
+    // host's `editor` then reflects the view being edited.
+    onSelect(view.id);
     setEditing(view);
     setRenameValue(view.name);
   }
@@ -241,37 +286,65 @@ export function ViewTabs({
       {views.map((view) => {
         const active = view.id === activeViewId;
         return (
-          <div
-            key={view.id}
-            className={cn(
-              "-mb-px flex items-center gap-0.5 border-b-2 px-1",
-              active ? "border-primary" : "border-transparent",
-            )}
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => onSelect(view.id)}
+          <ContextMenu.Root key={view.id}>
+            <ContextMenu.Trigger
+              draggable
+              onDragStart={(event) => {
+                event.dataTransfer.setData("text/plain", view.id);
+                event.dataTransfer.effectAllowed = "move";
+                setDragId(view.id);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                if (overId !== view.id) setOverId(view.id);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                dropOn(view.id, event.dataTransfer.getData("text/plain") || dragId);
+              }}
+              onDragEnd={() => {
+                setDragId(null);
+                setOverId(null);
+              }}
               className={cn(
-                "rounded-md px-2 py-1.5 font-medium text-sm",
-                active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                "-mb-px flex cursor-grab items-center border-b-2 px-1",
+                active ? "border-primary" : "border-transparent",
+                dragId === view.id && "opacity-50",
+                overId === view.id && dragId !== view.id && "bg-accent",
               )}
             >
-              {view.isDefault ? "★ " : ""}
-              {view.name}
-            </button>
-            {active ? (
               <button
                 type="button"
-                aria-label={`${view.name} settings`}
-                onClick={() => openEdit(view)}
-                className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                role="tab"
+                aria-selected={active}
+                onClick={() => onSelect(view.id)}
+                className={cn(
+                  "rounded-md px-2 py-1.5 font-medium text-sm",
+                  active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
               >
-                ⋯
+                {view.isDefault ? "★ " : ""}
+                {view.name}
               </button>
-            ) : null}
-          </div>
+            </ContextMenu.Trigger>
+            <ContextMenu.Content>
+              <ContextMenu.Item onClick={() => openEdit(view)}>Edit view</ContextMenu.Item>
+              <ContextMenu.Item onClick={() => onSetDefault(view.id, !view.isDefault)}>
+                {view.isDefault ? "Remove default" : "Set as default"}
+              </ContextMenu.Item>
+              {view.seeded ? null : (
+                <>
+                  <ContextMenu.Separator />
+                  <ContextMenu.Item
+                    className="text-destructive data-[highlighted]:text-destructive"
+                    onClick={() => onDelete(view.id)}
+                  >
+                    Delete
+                  </ContextMenu.Item>
+                </>
+              )}
+            </ContextMenu.Content>
+          </ContextMenu.Root>
         );
       })}
 
@@ -295,8 +368,10 @@ export function ViewTabs({
       <Dialog.Root open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
         <Dialog.Content className="max-w-sm">
           <Dialog.Header>
-            <Dialog.Title>View settings</Dialog.Title>
-            <Dialog.Description>Rename, set as default, or delete this view.</Dialog.Description>
+            <Dialog.Title>Edit view</Dialog.Title>
+            <Dialog.Description>
+              Rename this view and tune its filters and columns.
+            </Dialog.Description>
           </Dialog.Header>
           <form
             className="space-y-3"
@@ -311,31 +386,7 @@ export function ViewTabs({
               value={renameValue}
               onChange={(event) => setRenameValue(event.target.value)}
             />
-            <div className="flex items-center justify-between gap-2">
-              <Button
-                type="button"
-                variant={editing?.isDefault ? "secondary" : "ghost"}
-                size="sm"
-                aria-pressed={editing?.isDefault ?? false}
-                onClick={() => editing && onSetDefault(editing.id, !editing.isDefault)}
-              >
-                {editing?.isDefault ? "★ Default" : "Set as default"}
-              </Button>
-              {editing && !editing.seeded ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive"
-                  onClick={() => {
-                    onDelete(editing.id);
-                    setEditing(null);
-                  }}
-                >
-                  Delete
-                </Button>
-              ) : null}
-            </div>
+            {editor ? <div className="flex flex-wrap items-center gap-2">{editor}</div> : null}
             <Dialog.Footer>
               <Dialog.Close className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
                 Cancel

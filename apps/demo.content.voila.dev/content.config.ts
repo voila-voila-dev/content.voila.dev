@@ -72,6 +72,14 @@ const settings = defineSingleton({
 export default defineConfig({
   branding: { name: "demo" },
   i18n: { locales: ["en-US", "fr-FR"], defaultLocale: "en-US" },
+  // Basemap for the admin's map surfaces (the list Map view + the geo field's
+  // location picker). Defaults to the free, key-less OpenFreeMap styles below and
+  // follows the admin's light/dark theme; point these at your own style (e.g. a
+  // MapTiler/Mapbox style) for richer cartography.
+  map: {
+    styleUrl: "https://tiles.openfreemap.org/styles/liberty",
+    darkStyleUrl: "https://tiles.openfreemap.org/styles/dark",
+  },
   collections: { posts },
   singletons: { settings },
 });
