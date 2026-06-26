@@ -5,6 +5,7 @@ import {
   BooleanDisplay,
   ColorDisplay,
   DateDisplay,
+  EnumDisplay,
   JsonDisplay,
   MultilineTextDisplay,
   NumberDisplay,
@@ -15,6 +16,29 @@ import {
 function meta(kind: string): FieldMetaBase {
   return { kind };
 }
+
+describe("EnumDisplay", () => {
+  test("renders a select value verbatim as a chip", () => {
+    const { container } = render(
+      <EnumDisplay value="published" meta={{ kind: "select", options: ["draft", "published"] }} />,
+    );
+    expect(container.textContent).toBe("published");
+  });
+
+  test("maps an enum's stored raw back to its label", () => {
+    const m = { kind: "enum", values: { Low: 1, High: 2 } } as unknown as FieldMetaBase;
+    expect(render(<EnumDisplay value={2} meta={m} />).container.textContent).toBe("High");
+    // An unknown raw (no matching label) falls back to the stringified value.
+    expect(render(<EnumDisplay value={9} meta={m} />).container.textContent).toBe("9");
+  });
+
+  test("renders an em-dash for empty values", () => {
+    for (const v of [null, undefined, ""]) {
+      const { container } = render(<EnumDisplay value={v} meta={meta("enum")} />);
+      expect(container.textContent).toBe("—");
+    }
+  });
+});
 
 describe("ColorDisplay", () => {
   test("renders a swatch tinted to the value alongside the string", () => {

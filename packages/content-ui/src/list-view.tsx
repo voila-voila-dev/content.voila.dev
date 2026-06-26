@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 import { DataTable } from "./data-table";
 import type { Doc } from "./lib/doc";
 import { humanize } from "./lib/humanize";
+import { PageLayout } from "./page-layout";
 import type { DisplayRegistry } from "./registry/registry";
 import { SearchInput } from "./search-input";
 import { StatusFilter, type StatusFilterValue } from "./status-filter";
@@ -35,6 +36,8 @@ export interface ListViewProps {
   readonly description?: ReactNode;
   /** Header actions (e.g. a "New" link/button); rendered on the right. */
   readonly actions?: ReactNode;
+  /** A slot rendered at the top of the body, above the table (e.g. view tabs). */
+  readonly header?: ReactNode;
   /** Make rows clickable (e.g. to open a detail page). */
   readonly onRowClick?: (row: Doc, index: number) => void;
   /** The active sort; when set with `onSortChange`, headers become sortable. */
@@ -73,6 +76,7 @@ export function ListView({
   title,
   description,
   actions,
+  header,
   onRowClick,
   sort,
   onSortChange,
@@ -91,6 +95,7 @@ export function ListView({
   const heading = title ?? collection.label ?? humanize(collection.slug);
   const canLoadMore = Boolean(nextCursor) && onLoadMore !== undefined;
   const showSearch = searchEnabled(collection.search) && onSearchChange !== undefined;
+  const showStatusFilter = collection.drafts === true && onStatusChange !== undefined;
 
   // What an assistive-tech user hears when the list's state changes. The
   // visible "Loading…" / "No records" text in `DataTable` isn't in a live
@@ -105,64 +110,75 @@ export function ListView({
         : `${rows.length} results`;
 
   return (
-    <section className="space-y-4">
-      <p aria-live="polite" className="sr-only">
-        {liveMessage}
-      </p>
-
-      <header className="flex items-start gap-4">
+    <PageLayout.Root>
+      <PageLayout.Header>
         <div className="space-y-1">
-          {/* `tabIndex={-1}` makes the page heading programmatically focusable so
-              a host can move focus here on a route change (SPA focus management)
-              without it landing in the tab order. */}
-          <h1 tabIndex={-1} className="text-lg font-semibold focus:outline-none">
-            {heading}
-          </h1>
-          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+          <PageLayout.Title>{heading}</PageLayout.Title>
+          {description ? <PageLayout.Description>{description}</PageLayout.Description> : null}
         </div>
-        {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
-      </header>
+        {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+      </PageLayout.Header>
 
-      {collection.drafts === true && onStatusChange !== undefined ? (
-        <StatusFilter value={status} onChange={onStatusChange} disabled={loading} />
-      ) : null}
-
-      {showSearch ? (
-        <SearchInput
-          value={searchValue}
-          onChange={onSearchChange}
-          onSubmit={onSearchSubmit}
-          disabled={loading}
-        />
-      ) : null}
-
-      {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
+      <PageLayout.Body className="space-y-4">
+        <p aria-live="polite" className="sr-only">
+          {liveMessage}
         </p>
-      ) : null}
 
-      <DataTable
-        collection={collection}
-        rows={rows}
-        columns={columns}
-        registry={registry}
-        onRowClick={onRowClick}
-        sort={sort}
-        onSortChange={onSortChange}
-        loading={loading}
-        emptyMessage={emptyMessage}
-      />
+        {header}
 
-      {loading && rows.length > 0 ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : null}
+        {/* Search + status scope share one toolbar row above the table: search
+            grows on the left, the status filter sits on the right. Rendered only
+            when at least one control is wired. */}
+        {showSearch || showStatusFilter ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {showSearch ? (
+              <div className="sm:flex-1">
+                <SearchInput
+                  value={searchValue}
+                  onChange={onSearchChange}
+                  onSubmit={onSearchSubmit}
+                  disabled={loading}
+                />
+              </div>
+            ) : null}
+            {showStatusFilter ? (
+              <StatusFilter value={status} onChange={onStatusChange} disabled={loading} />
+            ) : null}
+          </div>
+        ) : null}
 
-      {canLoadMore ? (
-        <Button variant="outline" onClick={onLoadMore} disabled={loading}>
-          {loadMoreLabel}
-        </Button>
-      ) : null}
-    </section>
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
+
+        {/* The table sits in a bordered, rounded panel (matching the guide-scpi
+            admin's data table); `overflow-hidden` clips the corners. */}
+        <div className="overflow-hidden rounded-lg border">
+          <DataTable
+            collection={collection}
+            rows={rows}
+            columns={columns}
+            registry={registry}
+            onRowClick={onRowClick}
+            sort={sort}
+            onSortChange={onSortChange}
+            loading={loading}
+            emptyMessage={emptyMessage}
+          />
+        </div>
+
+        {loading && rows.length > 0 ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : null}
+
+        {canLoadMore ? (
+          <Button variant="outline" onClick={onLoadMore} disabled={loading}>
+            {loadMoreLabel}
+          </Button>
+        ) : null}
+      </PageLayout.Body>
+    </PageLayout.Root>
   );
 }

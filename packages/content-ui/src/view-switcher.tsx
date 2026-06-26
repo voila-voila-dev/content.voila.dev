@@ -12,12 +12,13 @@ import { Input } from "@voila/ui/input";
 import { Tabs } from "@voila/ui/tabs";
 import { type ReactNode, useState } from "react";
 
-export type ViewType = "table" | "kanban" | "map";
+export type ViewType = "table" | "kanban" | "map" | "calendar";
 
 const VIEW_TYPE_LABELS: ReadonlyArray<{ readonly value: ViewType; readonly label: string }> = [
   { value: "table", label: "Table" },
   { value: "kanban", label: "Kanban" },
   { value: "map", label: "Map" },
+  { value: "calendar", label: "Calendar" },
 ];
 
 // Shared chrome for the inline `<select>`s (saved view + field pickers).
@@ -38,17 +39,20 @@ export interface FieldChoice {
   readonly label: string;
 }
 
-/** A labeled inline `<select>` for picking the kanban/map field. */
+/** A labeled inline `<select>` for picking the kanban/map/calendar field. With
+ *  `emptyLabel`, an empty-value option is prepended (e.g. an optional end field). */
 function FieldSelect({
   label,
   value,
   options,
   onChange,
+  emptyLabel,
 }: {
   readonly label: string;
   readonly value: string;
   readonly options: ReadonlyArray<FieldChoice>;
   readonly onChange: (value: string) => void;
+  readonly emptyLabel?: string;
 }): ReactNode {
   return (
     <label className="flex items-center gap-1.5 text-muted-foreground text-sm">
@@ -59,6 +63,7 @@ function FieldSelect({
         value={value}
         onChange={(event) => onChange(event.target.value)}
       >
+        {emptyLabel !== undefined ? <option value="">{emptyLabel}</option> : null}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
@@ -100,6 +105,16 @@ export interface ViewSwitcherProps {
   readonly geoField?: string;
   /** Pick the map's geo field. */
   readonly onGeoFieldChange?: (value: string) => void;
+  /** Date/datetime fields a calendar can lay out by (shown when ≥2 in calendar view). */
+  readonly calendarFields?: ReadonlyArray<FieldChoice>;
+  /** The date field the calendar currently starts events on. */
+  readonly calendarField?: string;
+  /** Pick the calendar's start field. */
+  readonly onCalendarFieldChange?: (value: string) => void;
+  /** The optional date field calendar events end on (`""` for none). */
+  readonly calendarEndField?: string;
+  /** Pick the calendar's end field (`""` clears it). */
+  readonly onCalendarEndFieldChange?: (value: string) => void;
   /** Whether the active view is the user's default for this collection. */
   readonly activeIsDefault?: boolean;
   /** Make the active view the default (or clear it). Enables the default toggle. */
@@ -125,6 +140,11 @@ export function ViewSwitcher({
   geoFields,
   geoField,
   onGeoFieldChange,
+  calendarFields,
+  calendarField,
+  onCalendarFieldChange,
+  calendarEndField,
+  onCalendarEndFieldChange,
   activeIsDefault = false,
   onSetDefault,
   onRename,
@@ -140,6 +160,12 @@ export function ViewSwitcher({
   const showKanbanField =
     viewType === "kanban" && onKanbanFieldChange && (kanbanFields?.length ?? 0) > 1;
   const showGeoField = viewType === "map" && onGeoFieldChange && (geoFields?.length ?? 0) > 1;
+  const showCalendarField =
+    viewType === "calendar" && onCalendarFieldChange && (calendarFields?.length ?? 0) > 1;
+  // The end field is optional, so it's offered as soon as there's any date field
+  // to choose (with a "none" entry to clear it).
+  const showCalendarEndField =
+    viewType === "calendar" && onCalendarEndFieldChange && (calendarFields?.length ?? 0) > 0;
 
   function submitSaveAs() {
     const trimmed = name.trim();
@@ -188,6 +214,25 @@ export function ViewSwitcher({
           value={geoField ?? ""}
           options={geoFields}
           onChange={onGeoFieldChange}
+        />
+      ) : null}
+
+      {showCalendarField && calendarFields ? (
+        <FieldSelect
+          label="Start"
+          value={calendarField ?? ""}
+          options={calendarFields}
+          onChange={onCalendarFieldChange}
+        />
+      ) : null}
+
+      {showCalendarEndField && calendarFields ? (
+        <FieldSelect
+          label="End"
+          value={calendarEndField ?? ""}
+          options={calendarFields}
+          onChange={onCalendarEndFieldChange}
+          emptyLabel="No end"
         />
       ) : null}
 

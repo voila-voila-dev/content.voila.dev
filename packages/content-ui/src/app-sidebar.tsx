@@ -87,7 +87,9 @@ export function AppSidebar({
   const nav = buildNav(config, { basePath, currentPath });
 
   return (
-    <Sidebar.Root>
+    // `inset` floats the content area as a rounded, bordered panel (see
+    // `AdminShell`); the sidebar sits on the tinted `bg-sidebar` gutter.
+    <Sidebar.Root variant="inset">
       <Sidebar.Header>
         <div className="px-2 py-1 font-semibold text-sidebar-foreground">
           {config.branding.name}

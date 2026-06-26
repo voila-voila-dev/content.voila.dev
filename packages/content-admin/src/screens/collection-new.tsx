@@ -8,6 +8,7 @@ import { CollectionForm, type Doc } from "@voila/content-ui";
 import type { ReactNode } from "react";
 import { useAdmin } from "../context";
 import { useCollectionMutations } from "../hooks/use-collection-mutations";
+import { AdminLink } from "../lib/admin-link";
 import { errorMessage, fieldErrors } from "../lib/field-errors";
 import { CustomScreenDispatcher } from "./custom-dispatcher";
 
@@ -25,21 +26,24 @@ export function CollectionNewScreen(): ReactNode {
   const label = collection.label ?? slug;
 
   return (
-    <section className="max-w-xl space-y-4">
-      <h1 className="text-lg font-semibold">New {label}</h1>
-      <CollectionForm
-        collection={collection}
-        registry={admin.editWidgets}
-        locales={admin.config.i18n?.locales}
-        error={!serverErrors ? errorMessage(create.error) : undefined}
-        serverErrors={serverErrors}
-        submitLabel="Create"
-        onSubmit={(values) =>
-          create.mutate(values as Doc, {
-            onSuccess: (doc) => navigate({ href: `${admin.basePath}/${slug}/${doc.id}` }),
-          })
-        }
-      />
-    </section>
+    <CollectionForm
+      collection={collection}
+      registry={admin.editWidgets}
+      locales={admin.config.i18n?.locales}
+      title={`New ${label}`}
+      actions={
+        <AdminLink href={`${admin.basePath}/${slug}`} className="text-sm text-muted-foreground">
+          Back
+        </AdminLink>
+      }
+      error={!serverErrors ? errorMessage(create.error) : undefined}
+      serverErrors={serverErrors}
+      submitLabel="Create"
+      onSubmit={(values) =>
+        create.mutate(values as Doc, {
+          onSuccess: (doc) => navigate({ href: `${admin.basePath}/${slug}/${doc.id}` }),
+        })
+      }
+    />
   );
 }

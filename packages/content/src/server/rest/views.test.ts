@@ -1,8 +1,9 @@
-// The `_views` routes end to end through `createRestHandler`: per-user CRUD over
-// the `voila_views` store, the owner taken only from the resolved principal
-// (never the body), the 401 for an unauthenticated caller, and the CSRF guard on
-// writes. The table comes from `deriveSchema`; the store runs over in-memory
-// SQLite — the same seams production uses.
+// The `_views` routes end to end through `createRestHandler`: SHARED CRUD over
+// the `voila_views` store (any signed-in caller sees and edits the same views;
+// the creator id comes only from the resolved principal, never the body), the
+// seeded default Table view, the 401 for an unauthenticated caller, and the CSRF
+// guard on writes. The table comes from `deriveSchema`; the store runs over
+// in-memory SQLite — the same seams production uses.
 
 import { beforeEach, describe, expect, it } from "bun:test";
 import { defineCollection, defineConfig, fields, type NormalizedConfig } from "@voila/content";
@@ -96,7 +97,7 @@ interface WireView {
 }
 
 describe("_views routes — CRUD", () => {
-  it("creates, lists, updates and deletes a view scoped to the principal", async () => {
+  it("creates, lists, updates and deletes a view (records the creator)", async () => {
     const handle = handler({ auth: headerAuth });
 
     const created = await dataOf<WireView>(
@@ -111,8 +112,9 @@ describe("_views routes — CRUD", () => {
     );
     expect(created.ownerId).toBe("u1");
 
+    // The list seeds the undeletable default Table view, so it appears alongside.
     const listed = await dataOf<WireView[]>(await send(handle, "/posts/_views", asUser("u1")));
-    expect(listed.map((v) => v.name)).toEqual(["Recent"]);
+    expect(listed.map((v) => v.name).sort()).toEqual(["Recent", "Table"]);
 
     const updated = await dataOf<WireView>(
       await send(
@@ -124,10 +126,12 @@ describe("_views routes — CRUD", () => {
     expect(updated.name).toBe("Renamed");
 
     await send(handle, `/posts/_views/${created.id}`, asUser("u1", { method: "DELETE" }));
-    expect(await dataOf<WireView[]>(await send(handle, "/posts/_views", asUser("u1")))).toEqual([]);
+    // Only the seeded default remains.
+    const after = await dataOf<WireView[]>(await send(handle, "/posts/_views", asUser("u1")));
+    expect(after.map((v) => v.name)).toEqual(["Table"]);
   });
 
-  it("ignores any owner in the body — the principal owns the view", async () => {
+  it("ignores any owner in the body — the creator is the principal", async () => {
     const handle = handler({ auth: headerAuth });
     const created = await dataOf<WireView>(
       await send(
@@ -143,8 +147,8 @@ describe("_views routes — CRUD", () => {
   });
 });
 
-describe("_views routes — owner isolation", () => {
-  it("never exposes or mutates another user's views", async () => {
+describe("_views routes — shared across users", () => {
+  it("lets any signed-in user see and edit another user's view", async () => {
     const handle = handler({ auth: headerAuth });
     const u1View = await dataOf<WireView>(
       await send(
@@ -157,18 +161,34 @@ describe("_views routes — owner isolation", () => {
       ),
     );
 
-    // u2's list is empty.
-    expect(await dataOf<WireView[]>(await send(handle, "/posts/_views", asUser("u2")))).toEqual([]);
-    // u2 can't update or delete u1's view → 404 (it's not theirs).
-    const patch = await send(
-      handle,
-      `/posts/_views/${u1View.id}`,
-      asUser("u2", { method: "PATCH", body: JSON.stringify({ data: { name: "Hacked" } }) }),
+    // u2 sees u1's view (shared) alongside the seeded default.
+    const u2List = await dataOf<WireView[]>(await send(handle, "/posts/_views", asUser("u2")));
+    expect(u2List.map((v) => v.name).sort()).toEqual(["Mine", "Table"]);
+
+    // u2 can edit it; the creator id is unchanged.
+    const patched = await dataOf<WireView>(
+      await send(
+        handle,
+        `/posts/_views/${u1View.id}`,
+        asUser("u2", { method: "PATCH", body: JSON.stringify({ data: { name: "Edited" } }) }),
+      ),
     );
-    expect(patch.status).toBe(404);
-    // u1's view is untouched.
-    const stillMine = await dataOf<WireView[]>(await send(handle, "/posts/_views", asUser("u1")));
-    expect(stillMine[0]?.name).toBe("Mine");
+    expect(patched.name).toBe("Edited");
+    expect(patched.ownerId).toBe("u1");
+  });
+
+  it("treats deleting the seeded default as a no-op", async () => {
+    const handle = handler({ auth: headerAuth });
+    // Seed by listing, then find the default's id.
+    const seeded = (
+      await dataOf<(WireView & { seeded: boolean })[]>(
+        await send(handle, "/posts/_views", asUser("u1")),
+      )
+    ).find((v) => v.seeded);
+    expect(seeded).toBeDefined();
+    await send(handle, `/posts/_views/${seeded?.id}`, asUser("u1", { method: "DELETE" }));
+    const after = await dataOf<WireView[]>(await send(handle, "/posts/_views", asUser("u1")));
+    expect(after.map((v) => v.name)).toEqual(["Table"]);
   });
 });
 

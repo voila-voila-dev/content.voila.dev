@@ -504,10 +504,23 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
         ? `${quoteId("id")} ${keyword}`
         : `${quoteId(orderColumn)} ${keyword} NULLS LAST, ${quoteId("id")} ${keyword}`;
 
+    // Project to just the requested fields when asked, always keeping `id` and
+    // the order column (the keyset cursor reads both off each row). Unknown names
+    // are skipped — REST validates them, and a stray one shouldn't break the page.
+    let selectList = "*";
+    if (opts.fields && opts.fields.length > 0) {
+      const columns = new Set<string>(["id", orderColumn]);
+      for (const name of opts.fields) {
+        const info = table.byField.get(name) ?? table.byColumn.get(name);
+        if (info !== undefined) columns.add(info.name);
+      }
+      selectList = [...columns].map(quoteId).join(", ");
+    }
+
     const where = and(conditions);
     const rows = await exec(`Failed to list "${collection}".`, () =>
       driver.all(
-        `SELECT * FROM ${quoteId(table.name)} WHERE ${where.text} ORDER BY ${orderClause} LIMIT ${limit + 1}`,
+        `SELECT ${selectList} FROM ${quoteId(table.name)} WHERE ${where.text} ORDER BY ${orderClause} LIMIT ${limit + 1}`,
         where.params,
       ),
     );

@@ -12,6 +12,13 @@ function Root({ className, ...props }: ComponentProps<"section">) {
   return <section className={cn("text-card-foreground", className)} {...props} />;
 }
 
+// A fully-closed, self-contained card (all four borders + corners). The read
+// view uses this — there's no Save footer to close the card off, so a bare
+// `Body` (which is open-bottomed, expecting a `Footer`) would look unfinished.
+function Card({ className, ...props }: ComponentProps<"div">) {
+  return <div className={cn("rounded-lg border bg-card p-6", className)} {...props} />;
+}
+
 function Body({ className, ...props }: ComponentProps<"div">) {
   return <div className={cn("rounded-t-lg border-x border-t bg-card p-6", className)} {...props} />;
 }
@@ -48,6 +55,7 @@ function FieldCardButton(props: ComponentProps<typeof Button>) {
  *  `FieldCard.Body` (fields) and an optional `FieldCard.Footer` (Save). */
 export const FieldCard = {
   Root,
+  Card,
   Body,
   Title,
   Description,

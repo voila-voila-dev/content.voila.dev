@@ -16,7 +16,7 @@
   "dependencies": {
     "@phosphor-icons/react": "^2.1.7",
     "@voila/content": "workspace:*",
-    "@voila/ui": "^0.2.0"
+    "@voila/ui": "^0.3.1"
   },
   "peerDependencies": {
     "maplibre-gl": "^4.0.0 || ^5.0.0",

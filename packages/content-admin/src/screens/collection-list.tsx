@@ -1,24 +1,31 @@
 // The list screen for ANY collection: one definition serves every collection by
 // reading `params.collection` against the config. Keyset pagination as an
-// infinite query; the schema-driven `ListView` renders rows. Per-user saved
-// views (columns + sort + filters) load from and persist to the typed client's
-// `views` sub-API, switchable via `ViewSwitcher`; `ColumnPicker` edits the
-// visible columns and sortable headers drive the sort. Mounted by the host's
+// infinite query; the schema-driven `ListView` renders rows.
+//
+// Views are SHARED (the same for everyone) and Notion-style: a `ViewTabs` bar
+// lists the collection's saved views — always at least a seeded, undeletable
+// "Table" — and "+ Add view" creates more (a board/calendar/map), choosing the
+// field(s) that type needs up front. The active view lives in the URL as
+// `?view=<uid>` so a view is shareable by link; its `type` + `config` drive what
+// renders. Editing columns / sort / filters / calendar granularity writes
+// through to the shared view (no separate save step). Mounted by the host's
 // fixed `admin.$collection.index.tsx` shim.
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { Collection } from "@voila/content";
-import type { ListFilter, ViewConfig, ViewType } from "@voila/content/client";
-import type { Doc, FieldChoice, ViewType as UiViewType } from "@voila/content-ui";
+import type { ListFilter, SavedView, ViewConfig } from "@voila/content/client";
+import type { Doc, FieldChoice, ViewFieldChoices } from "@voila/content-ui";
 import {
+  CalendarView,
   ColumnPicker,
   FilterBuilder,
   getFieldLabel,
   KanbanView,
   ListView,
   MapView,
-  ViewSwitcher,
+  PageLayout,
+  ViewTabs,
 } from "@voila/content-ui";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useAdmin } from "../context";
@@ -29,10 +36,9 @@ import { type AnyListParams, collectionClient } from "../lib/client-access";
 import { CustomScreenDispatcher } from "./custom-dispatcher";
 import { SingletonScreen } from "./singleton";
 
-// Board/map views need (nearly) all rows, not one keyset page — fetch the server
-// max per page and auto-load up to this many pages (a hard cap so a huge
-// collection can't load forever; a notice shows when capped). Server-side
-// filters keep the working set small.
+// Board/map/calendar views need (nearly) all rows, not one keyset page — fetch
+// the server max per page and auto-load up to this many pages (a hard cap so a
+// huge collection can't load forever; a notice shows when capped).
 const BOARD_PAGE_LIMIT = 100;
 const BOARD_PAGE_CAP = 5;
 
@@ -54,100 +60,116 @@ function geoFields(collection: Collection): string[] {
   return Object.keys(collection.fields).filter((k) => collection.fields[k]?.meta.kind === "geo");
 }
 
-// Stable string form of a view config, for dirty detection (insertion order is
-// fixed here, so plain string compare is enough).
-function normalizeConfig(config: ViewConfig): string {
-  return JSON.stringify({
-    columns: config.columns ?? null,
-    sort: config.sort ?? null,
-    filters: config.filters ?? null,
-    kanbanField: config.kanbanField ?? null,
-    geoField: config.geoField ?? null,
+/** Date/datetime fields a calendar view can lay events out by. */
+function dateFields(collection: Collection): string[] {
+  return Object.keys(collection.fields).filter((k) => {
+    const kind = collection.fields[k]?.meta.kind;
+    return kind === "date" || kind === "datetime";
   });
+}
+
+/** Pick the active view from the URL's `?view`, else the default / seeded / first. */
+function resolveActiveView(views: ReadonlyArray<SavedView>, urlViewId?: string): SavedView | null {
+  const fromUrl = urlViewId ? views.find((v) => v.id === urlViewId) : undefined;
+  if (fromUrl) return fromUrl;
+  return views.find((v) => v.isDefault) ?? views.find((v) => v.seeded) ?? views[0] ?? null;
 }
 
 export function CollectionListScreen(): ReactNode {
   const { admin } = useAdmin();
   const navigate = useNavigate();
   const { collection: slug } = useParams({ strict: false }) as { collection: string };
+  // The active view id rides the URL (`?view=`), read loosely (the route doesn't
+  // validate it) so a view is shareable and survives reloads.
+  const search = useSearch({ strict: false }) as { readonly view?: string };
   const collection = admin.config.collections[slug] as Collection | undefined;
   const isSingleton = admin.config.singletons[slug] !== undefined;
 
   const api = collectionClient(admin.client, slug);
 
-  // The signed-in user's saved views for this collection.
+  // The collection's shared views (the default Table view is seeded on first read).
   const viewsQuery = useQuery({
     queryKey: [slug, "views"],
     queryFn: () => api.views.list(),
     enabled: collection !== undefined && !isSingleton,
   });
   const savedViews = viewsQuery.data ?? [];
+  const activeView = resolveActiveView(savedViews, search.view);
+  const activeViewId = activeView?.id ?? null;
 
-  // The active view + the working config it edits. `null` is the unsaved default.
-  const [activeViewId, setActiveViewId] = useState<string | null>(null);
-  const [viewType, setViewType] = useState<ViewType>("table");
+  // A local mirror of the active view's config, for snappy edits; it resets when
+  // the active view changes and writes through to the shared view on each edit.
   const [working, setWorking] = useState<ViewConfig>({});
-  const activeView = savedViews.find((v) => v.id === activeViewId) ?? null;
-
-  function selectView(id: string | null) {
-    const view = id === null ? null : (savedViews.find((v) => v.id === id) ?? null);
-    setActiveViewId(view ? view.id : null);
-    setWorking(view ? view.config : {});
-    setViewType(view ? view.type : "table");
+  const loadedViewId = useRef<string | null>(null);
+  if (activeView && activeView.id !== loadedViewId.current) {
+    loadedViewId.current = activeView.id;
+    setWorking(activeView.config);
   }
 
-  // The screen is reused across every `$collection` route (no remount on
-  // navigation), so reset the per-collection view state when the slug changes —
-  // otherwise the previous collection's filters/sort/columns/active view leak in
-  // and break the next collection's list query (unknown-field 400s, wrong
-  // columns, a phantom selection).
-  const autoSelected = useRef(false);
-  const [prevSlug, setPrevSlug] = useState(slug);
-  if (slug !== prevSlug) {
-    setPrevSlug(slug);
-    setActiveViewId(null);
-    setWorking({});
-    setViewType("table");
-    autoSelected.current = false;
-  }
+  const viewType = activeView?.type ?? "table";
+  const isBoardView = viewType === "kanban" || viewType === "map" || viewType === "calendar";
 
-  // Auto-select the user's default view once this collection's views load.
-  useEffect(() => {
-    if (autoSelected.current || !viewsQuery.isSuccess) return;
-    autoSelected.current = true;
-    const fallback = savedViews.find((v) => v.isDefault);
-    if (fallback) selectView(fallback.id);
-    // Keyed on slug too, so navigating to another collection re-runs after the
-    // reset above clears `autoSelected`.
-  }, [slug, viewsQuery.isSuccess]);
-
-  // Feed the working config's sort + filters into the list request.
-  const listParams = useMemo<AnyListParams>(() => {
-    const params: { -readonly [K in keyof AnyListParams]: AnyListParams[K] } = {};
-    if (working.sort) {
-      params.orderBy = working.sort.field;
-      params.order = working.sort.direction;
+  // Fetch only the fields the active view renders, so the list query stays lean
+  // (especially the board "load all" path). `id` always comes back server-side;
+  // the title field rides along for card/row titles. `undefined` → all columns
+  // (e.g. a board view whose required field isn't set yet).
+  const listFields = useMemo<readonly string[] | undefined>(() => {
+    if (!collection) return undefined;
+    const title = collection.titleField ? [collection.titleField] : [];
+    const card = working.cardFields ?? [];
+    if (viewType === "kanban") {
+      return working.kanbanField ? [working.kanbanField, ...card, ...title] : undefined;
     }
-    if (working.filters && working.filters.length > 0) params.filters = working.filters;
-    return params;
-  }, [working.sort, working.filters]);
-
-  const isBoardView = viewType === "kanban" || viewType === "map";
+    if (viewType === "map") {
+      return working.geoField ? [working.geoField, ...card, ...title] : undefined;
+    }
+    if (viewType === "calendar") {
+      return working.calendarField
+        ? [
+            working.calendarField,
+            ...(working.calendarEndField ? [working.calendarEndField] : []),
+            ...card,
+            ...title,
+          ]
+        : undefined;
+    }
+    const cols =
+      working.columns && working.columns.length > 0 ? working.columns : defaultColumns(collection);
+    return [...cols, ...title];
+  }, [
+    collection,
+    viewType,
+    working.columns,
+    working.cardFields,
+    working.kanbanField,
+    working.geoField,
+    working.calendarField,
+    working.calendarEndField,
+  ]);
 
   const query = useInfiniteQuery({
-    queryKey: [slug, "list", listParams, isBoardView],
+    queryKey: [
+      slug,
+      "list",
+      working.sort ?? null,
+      working.filters ?? null,
+      listFields ?? null,
+      isBoardView,
+    ],
     queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
       api.list({
-        ...listParams,
+        ...(working.sort ? { orderBy: working.sort.field, order: working.sort.direction } : {}),
+        ...(working.filters && working.filters.length > 0 ? { filters: working.filters } : {}),
+        ...(listFields ? { fields: listFields } : {}),
         ...(isBoardView ? { limit: BOARD_PAGE_LIMIT } : {}),
         ...(pageParam ? { cursor: pageParam } : {}),
-      }),
+      } as AnyListParams),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: collection !== undefined,
   });
 
-  // Board/map views: keep pulling pages (up to the cap) until the set is loaded.
+  // Board/map/calendar views: keep pulling pages (up to the cap) until loaded.
   const loadedPages = query.data?.pages.length ?? 0;
   useEffect(() => {
     if (!isBoardView) return;
@@ -156,13 +178,20 @@ export function CollectionListScreen(): ReactNode {
     }
   }, [isBoardView, query.hasNextPage, query.isFetchingNextPage, loadedPages, query.fetchNextPage]);
 
-  // Moving a kanban card patches the grouped field; the hook refetches the list.
   const { update: updateRow } = useCollectionMutations(slug);
-  // View CRUD; the hook invalidates the views query — the host owns selecting the
-  // new view / deselecting on delete.
+
+  function selectView(id: string) {
+    navigate({ to: ".", search: (prev: Record<string, unknown>) => ({ ...prev, view: id }) });
+  }
+
+  // View CRUD; the hook invalidates the views query. Creating selects the new
+  // view (via the URL); deleting falls back to the default/seeded view.
   const views = useViewMutations(slug, {
-    onCreated: (created) => setActiveViewId(created.id),
-    onDeleted: () => selectView(null),
+    onCreated: (created) => selectView(created.id),
+    onDeleted: () => {
+      const fallback = savedViews.find((v) => v.seeded) ?? savedViews.find((v) => v.isDefault);
+      if (fallback) selectView(fallback.id);
+    },
   });
 
   if (isSingleton) return <SingletonScreen slug={slug} />;
@@ -173,91 +202,77 @@ export function CollectionListScreen(): ReactNode {
   const rows = query.data?.pages.flatMap((page) => page.data) ?? [];
   const visibleColumns =
     working.columns && working.columns.length > 0 ? working.columns : defaultColumns(collection);
-  const dirty =
-    activeView !== null &&
-    (normalizeConfig(working) !== normalizeConfig(activeView.config) ||
-      viewType !== activeView.type);
 
-  // Which view types this collection can offer (kanban needs an enum/select
-  // field; map needs a geo field), and the field each one uses.
   const kanbanable = kanbanFields(collection);
   const geoable = geoFields(collection);
-  const availableTypes: UiViewType[] = [
-    "table",
-    ...(kanbanable.length > 0 ? (["kanban"] as const) : []),
-    ...(geoable.length > 0 ? (["map"] as const) : []),
-  ];
+  const dateable = dateFields(collection);
+
+  // The field each board/map/calendar view uses, from its saved config.
   const kanbanField = working.kanbanField ?? kanbanable[0];
   const geoField = working.geoField ?? geoable[0];
+  const calendarField = working.calendarField ?? dateable[0];
+  const calendarEndField =
+    working.calendarEndField && dateable.includes(working.calendarEndField)
+      ? working.calendarEndField
+      : undefined;
+  const calendarView = working.calendarView ?? "month";
   const cappedOut = isBoardView && query.hasNextPage && loadedPages >= BOARD_PAGE_CAP;
 
-  // Field choices (key + display label) the view switcher offers for kanban
-  // grouping / map plotting, so the user can pick rather than take the first.
   function fieldChoices(keys: ReadonlyArray<string>): FieldChoice[] {
     return keys.flatMap((key) => {
       const field = collection?.fields[key];
       return field ? [{ value: key, label: getFieldLabel(key, field) }] : [];
     });
   }
+  const viewFields: ViewFieldChoices = {
+    kanban: fieldChoices(kanbanable),
+    geo: fieldChoices(geoable),
+    date: fieldChoices(dateable),
+  };
 
+  // Write a config change through to the shared active view (snappy local mirror
+  // + persistence). No-op without an active view (still loading).
+  function patchConfig(patch: Partial<ViewConfig>) {
+    if (!activeView) return;
+    const next = { ...working, ...patch };
+    setWorking(next);
+    views.update.mutate({ id: activeView.id, config: next, type: activeView.type });
+  }
   function changeColumns(columns: string[]) {
-    setWorking((prev) => ({ ...prev, columns }));
+    patchConfig({ columns });
   }
   function changeSort(field: string) {
-    setWorking((prev) => {
-      const direction =
-        prev.sort?.field === field && prev.sort.direction === "asc" ? "desc" : "asc";
-      return { ...prev, sort: { field, direction } };
-    });
+    const direction =
+      working.sort?.field === field && working.sort.direction === "asc" ? "desc" : "asc";
+    patchConfig({ sort: { field, direction } });
   }
   function changeFilters(filters: ListFilter[]) {
-    setWorking((prev) => ({ ...prev, filters }));
+    patchConfig({ filters });
   }
-  function changeKanbanField(field: string) {
-    setWorking((prev) => ({ ...prev, kanbanField: field }));
-  }
-  function changeGeoField(field: string) {
-    setWorking((prev) => ({ ...prev, geoField: field }));
+  function changeCalendarView(view: "month" | "week" | "day") {
+    patchConfig({ calendarView: view });
   }
   function openRow(row: Doc) {
     navigate({ href: `${admin.basePath}/${slug}/${row.id}` });
   }
 
-  // The shared header controls — view switcher, the column picker (table only),
-  // host list actions, and the New link.
-  const actions = (
+  // The view tab bar (create / switch / configure shared views).
+  const tabs = (
+    <ViewTabs
+      views={savedViews}
+      activeViewId={activeViewId}
+      onSelect={selectView}
+      onCreate={(input) => views.create.mutate(input)}
+      onRename={(id, name) => views.rename.mutate({ id, name })}
+      onDelete={(id) => views.remove.mutate(id)}
+      onSetDefault={(id, isDefault) => views.setDefault.mutate({ id, isDefault })}
+      fields={viewFields}
+    />
+  );
+
+  // The per-view controls — filters always; the column picker on the table view.
+  const controls = (
     <div className="flex flex-wrap items-center gap-3">
-      <ViewSwitcher
-        viewType={viewType}
-        onViewTypeChange={setViewType}
-        views={savedViews}
-        activeViewId={activeViewId}
-        onSelectView={selectView}
-        dirty={dirty}
-        onSave={
-          activeViewId
-            ? () => views.update.mutate({ id: activeViewId, config: working, type: viewType })
-            : undefined
-        }
-        onSaveAs={(name) => views.create.mutate({ name, type: viewType, config: working })}
-        onDelete={activeViewId ? () => views.remove.mutate(activeViewId) : undefined}
-        activeIsDefault={activeView?.isDefault ?? false}
-        onSetDefault={
-          activeViewId
-            ? (isDefault) => views.setDefault.mutate({ id: activeViewId, isDefault })
-            : undefined
-        }
-        onRename={
-          activeViewId ? (name) => views.rename.mutate({ id: activeViewId, name }) : undefined
-        }
-        availableTypes={availableTypes}
-        kanbanFields={fieldChoices(kanbanable)}
-        kanbanField={kanbanField}
-        onKanbanFieldChange={changeKanbanField}
-        geoFields={fieldChoices(geoable)}
-        geoField={geoField}
-        onGeoFieldChange={changeGeoField}
-      />
       <FilterBuilder
         collection={collection}
         value={working.filters ?? []}
@@ -265,6 +280,14 @@ export function CollectionListScreen(): ReactNode {
       />
       {viewType === "table" ? (
         <ColumnPicker collection={collection} value={visibleColumns} onChange={changeColumns} />
+      ) : null}
+      {viewType === "kanban" || viewType === "map" || viewType === "calendar" ? (
+        <ColumnPicker
+          collection={collection}
+          value={working.cardFields ?? []}
+          onChange={(cardFields) => patchConfig({ cardFields })}
+          label="Card fields"
+        />
       ) : null}
       {admin.slots.collection?.listActions?.({ slug, client: admin.client })}
       <AdminLink
@@ -276,42 +299,61 @@ export function CollectionListScreen(): ReactNode {
     </div>
   );
 
-  // Board / map views render their own header (ListView is table-specific).
-  if ((viewType === "kanban" && kanbanField) || (viewType === "map" && geoField)) {
+  // Board / map / calendar views render their own header (ListView is
+  // table-specific), in the same pinned-header + scrolling-body page frame.
+  if (
+    (viewType === "kanban" && kanbanField) ||
+    (viewType === "map" && geoField) ||
+    (viewType === "calendar" && calendarField)
+  ) {
     return (
-      <section className="space-y-4">
-        <header className="flex items-start gap-4">
-          <h1 tabIndex={-1} className="text-lg font-semibold focus:outline-none">
-            {collection.label ?? slug}
-          </h1>
-          <div className="ml-auto flex items-center gap-2">{actions}</div>
-        </header>
-        {cappedOut ? (
-          <p className="text-sm text-muted-foreground">
-            Showing the first {rows.length} records. Narrow the set with a filter to see more.
-          </p>
-        ) : null}
-        {viewType === "kanban" && kanbanField ? (
-          <KanbanView
-            collection={collection}
-            rows={rows}
-            groupField={kanbanField}
-            registry={admin.displayWidgets}
-            onRowClick={openRow}
-            onMove={(rowId, value) =>
-              updateRow.mutate({ id: rowId, values: { [kanbanField]: value } })
-            }
-          />
-        ) : geoField ? (
-          <MapView
-            collection={collection}
-            rows={rows}
-            geoField={geoField}
-            mapStyleUrl={admin.mapStyleUrl}
-            onRowClick={openRow}
-          />
-        ) : null}
-      </section>
+      <PageLayout.Root>
+        <PageLayout.Header>
+          <PageLayout.Title>{collection.label ?? slug}</PageLayout.Title>
+          <div className="flex items-center gap-2">{controls}</div>
+        </PageLayout.Header>
+        <PageLayout.Body className="space-y-4">
+          {tabs}
+          {cappedOut ? (
+            <p className="text-muted-foreground text-sm">
+              Showing the first {rows.length} records. Narrow the set with a filter to see more.
+            </p>
+          ) : null}
+          {viewType === "kanban" && kanbanField ? (
+            <KanbanView
+              collection={collection}
+              rows={rows}
+              groupField={kanbanField}
+              cardFields={working.cardFields}
+              registry={admin.displayWidgets}
+              onRowClick={openRow}
+              onMove={(rowId, value) =>
+                updateRow.mutate({ id: rowId, values: { [kanbanField]: value } })
+              }
+            />
+          ) : viewType === "map" && geoField ? (
+            <MapView
+              collection={collection}
+              rows={rows}
+              geoField={geoField}
+              cardFields={working.cardFields}
+              mapStyleUrl={admin.mapStyleUrl}
+              onRowClick={openRow}
+            />
+          ) : viewType === "calendar" && calendarField ? (
+            <CalendarView
+              collection={collection}
+              rows={rows}
+              startField={calendarField}
+              endField={calendarEndField}
+              cardFields={working.cardFields}
+              view={calendarView}
+              onViewChange={changeCalendarView}
+              onRowClick={openRow}
+            />
+          ) : null}
+        </PageLayout.Body>
+      </PageLayout.Root>
     );
   }
 
@@ -328,7 +370,8 @@ export function CollectionListScreen(): ReactNode {
       onRowClick={openRow}
       sort={working.sort}
       onSortChange={changeSort}
-      actions={actions}
+      actions={controls}
+      header={tabs}
     />
   );
 }

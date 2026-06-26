@@ -49,7 +49,9 @@ export function FieldGroupNav({
       className={cn(
         "flex shrink-0 border-border",
         "flex-row gap-1 overflow-x-auto overflow-y-hidden border-b p-2",
-        "lg:w-50 lg:flex-col lg:gap-2 lg:overflow-x-visible lg:border-r lg:border-b-0 lg:p-4",
+        // Desktop: a fixed-width vertical column whose right border runs the full
+        // height of the page frame (it sits beside, not inside, the scroll body).
+        "lg:w-56 lg:flex-col lg:gap-1 lg:overflow-x-visible lg:overflow-y-auto lg:border-r lg:border-b-0 lg:p-4",
         className,
       )}
     >

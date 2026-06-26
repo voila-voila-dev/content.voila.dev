@@ -16,6 +16,7 @@ import { cn } from "@voila/ui/cn";
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { documentTitle } from "./detail-view";
 import type { Doc } from "./lib/doc";
+import { getFieldLabel } from "./lib/humanize";
 import { hasWebGL } from "./lib/webgl";
 
 export interface MapViewProps {
@@ -27,7 +28,24 @@ export interface MapViewProps {
   readonly mapStyleUrl: string;
   /** Open a row when its marker is clicked. */
   readonly onRowClick?: (row: Doc) => void;
+  /** Extra fields to list in a marker's popup, below the title. */
+  readonly cardFields?: readonly string[];
   readonly className?: string;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** A field value as a short popup string (objects/arrays are JSON; null → "—"). */
+function popupValue(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
 }
 
 interface Point {
@@ -46,6 +64,7 @@ export function MapView({
   collection,
   rows,
   geoField,
+  cardFields,
   mapStyleUrl,
   onRowClick,
   className,
@@ -53,14 +72,22 @@ export function MapView({
   const containerRef = useRef<HTMLElement>(null);
   // Read rows/handlers live so a re-init isn't forced by the host re-creating the
   // `rows` array each render; the marker set only refreshes on the signature.
-  const liveRef = useRef({ collection, rows, geoField, onRowClick });
-  liveRef.current = { collection, rows, geoField, onRowClick };
+  const liveRef = useRef({ collection, rows, geoField, cardFields, onRowClick });
+  liveRef.current = { collection, rows, geoField, cardFields, onRowClick };
 
   // A stable fingerprint of the plotted points — the effect re-inits only when a
   // marker's id or coordinates actually change (not on every parent render).
   const signature = useMemo(
-    () => rows.map((row) => `${String(row.id)}@${JSON.stringify(row[geoField])}`).join("|"),
-    [rows, geoField],
+    () =>
+      rows
+        .map(
+          (row) =>
+            `${String(row.id)}@${JSON.stringify(row[geoField])}#${(cardFields ?? [])
+              .map((f) => JSON.stringify(row[f]))
+              .join(",")}`,
+        )
+        .join("|"),
+    [rows, geoField, cardFields],
   );
 
   useEffect(() => {
@@ -93,7 +120,17 @@ export function MapView({
           if (point === null) continue;
           plotted += 1;
           const title = documentTitle(live.collection, row) ?? "";
-          const popup = new maplibre.Popup({ closeButton: false }).setText(title);
+          // Title plus any configured card fields, as escaped popup HTML.
+          const lines = (live.cardFields ?? []).flatMap((key) => {
+            const field = live.collection.fields[key];
+            if (!field) return [];
+            const label = escapeHtml(getFieldLabel(key, field));
+            const value = escapeHtml(popupValue(row[key]));
+            return [`<div><span class="opacity-60">${label}:</span> ${value}</div>`];
+          });
+          const popup = new maplibre.Popup({ closeButton: false }).setHTML(
+            `<div class="text-sm"><strong>${escapeHtml(title)}</strong>${lines.join("")}</div>`,
+          );
           const marker = new maplibre.Marker()
             .setLngLat([point.lng, point.lat])
             .setPopup(popup)

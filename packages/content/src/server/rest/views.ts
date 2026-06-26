@@ -1,13 +1,13 @@
-// The saved-views routes — list / create / update / delete a user's admin list
-// views, over the owner-scoped `ViewStore`. Mounted under a reserved `_views`
-// segment of a collection (`/:collection/_views`), and only when the host wires
-// a `views` context; without one the dispatcher doesn't own the routes.
+// The saved-views routes — list / create / update / delete the admin list views,
+// over the shared `ViewStore`. Mounted under a reserved `_views` segment of a
+// collection (`/:collection/_views`), and only when the host wires a `views`
+// context; without one the dispatcher doesn't own the routes.
 //
-// Views are per-user: the owner is taken ONLY from the guard's resolved
-// `principal` (never a request field), so a caller can only ever see or change
-// their own views, and an unauthenticated request is a 401. Writes ride the same
-// CSRF protection as any other mutation (the router classifies create/update/
-// delete as mutating operations).
+// Views are SHARED across all admin users: any signed-in caller sees and can
+// edit the same set (the caller's id is recorded only as the creator, for
+// audit). An unauthenticated request is still a 401 — you must be signed in to
+// the admin — and writes ride the same CSRF protection as any other mutation.
+// Listing seeds the collection's undeletable default Table view on first access.
 
 import type { Principal } from "../auth/principal";
 import type { NewView, ViewConfig, ViewPatch, ViewStore, ViewType } from "../views/store";
@@ -24,11 +24,11 @@ export interface ViewsContext {
 /** The reserved route segment under a collection (`/:collection/_views`). */
 export const VIEWS_SEGMENT = "_views";
 
-const VIEW_TYPES: ReadonlySet<ViewType> = new Set(["table", "kanban", "map"]);
+const VIEW_TYPES: ReadonlySet<ViewType> = new Set(["table", "kanban", "map", "calendar"]);
 
-// The owner is the authenticated principal — never a body field. No principal
-// (open API / not signed in) → 401, since a view has no owner to attach to.
-function requireOwner(principal: Principal | null): string {
+// Views are shared, but you must be signed in to read or change them — the
+// caller's id is recorded as the creator. No principal (not signed in) → 401.
+function requireCaller(principal: Principal | null): string {
   if (principal === null) fail(unauthorized());
   return principal.id;
 }
@@ -53,7 +53,7 @@ async function readBody(request: Request): Promise<Record<string, unknown>> {
 
 function asViewType(value: unknown): ViewType {
   if (typeof value !== "string" || !VIEW_TYPES.has(value as ViewType)) {
-    fail(badRequest({ field: "type", expected: "table | kanban | map" }));
+    fail(badRequest({ field: "type", expected: [...VIEW_TYPES].join(" | ") }));
   }
   return value as ViewType;
 }
@@ -101,20 +101,21 @@ function parseViewPatch(body: Record<string, unknown>): ViewPatch {
   return patch;
 }
 
-/** `GET /:collection/_views` — the caller's saved views for the collection. */
+/** `GET /:collection/_views` — the collection's shared views (seeds the default). */
 export function handleViewsList(
   views: ViewsContext,
   collection: string,
   principal: Principal | null,
 ): Promise<Response> {
   return runHandler(async () => {
-    const ownerId = requireOwner(principal);
-    const data = await views.store.list(ownerId, collection);
+    const caller = requireCaller(principal);
+    await views.store.ensureDefault(collection, caller);
+    const data = await views.store.list(collection);
     return Response.json({ data });
   }, views.onError);
 }
 
-/** `POST /:collection/_views` — save a new view for the caller (201). */
+/** `POST /:collection/_views` — save a new shared view (201). */
 export function handleViewsCreate(
   views: ViewsContext,
   collection: string,
@@ -122,14 +123,14 @@ export function handleViewsCreate(
   principal: Principal | null,
 ): Promise<Response> {
   return runHandler(async () => {
-    const ownerId = requireOwner(principal);
+    const caller = requireCaller(principal);
     const view = parseNewView(await readBody(request));
-    const created = await views.store.create(ownerId, collection, view);
+    const created = await views.store.create(collection, view, caller);
     return Response.json({ data: created }, { status: 201 });
   }, views.onError);
 }
 
-/** `PATCH /:collection/_views/:id` — update one of the caller's views. */
+/** `PATCH /:collection/_views/:id` — update a shared view. */
 export function handleViewsUpdate(
   views: ViewsContext,
   collection: string,
@@ -138,15 +139,16 @@ export function handleViewsUpdate(
   principal: Principal | null,
 ): Promise<Response> {
   return runHandler(async () => {
-    const ownerId = requireOwner(principal);
+    requireCaller(principal);
     const patch = parseViewPatch(await readBody(request));
-    const updated = await views.store.update(ownerId, collection, id, patch);
+    const updated = await views.store.update(collection, id, patch);
     if (updated === null) fail(notFound(VIEWS_SEGMENT));
     return Response.json({ data: updated });
   }, views.onError);
 }
 
-/** `DELETE /:collection/_views/:id` — delete one of the caller's views. */
+/** `DELETE /:collection/_views/:id` — delete a shared view (the seeded default
+ *  is undeletable; the store treats that as a no-op). */
 export function handleViewsDelete(
   views: ViewsContext,
   collection: string,
@@ -154,8 +156,8 @@ export function handleViewsDelete(
   principal: Principal | null,
 ): Promise<Response> {
   return runHandler(async () => {
-    const ownerId = requireOwner(principal);
-    await views.store.delete(ownerId, collection, id);
+    requireCaller(principal);
+    await views.store.delete(collection, id);
     return Response.json({ data: { id } });
   }, views.onError);
 }

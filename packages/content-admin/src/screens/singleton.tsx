@@ -30,7 +30,6 @@ export function SingletonScreen({ slug }: { readonly slug: string }): ReactNode 
       search: (prev: Record<string, unknown>) => ({ ...prev, group: id }),
     });
   }
-  const grouped = (singleton.groups?.length ?? 0) > 0;
 
   const api = singletonClient(admin.client, slug);
   const doc = useQuery({ queryKey: [slug, "singleton"], queryFn: () => api.get() });
@@ -43,21 +42,32 @@ export function SingletonScreen({ slug }: { readonly slug: string }): ReactNode 
   if (editing || (doc.isSuccess && doc.data === null)) {
     const serverErrors = fieldErrors(save.error);
     return (
-      <section className={grouped ? "space-y-4" : "max-w-xl space-y-4"}>
-        <h1 className="text-lg font-semibold">Edit {label}</h1>
-        <CollectionForm
-          collection={singleton}
-          registry={admin.editWidgets}
-          locales={admin.config.i18n?.locales}
-          defaultValues={doc.data ?? undefined}
-          error={!serverErrors ? errorMessage(save.error) : undefined}
-          serverErrors={serverErrors}
-          submitLabel="Save"
-          activeGroup={activeGroup}
-          onGroupChange={changeGroup}
-          onSubmit={(values) => save.mutate(values as Doc, { onSuccess: () => setEditing(false) })}
-        />
-      </section>
+      <CollectionForm
+        collection={singleton}
+        registry={admin.editWidgets}
+        locales={admin.config.i18n?.locales}
+        defaultValues={doc.data ?? undefined}
+        title={`Edit ${label}`}
+        // Only offer Cancel when there's an existing document to return to (a
+        // not-yet-created singleton has nothing to read).
+        actions={
+          doc.data ? (
+            <button
+              type="button"
+              className="text-sm text-muted-foreground"
+              onClick={() => setEditing(false)}
+            >
+              Cancel
+            </button>
+          ) : undefined
+        }
+        error={!serverErrors ? errorMessage(save.error) : undefined}
+        serverErrors={serverErrors}
+        submitLabel="Save"
+        activeGroup={activeGroup}
+        onGroupChange={changeGroup}
+        onSubmit={(values) => save.mutate(values as Doc, { onSuccess: () => setEditing(false) })}
+      />
     );
   }
 

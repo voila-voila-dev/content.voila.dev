@@ -6,6 +6,13 @@
 
 export { AdminShell, type AdminShellProps } from "./admin-shell";
 export { AppSidebar, type AppSidebarProps } from "./app-sidebar";
+export {
+  CalendarView,
+  type CalendarViewMode,
+  type CalendarViewProps,
+  readInstant,
+  rowsToEvents,
+} from "./calendar-view";
 export { CollectionForm, type CollectionFormProps, type FormValues } from "./collection-form";
 export { ColumnPicker, type ColumnPickerProps } from "./column-picker";
 export { ConfirmButton, type ConfirmButtonProps } from "./confirm-button";
@@ -51,6 +58,7 @@ export { type FormValidation, validateFields } from "./lib/validate";
 export { ListView, type ListViewProps } from "./list-view";
 export { LocalizedFieldEditor, type LocalizedFieldEditorProps } from "./localized-field";
 export { MapView, type MapViewProps } from "./map-view";
+export { PageLayout } from "./page-layout";
 export { PublishControls, type PublishControlsProps } from "./publish-controls";
 export {
   defaultEditRegistry,
@@ -81,12 +89,19 @@ export {
   type ViewType,
 } from "./view-switcher";
 export {
+  type ViewFieldChoices,
+  type ViewTabItem,
+  ViewTabs,
+  type ViewTabsProps,
+} from "./view-tabs";
+export {
   BooleanDisplay,
   ColorDisplay,
   DateDisplay,
   type DisplayWidget,
   type DisplayWidgetProps,
   Empty,
+  EnumDisplay,
   JsonDisplay,
   MultilineTextDisplay,
   NumberDisplay,
