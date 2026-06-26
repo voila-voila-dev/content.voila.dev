@@ -128,13 +128,42 @@ export function FilterBuilder({
   onChange,
   label = "Filters",
 }: FilterBuilderProps): ReactNode {
+  const triggerLabel = value.length > 0 ? `${label} (${value.length})` : label;
+
+  return (
+    <Popover.Root>
+      <Popover.Trigger
+        className={cn(
+          buttonVariants({ variant: value.length > 0 ? "secondary" : "outline", size: "sm" }),
+          "gap-1.5",
+        )}
+      >
+        <FunnelIcon className="size-4" aria-hidden />
+        {triggerLabel}
+      </Popover.Trigger>
+      <Popover.Content align="end" className="w-[22rem] space-y-2">
+        <FilterEditor collection={collection} value={value} onChange={onChange} label={label} />
+      </Popover.Content>
+    </Popover.Root>
+  );
+}
+
+/**
+ * The filter rows + add button, *without* the popover chrome. Used directly when
+ * the editor must live inside another floating layer (e.g. the view-edit
+ * dialog), where nesting a Base UI popover inside a Base UI dialog would render
+ * it behind the backdrop. Same controlled contract as {@link FilterBuilder}.
+ */
+export function FilterEditor({
+  collection,
+  value,
+  onChange,
+  label = "Filters",
+}: FilterBuilderProps): ReactNode {
   const fields = filterableFields(collection);
-  // Monotonic source of stable row keys (so removing a middle row is clean).
   const idRef = useRef(0);
   const mintId = () => `f${idRef.current++}`;
   const [rows, setRows] = useState<DraftRow[]>(() => toDraft(value, mintId));
-  // Re-seed when the applied filters change from outside (e.g. switching saved
-  // views or a reset) rather than from our own `onChange` round-trip.
   const [lastSig, setLastSig] = useState(() => signature(value));
   const incoming = signature(value);
   if (incoming !== lastSig) {
@@ -172,7 +201,6 @@ export function FilterBuilder({
 
   function changeField(index: number, key: string) {
     const kind = kindOf(collection, key);
-    // Reset the op + value to ones valid for the new field's kind.
     updateRow(index, {
       field: key,
       op: opsForKind(kind)[0] ?? "eq",
@@ -184,80 +212,67 @@ export function FilterBuilder({
     commit(rows.filter((_, i) => i !== index));
   }
 
-  const triggerLabel = value.length > 0 ? `${label} (${value.length})` : label;
-
   return (
-    <Popover.Root>
-      <Popover.Trigger
-        className={cn(
-          buttonVariants({ variant: value.length > 0 ? "secondary" : "outline", size: "sm" }),
-          "gap-1.5",
-        )}
+    <>
+      <p className="font-medium text-sm">{label}</p>
+      {rows.length === 0 ? (
+        <p className="text-muted-foreground text-sm">No filters yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {rows.map((row, index) => (
+            <li key={row.id} className="flex items-center gap-1.5">
+              <select
+                aria-label="Filter field"
+                className={cn(NATIVE_SELECT_CLASS, "min-w-0 flex-1")}
+                value={row.field}
+                onChange={(event) => changeField(index, event.target.value)}
+              >
+                {fields.map((f) => (
+                  <option key={f.key} value={f.key}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label="Filter operator"
+                className={NATIVE_SELECT_CLASS}
+                value={row.op}
+                onChange={(event) => updateRow(index, { op: event.target.value as FilterOp })}
+              >
+                {opsForKind(kindOf(collection, row.field)).map((op) => (
+                  <option key={op} value={op}>
+                    {OP_LABELS[op]}
+                  </option>
+                ))}
+              </select>
+              <FilterValueInput
+                collection={collection}
+                fieldKey={row.field}
+                value={row.value}
+                onChange={(v) => updateRow(index, { value: v })}
+              />
+              <button
+                type="button"
+                aria-label="Remove filter"
+                onClick={() => removeRow(index)}
+                className="rounded p-1 text-muted-foreground hover:text-foreground"
+              >
+                <XIcon className="size-4" aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button
+        type="button"
+        onClick={addRow}
+        disabled={fields.length === 0}
+        className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1.5")}
       >
-        <FunnelIcon className="size-4" aria-hidden />
-        {triggerLabel}
-      </Popover.Trigger>
-      <Popover.Content align="end" className="w-[22rem] space-y-2">
-        <p className="font-medium text-sm">{label}</p>
-        {rows.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No filters yet.</p>
-        ) : (
-          <ul className="space-y-2">
-            {rows.map((row, index) => (
-              <li key={row.id} className="flex items-center gap-1.5">
-                <select
-                  aria-label="Filter field"
-                  className={cn(NATIVE_SELECT_CLASS, "min-w-0 flex-1")}
-                  value={row.field}
-                  onChange={(event) => changeField(index, event.target.value)}
-                >
-                  {fields.map((f) => (
-                    <option key={f.key} value={f.key}>
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  aria-label="Filter operator"
-                  className={NATIVE_SELECT_CLASS}
-                  value={row.op}
-                  onChange={(event) => updateRow(index, { op: event.target.value as FilterOp })}
-                >
-                  {opsForKind(kindOf(collection, row.field)).map((op) => (
-                    <option key={op} value={op}>
-                      {OP_LABELS[op]}
-                    </option>
-                  ))}
-                </select>
-                <FilterValueInput
-                  collection={collection}
-                  fieldKey={row.field}
-                  value={row.value}
-                  onChange={(v) => updateRow(index, { value: v })}
-                />
-                <button
-                  type="button"
-                  aria-label="Remove filter"
-                  onClick={() => removeRow(index)}
-                  className="rounded p-1 text-muted-foreground hover:text-foreground"
-                >
-                  <XIcon className="size-4" aria-hidden />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <button
-          type="button"
-          onClick={addRow}
-          disabled={fields.length === 0}
-          className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1.5")}
-        >
-          <PlusIcon className="size-4" aria-hidden />
-          Add filter
-        </button>
-      </Popover.Content>
-    </Popover.Root>
+        <PlusIcon className="size-4" aria-hidden />
+        Add filter
+      </button>
+    </>
   );
 }
 

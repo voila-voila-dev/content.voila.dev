@@ -18,8 +18,8 @@ import type { ListFilter, SavedView, ViewConfig } from "@voila/content/client";
 import type { Doc, FieldChoice, ViewFieldChoices } from "@voila/content-ui";
 import {
   CalendarView,
-  ColumnPicker,
-  FilterBuilder,
+  ColumnEditor,
+  FilterEditor,
   getFieldLabel,
   KanbanView,
   ListView,
@@ -27,6 +27,9 @@ import {
   PageLayout,
   ViewTabs,
 } from "@voila/content-ui";
+import { buttonVariants } from "@voila/ui/button";
+import { cn } from "@voila/ui/cn";
+import { FunnelIcon } from "@voila/ui/icons";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useAdmin } from "../context";
 import { useCollectionMutations } from "../hooks/use-collection-mutations";
@@ -100,6 +103,8 @@ export function CollectionListScreen(): ReactNode {
   // A local mirror of the active view's config, for snappy edits; it resets when
   // the active view changes and writes through to the shared view on each edit.
   const [working, setWorking] = useState<ViewConfig>({});
+  // Which inline section of the "Edit view" dialog is expanded (one at a time).
+  const [editorPanel, setEditorPanel] = useState<"filters" | "fields" | "map" | null>(null);
   const loadedViewId = useRef<string | null>(null);
   if (activeView && activeView.id !== loadedViewId.current) {
     loadedViewId.current = activeView.id;
@@ -257,27 +262,63 @@ export function CollectionListScreen(): ReactNode {
   }
 
   // The per-view editor — filters always; columns on the table view, card fields
-  // on a board/map/calendar. Lives inside the view's "Edit view" dialog (opened
-  // from a tab's context menu), bound to the active view's config.
+  // on a board/map/calendar, plus the map's default position. Lives INLINE inside
+  // the view's "Edit view" dialog (opened from a tab's context menu), bound to the
+  // active view's config. Inline — not nested popovers — because a Base UI popover
+  // opened inside a Base UI dialog renders behind the dialog's backdrop.
+  const fieldsLabel = viewType === "table" ? "Columns" : "Card fields";
+  const fieldsValue = viewType === "table" ? visibleColumns : (working.cardFields ?? []);
+  const onFieldsChange =
+    viewType === "table" ? changeColumns : (cardFields: string[]) => patchConfig({ cardFields });
+  const filterCount = working.filters?.length ?? 0;
+
+  function togglePanel(panel: "filters" | "fields" | "map") {
+    setEditorPanel((current) => (current === panel ? null : panel));
+  }
+
   const viewEditor = (
-    <>
-      <FilterBuilder
-        collection={collection}
-        value={working.filters ?? []}
-        onChange={changeFilters}
-      />
-      {viewType === "table" ? (
-        <ColumnPicker collection={collection} value={visibleColumns} onChange={changeColumns} />
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <PanelToggle active={editorPanel === "filters"} onClick={() => togglePanel("filters")}>
+          <FunnelIcon className="size-4" aria-hidden />
+          {filterCount > 0 ? `Filters (${filterCount})` : "Filters"}
+        </PanelToggle>
+        <PanelToggle active={editorPanel === "fields"} onClick={() => togglePanel("fields")}>
+          {fieldsLabel}
+        </PanelToggle>
+        {viewType === "map" ? (
+          <PanelToggle active={editorPanel === "map"} onClick={() => togglePanel("map")}>
+            Map position
+          </PanelToggle>
+        ) : null}
+      </div>
+      {editorPanel === "filters" ? (
+        <div className="space-y-2 rounded-md border p-3">
+          <FilterEditor
+            collection={collection}
+            value={working.filters ?? []}
+            onChange={changeFilters}
+          />
+        </div>
       ) : null}
-      {viewType === "kanban" || viewType === "map" || viewType === "calendar" ? (
-        <ColumnPicker
-          collection={collection}
-          value={working.cardFields ?? []}
-          onChange={(cardFields) => patchConfig({ cardFields })}
-          label="Card fields"
+      {editorPanel === "fields" ? (
+        <div className="max-h-56 overflow-auto rounded-md border p-3">
+          <ColumnEditor
+            collection={collection}
+            value={fieldsValue}
+            onChange={onFieldsChange}
+            label={fieldsLabel}
+          />
+        </div>
+      ) : null}
+      {editorPanel === "map" && viewType === "map" ? (
+        <MapDefaultsEditor
+          center={working.mapCenter}
+          zoom={working.mapZoom}
+          onChange={(patch) => patchConfig(patch)}
         />
       ) : null}
-    </>
+    </div>
   );
 
   // The view tab bar (create / switch / configure shared views).
@@ -350,6 +391,8 @@ export function CollectionListScreen(): ReactNode {
               cardFields={working.cardFields}
               mapStyleUrl={admin.mapStyleUrl}
               darkStyleUrl={admin.mapDarkStyleUrl}
+              defaultCenter={working.mapCenter}
+              defaultZoom={working.mapZoom}
               onRowClick={openRow}
             />
           ) : viewType === "calendar" && calendarField ? (
@@ -385,5 +428,133 @@ export function CollectionListScreen(): ReactNode {
       actions={controls}
       header={tabs}
     />
+  );
+}
+
+/** A disclosure button for one inline section of the "Edit view" dialog. */
+function PanelToggle({
+  active,
+  onClick,
+  children,
+}: {
+  readonly active: boolean;
+  readonly onClick: () => void;
+  readonly children: ReactNode;
+}): ReactNode {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        buttonVariants({ variant: active ? "secondary" : "outline", size: "sm" }),
+        "gap-1.5",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+const COORD_INPUT_CLASS =
+  "h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
+/**
+ * Edits a map view's opening camera — latitude, longitude, and zoom. A center
+ * needs both coordinates to take effect; "Reset to auto-fit" clears them so the
+ * map snaps to its markers again. Local string state keeps half-typed numbers
+ * (a lone "-" or "12.") responsive while only finite values are committed.
+ */
+function MapDefaultsEditor({
+  center,
+  zoom,
+  onChange,
+}: {
+  readonly center?: { readonly lat: number; readonly lng: number };
+  readonly zoom?: number;
+  readonly onChange: (patch: Partial<ViewConfig>) => void;
+}): ReactNode {
+  const [lat, setLat] = useState(center ? String(center.lat) : "");
+  const [lng, setLng] = useState(center ? String(center.lng) : "");
+  const [zoomText, setZoomText] = useState(zoom !== undefined ? String(zoom) : "");
+
+  function commit(nextLat: string, nextLng: string, nextZoom: string) {
+    const latNum = Number.parseFloat(nextLat);
+    const lngNum = Number.parseFloat(nextLng);
+    const zoomNum = Number.parseFloat(nextZoom);
+    onChange({
+      mapCenter:
+        Number.isFinite(latNum) && Number.isFinite(lngNum)
+          ? { lat: latNum, lng: lngNum }
+          : undefined,
+      mapZoom: Number.isFinite(zoomNum) ? zoomNum : undefined,
+    });
+  }
+
+  function reset() {
+    setLat("");
+    setLng("");
+    setZoomText("");
+    onChange({ mapCenter: undefined, mapZoom: undefined });
+  }
+
+  return (
+    <div className="space-y-2 rounded-md border p-3">
+      <p className="font-medium text-sm">Map position</p>
+      <div className="grid grid-cols-3 gap-2">
+        <label className="flex flex-col gap-1 text-muted-foreground text-xs">
+          Latitude
+          <input
+            aria-label="Default latitude"
+            type="number"
+            inputMode="decimal"
+            className={COORD_INPUT_CLASS}
+            value={lat}
+            onChange={(event) => {
+              setLat(event.target.value);
+              commit(event.target.value, lng, zoomText);
+            }}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-muted-foreground text-xs">
+          Longitude
+          <input
+            aria-label="Default longitude"
+            type="number"
+            inputMode="decimal"
+            className={COORD_INPUT_CLASS}
+            value={lng}
+            onChange={(event) => {
+              setLng(event.target.value);
+              commit(lat, event.target.value, zoomText);
+            }}
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-muted-foreground text-xs">
+          Zoom
+          <input
+            aria-label="Default zoom"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            max={22}
+            step={0.5}
+            className={COORD_INPUT_CLASS}
+            value={zoomText}
+            onChange={(event) => {
+              setZoomText(event.target.value);
+              commit(lat, lng, event.target.value);
+            }}
+          />
+        </label>
+      </div>
+      <button
+        type="button"
+        onClick={reset}
+        className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
+      >
+        Reset to auto-fit
+      </button>
+    </div>
   );
 }

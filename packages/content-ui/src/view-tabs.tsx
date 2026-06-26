@@ -366,7 +366,7 @@ export function ViewTabs({
       </Dialog.Root>
 
       <Dialog.Root open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
-        <Dialog.Content className="max-w-sm">
+        <Dialog.Content className="max-h-[85vh] max-w-sm overflow-y-auto">
           <Dialog.Header>
             <Dialog.Title>Edit view</Dialog.Title>
             <Dialog.Description>
@@ -386,7 +386,7 @@ export function ViewTabs({
               value={renameValue}
               onChange={(event) => setRenameValue(event.target.value)}
             />
-            {editor ? <div className="flex flex-wrap items-center gap-2">{editor}</div> : null}
+            {editor}
             <Dialog.Footer>
               <Dialog.Close className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
                 Cancel

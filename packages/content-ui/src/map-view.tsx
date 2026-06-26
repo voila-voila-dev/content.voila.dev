@@ -29,6 +29,14 @@ export interface MapViewProps {
   readonly mapStyleUrl: string;
   /** Dark-theme basemap; when set, the map follows the admin's `.dark` theme. */
   readonly darkStyleUrl?: string;
+  /**
+   * Initial camera center (`{ lat, lng }`). When set, the map opens here and
+   * does NOT auto-fit to the plotted points — the configured framing wins.
+   * Absent → the map auto-fits to its markers (the default behaviour).
+   */
+  readonly defaultCenter?: { readonly lat: number; readonly lng: number };
+  /** Initial zoom level. Used as the opening zoom (with or without a center). */
+  readonly defaultZoom?: number;
   /** Open a row when its marker is clicked. */
   readonly onRowClick?: (row: Doc) => void;
   /** Extra fields to list in a marker's popup, below the title. */
@@ -70,6 +78,8 @@ export function MapView({
   cardFields,
   mapStyleUrl,
   darkStyleUrl,
+  defaultCenter,
+  defaultZoom,
   onRowClick,
   className,
 }: MapViewProps): ReactNode {
@@ -115,8 +125,8 @@ export function MapView({
         map = new maplibre.Map({
           container: containerRef.current,
           style: activeMapStyleUrl(mapStyleUrl, darkStyleUrl),
-          center: [0, 0],
-          zoom: 1,
+          center: defaultCenter ? [defaultCenter.lng, defaultCenter.lat] : [0, 0],
+          zoom: defaultZoom ?? 1,
         });
         // Swap to the dark basemap when the admin theme toggles (no-op without a
         // dark variant). Markers are DOM overlays, so they survive the swap.
@@ -148,7 +158,11 @@ export function MapView({
           marker.getElement().addEventListener("click", () => liveRef.current.onRowClick?.(row));
           bounds.extend([point.lng, point.lat]);
         }
-        if (plotted > 0) map.fitBounds(bounds, { padding: 48, maxZoom: 12, duration: 0 });
+        // A configured center wins: keep the chosen framing instead of snapping
+        // to the markers. Without one, auto-fit to the plotted points as before.
+        if (plotted > 0 && !defaultCenter) {
+          map.fitBounds(bounds, { padding: 48, maxZoom: 12, duration: 0 });
+        }
       } catch {
         // Optional maplibre missing or map init failed — degrade to empty.
       }
@@ -159,7 +173,9 @@ export function MapView({
       stopThemeFollow?.();
       map?.remove();
     };
-  }, [mapStyleUrl, darkStyleUrl, signature]);
+    // Re-init on center/zoom change too; spread to primitive deps so a fresh
+    // `defaultCenter` object identity each render doesn't churn the map.
+  }, [mapStyleUrl, darkStyleUrl, signature, defaultCenter?.lat, defaultCenter?.lng, defaultZoom]);
 
   // The styled box is an OUTER element React owns; maplibre attaches to the inner
   // `<section>` and adds its own `maplibregl-map` class there. Keeping that inner
