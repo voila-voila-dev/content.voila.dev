@@ -349,6 +349,7 @@ export function CollectionListScreen(): ReactNode {
               geoField={geoField}
               cardFields={working.cardFields}
               mapStyleUrl={admin.mapStyleUrl}
+              darkStyleUrl={admin.mapDarkStyleUrl}
               onRowClick={openRow}
             />
           ) : viewType === "calendar" && calendarField ? (

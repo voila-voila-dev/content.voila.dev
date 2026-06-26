@@ -37,6 +37,7 @@ export {
   resolveFieldGroups,
 } from "./lib/groups";
 export { getFieldLabel, humanize } from "./lib/humanize";
+export { DEFAULT_MAP_DARK_STYLE_URL, DEFAULT_MAP_STYLE_URL } from "./lib/map-style";
 export {
   type BuildNavOptions,
   buildNav,
