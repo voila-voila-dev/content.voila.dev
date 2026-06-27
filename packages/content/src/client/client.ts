@@ -118,6 +118,10 @@ export interface ViewConfig {
   readonly kanbanField?: string;
   /** The geo field a map view plots. */
   readonly geoField?: string;
+  /** A map view's initial camera center; absent → auto-fit to the plotted points. */
+  readonly mapCenter?: { readonly lat: number; readonly lng: number };
+  /** A map view's initial zoom level. */
+  readonly mapZoom?: number;
   /** The date/datetime field a calendar view starts its events on. */
   readonly calendarField?: string;
   /** Optional date/datetime field a calendar event ends on (range events). */

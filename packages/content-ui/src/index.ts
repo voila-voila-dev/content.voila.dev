@@ -14,7 +14,7 @@ export {
   rowsToEvents,
 } from "./calendar-view";
 export { CollectionForm, type CollectionFormProps, type FormValues } from "./collection-form";
-export { ColumnPicker, type ColumnPickerProps } from "./column-picker";
+export { ColumnEditor, ColumnPicker, type ColumnPickerProps } from "./column-picker";
 export { ConfirmButton, type ConfirmButtonProps } from "./confirm-button";
 export { Dashboard, type DashboardProps } from "./dashboard";
 export { DataTable, type DataTableProps } from "./data-table";
@@ -22,7 +22,7 @@ export { DetailView, type DetailViewProps, documentTitle } from "./detail-view";
 export { FieldCard } from "./field-card";
 export { FieldGroupNav, type FieldGroupNavProps, resolveGroupIcon } from "./field-group-nav";
 export { FieldRenderer, type FieldRendererProps } from "./field-renderer";
-export { FilterBuilder, type FilterBuilderProps } from "./filter-builder";
+export { FilterBuilder, type FilterBuilderProps, FilterEditor } from "./filter-builder";
 export { KanbanView, type KanbanViewProps } from "./kanban-view";
 export type { Doc } from "./lib/doc";
 export {
