@@ -33,13 +33,18 @@ client and server; the wider TanStack/React form world already speaks the spec.
 **Why:** one ecosystem the audience already knows; no bespoke state/form/sync
 layer to teach or maintain. The admin *is* a TanStack subtree.
 
-## Distribution: shadcn-style registry (you own the files)
+## Distribution: a config-driven admin package (not vended files)
 
-**Decision:** `voila add` vends real source files into your repo — admin shell,
-routes, blocks, fields. No virtual routes, no Vite-plugin magic. The engine ships
-as a versioned npm dependency you `npm update`; the UI is yours.
-**Why:** "you own your code" and "you never touch engine internals" at the same
-time. Files are greppable, debuggable, PR-diffable. `voila diff` shows drift.
+**Decision:** the admin is a versioned package, `@voila/content-admin`, that
+produces every CRUD screen, the server wiring, and the layout from your config —
+"pure config, no eject" ([ADR 0003](./decision-records/0003-admin-framework-package.md)).
+A site keeps only a tiny fixed set of route shims, its `content.config.ts`,
+`wrangler.jsonc`, and `.env`. Customization (screens, nav, slots, widgets, auth)
+is config threaded into the package, not copied source.
+**Why:** to run many small admins, an upstream fix must be a `bun update`, not a
+re-vend across N repos. (An earlier shadcn-style `voila add` registry was built
+then removed — see ADR 0003.) The escape hatch is to fork a screen component and
+pass it back through `defineAdmin`.
 
 ## UI: two packages
 
@@ -84,14 +89,16 @@ framework. Lives in `@voila/content-cli` alongside the SQL/migrate code.
 
 ## Package map
 
-| Package | Role | Status |
-| --- | --- | --- |
-| `@voila/content` | `defineConfig` + fields (pure TS, Standard Schema) | ✅ |
-| `@voila/content-cli` | `voila` CLI + SQL/DDL/migrate | in progress |
-| `@voila/content` `/server` `/client` | REST + typed client + auth (pure TS) | rebuild |
-| `@voila/ui` | primitives | exists, evolving |
-| `@voila/content-ui` | schema-aware blocks & layouts | planned |
-| `@voila/rich-text-editor` | Plate editor + node components | exists |
-| `@voila/content-registry` | registry manifest for `voila add` | planned |
+All `@voila/content*` packages are published (0.2.x); `@voila/ui` and
+`@voila/rich-text-editor` ship from their own repos.
+
+| Package | Role |
+| --- | --- |
+| `@voila/content` (`/server`, `/client`) | `defineConfig` + fields, REST + typed client + auth (pure TS, Standard Schema) |
+| `@voila/content-cli` | `voila` CLI + SQL/DDL/migrate |
+| `@voila/content-ui` | schema-aware blocks & layouts |
+| `@voila/content-admin` | config-driven admin framework (CRUD screens, Cloudflare wiring) |
+| `@voila/ui` | primitives (shadcn-on-Base-UI) |
+| `@voila/rich-text-editor` | Plate editor + node components |
 
 → [Philosophy](./philosophy.md) · [Developer Experience](./dx.md) · [Roadmap](./roadmap.md)

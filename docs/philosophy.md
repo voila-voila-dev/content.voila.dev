@@ -31,11 +31,12 @@ The admin is built from TanStack primitives you already know: Router + Start for
 routing/SSR/deploy, Query for reads, Table for lists, Form for editing. No second
 ecosystem to learn.
 
-**5. You own the UI — but barely write any.**
-The admin is **vended into your repo** as real, editable files (shadcn-style),
-not a black-box package. Yet you write almost no UI code, because the
-schema-aware blocks (data tables, forms, sidebar, detail views) read your config
-and render themselves. Restyle a token, edit a vended file — it's your code.
+**5. Config-driven admin, barely any UI code.**
+The admin is a versioned package (`@voila/content-admin`) that renders every
+screen from your config — "pure config, no eject". Schema-aware blocks (data
+tables, forms, sidebar, detail views) read your fields and render themselves;
+customization is config, and any screen can be forked and passed back in. An
+upstream fix is a version bump, not a re-vend across every site.
 
 **6. Composable, not minimal.**
 Two UI layers: **primitives** (button, input, card, table, dialog…) and
