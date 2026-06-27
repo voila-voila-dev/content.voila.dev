@@ -20,6 +20,8 @@ export interface AdminShellProps {
   readonly basePath?: string;
   /** Render the anchor element for a nav item (e.g. a framework `Link`). */
   readonly renderLink?: (item: NavItem) => ReactElement;
+  /** Logo shown in the sidebar header beside the config's `branding.name`. */
+  readonly logo?: ReactNode;
   /** Content for the sidebar footer (e.g. a user menu / sign-out). */
   readonly sidebarFooter?: ReactNode;
   /** Title shown in the header bar. */
@@ -38,6 +40,7 @@ export function AdminShell({
   currentPath,
   basePath,
   renderLink,
+  logo,
   sidebarFooter,
   title,
   headerActions,
@@ -52,6 +55,7 @@ export function AdminShell({
         currentPath={currentPath}
         basePath={basePath}
         renderLink={renderLink}
+        logo={logo}
         footer={sidebarFooter}
         extraGroups={extraGroups}
       />

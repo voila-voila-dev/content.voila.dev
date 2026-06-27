@@ -75,6 +75,26 @@ describe("AppSidebar", () => {
     expect(screen.getByText("Sign out")).toBeDefined();
   });
 
+  test("renders a logo beside the name when provided", () => {
+    renderSidebar({ logo: <img src="/logo.svg" alt="Acme logo" /> });
+    expect(screen.getByAltText("Acme logo")).toBeDefined();
+    // The name stays alongside the logo.
+    expect(screen.getByText("Acme CMS")).toBeDefined();
+  });
+
+  test("links the brand header to the dashboard (home)", () => {
+    renderSidebar();
+    const home = screen.getByRole("link", { name: "Acme CMS — dashboard" });
+    expect(home.getAttribute("href")).toBe("/admin");
+  });
+
+  test("brand header links to / for a root-mounted admin", () => {
+    renderSidebar({ basePath: "" });
+    expect(screen.getByRole("link", { name: "Acme CMS — dashboard" }).getAttribute("href")).toBe(
+      "/",
+    );
+  });
+
   test("omits the singletons group when there are none", () => {
     const onlyCollections = defineConfig({
       branding: { name: "X" },

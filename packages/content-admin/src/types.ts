@@ -15,8 +15,20 @@ export interface AdminUser {
 
 /** Branding shown in the shell header, login page, and document title. */
 export interface AdminBranding {
+  /** Heading shown in the shell header bar and used as the document `<title>`. */
   readonly title?: string;
-  readonly logo?: ReactNode;
+  /**
+   * Logo shown in the sidebar header, beside the config's `branding.name`. A
+   * string is treated as an image `src` — an SVG or PNG URL or data URI,
+   * rendered as an `<img>`; pass a `ReactNode` for full control (e.g. an inline
+   * SVG component).
+   */
+  readonly logo?: ReactNode | string;
+  /**
+   * Favicon `href` — an SVG, PNG, or ICO URL or data URI. Wire it into the
+   * document `<head>` with {@link import("./lib/branding-head").brandingHead}.
+   */
+  readonly favicon?: string;
 }
 
 /** Props a custom screen's component receives. `data` is its loader's result. */

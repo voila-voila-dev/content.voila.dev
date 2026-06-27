@@ -8,7 +8,7 @@
 
 import type { NormalizedConfig } from "@voila/content";
 import { Sidebar } from "@voila/ui/sidebar";
-import type { ReactElement, ReactNode } from "react";
+import { cloneElement, type ReactElement, type ReactNode } from "react";
 import { buildNav, type NavItem } from "./lib/nav";
 
 export interface AppSidebarProps {
@@ -23,6 +23,12 @@ export interface AppSidebarProps {
    * styles and labels it), e.g. `(item) => <Link to={item.href} />`.
    */
   readonly renderLink?: (item: NavItem) => ReactElement;
+  /**
+   * Logo shown in the sidebar header beside the config's `branding.name` — an
+   * already-rendered node (an `<img>`, an inline SVG, etc.). Omit for the
+   * name-only header.
+   */
+  readonly logo?: ReactNode;
   /** Content for the sidebar footer (e.g. a user menu / sign-out). */
   readonly footer?: ReactNode;
   /**
@@ -81,20 +87,40 @@ export function AppSidebar({
   currentPath,
   basePath,
   renderLink = defaultRenderLink,
+  logo,
   footer,
   extraGroups,
 }: AppSidebarProps): ReactNode {
   const nav = buildNav(config, { basePath, currentPath });
 
+  // The brand header links home (the dashboard). `basePath` is where the admin
+  // mounts, so the dashboard lives there — except a root-mounted admin
+  // (`basePath: ""`) whose dashboard is `/`. Routed through the same
+  // `renderLink` as the nav so it uses the host's framework `Link`.
+  const base = basePath ?? "/admin";
+  const homeHref = base === "" ? "/" : base;
+  const homeLink = cloneElement(
+    renderLink({
+      slug: "__home",
+      label: config.branding.name,
+      href: homeHref,
+      isActive: false,
+      kind: "collection",
+    }) as ReactElement<Record<string, unknown>>,
+    {
+      className:
+        "flex items-center gap-2 rounded-md px-2 py-1 font-semibold text-sidebar-foreground outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+      "aria-label": `${config.branding.name} — dashboard`,
+    },
+    logo ? <span className="flex shrink-0 items-center">{logo}</span> : null,
+    <span className="truncate">{config.branding.name}</span>,
+  );
+
   return (
     // `inset` floats the content area as a rounded, bordered panel (see
     // `AdminShell`); the sidebar sits on the tinted `bg-sidebar` gutter.
     <Sidebar.Root variant="inset">
-      <Sidebar.Header>
-        <div className="px-2 py-1 font-semibold text-sidebar-foreground">
-          {config.branding.name}
-        </div>
-      </Sidebar.Header>
+      <Sidebar.Header>{homeLink}</Sidebar.Header>
       <Sidebar.Content>
         <NavGroup label="Collections" items={nav.collections} renderLink={renderLink} />
         <NavGroup label="Content" items={nav.singletons} renderLink={renderLink} />
