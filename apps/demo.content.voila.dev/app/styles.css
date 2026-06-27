@@ -4,3 +4,21 @@
 @import "@voila/ui/tailwind";
 @import "@voila/content-ui/tailwind";
 @import "@voila/content-admin/tailwind";
+
+/* Rich-text / markdown editor shell (app/components/widgets/rich-text.tsx).
+   The widget wraps @voila/rich-text-editor in a bordered, focusable shell with a
+   header strip so the toolbar + editable read as one field — matching the native
+   Input/Textarea chrome. The shell border/ring and the header bg/divider are
+   Tailwind classes on the widget; this only neutralises the package toolbar's
+   own bg + bottom border so the header owns that chrome instead of doubling it. */
+.voila-toolbar-bare {
+  background: transparent;
+  border-bottom: 0;
+  border-radius: 0;
+}
+/* Let the editable fill the shell: drop its standalone top padding (the header
+   provides the gap) and keep a comfortable writing height. */
+.voila-editor-shell .voila-rich-text {
+  min-height: 7rem;
+  padding-top: 0.625rem;
+}

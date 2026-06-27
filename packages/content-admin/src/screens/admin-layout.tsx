@@ -8,6 +8,7 @@ import { AdminShell } from "@voila/content-ui";
 import type { ReactNode } from "react";
 import { useAdmin } from "../context";
 import { AdminLink } from "../lib/admin-link";
+import { resolveBrandLogo } from "../lib/brand-logo";
 import { buildExtraGroups } from "../nav";
 
 async function signOut(apiPath: string, loginPath: string): Promise<void> {
@@ -49,6 +50,7 @@ export function AdminLayoutScreen(): ReactNode {
       basePath={admin.basePath}
       currentPath={currentPath}
       renderLink={(item) => <AdminLink href={item.href} />}
+      logo={resolveBrandLogo(admin.branding.logo)}
       title={admin.branding.title}
       headerActions={admin.slots.shell?.headerActions}
       sidebarFooter={footer}

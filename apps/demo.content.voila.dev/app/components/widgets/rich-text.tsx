@@ -36,7 +36,7 @@ import {
 } from "@voila/rich-text-editor/content";
 import { fromMarkdown, type MarkdownFlavor, toMarkdown } from "@voila/rich-text-editor/serialize";
 import "@voila/rich-text-editor/styles.css";
-import { Button } from "@voila/ui/button";
+import { cn } from "@voila/ui/cn";
 import { Textarea } from "@voila/ui/textarea";
 import { type ReactNode, useMemo, useState } from "react";
 import { mediaClient } from "../../lib/content-client";
@@ -83,6 +83,112 @@ function aria(id: string, error?: string) {
   return error ? { "aria-invalid": true as const, "aria-describedby": `${id}-error` } : undefined;
 }
 
+/**
+ * The bordered, focusable container that makes the toolbar + editable surface
+ * read as one form field — same border/ring/shadow as the native `Input` and
+ * `Textarea`, so a rich field doesn't look loose next to them. Error lights the
+ * border red; disabled dims and inerts it.
+ */
+function EditorShell({
+  error,
+  disabled,
+  children,
+}: {
+  readonly error?: string;
+  readonly disabled?: boolean;
+  readonly children: ReactNode;
+}): ReactNode {
+  return (
+    <div
+      data-invalid={error ? "" : undefined}
+      className={cn(
+        "voila-editor-shell rounded-md border border-input bg-transparent shadow-sm",
+        "transition-colors focus-within:ring-1 focus-within:ring-ring",
+        error && "border-destructive focus-within:ring-destructive",
+        disabled && "pointer-events-none opacity-60",
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * The header strip atop the editable: the formatting toolbar on the left and an
+ * optional control on the right (the markdown raw/rich switch). One muted bar
+ * with a single divider underneath, rounded to nest inside the shell border.
+ */
+function EditorHeader({
+  children,
+  aside,
+}: {
+  readonly children: ReactNode;
+  readonly aside?: ReactNode;
+}): ReactNode {
+  return (
+    <div className="flex items-stretch rounded-t-[5px] border-b bg-muted/40">
+      <div className="min-w-0 flex-1">{children}</div>
+      {aside ? <div className="flex items-center border-l px-1.5">{aside}</div> : null}
+    </div>
+  );
+}
+
+/** A two-option segmented switch — clearer than a single toggle button, it shows
+ *  which mode is active and what the alternative is in one glance. */
+function ModeSwitch({
+  raw,
+  onChange,
+  disabled,
+}: {
+  readonly raw: boolean;
+  readonly onChange: (raw: boolean) => void;
+  readonly disabled?: boolean;
+}): ReactNode {
+  return (
+    <fieldset
+      aria-label="Editor mode"
+      className="m-0 flex items-center gap-0.5 border-0 p-0 text-xs font-medium"
+    >
+      <ModeButton active={!raw} onClick={() => onChange(false)} disabled={disabled}>
+        Rich
+      </ModeButton>
+      <ModeButton active={raw} onClick={() => onChange(true)} disabled={disabled}>
+        Markdown
+      </ModeButton>
+    </fieldset>
+  );
+}
+
+function ModeButton({
+  active,
+  onClick,
+  disabled,
+  children,
+}: {
+  readonly active: boolean;
+  readonly onClick: () => void;
+  readonly disabled?: boolean;
+  readonly children: ReactNode;
+}): ReactNode {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "rounded-sm px-2 py-1 transition-colors",
+        active
+          ? "bg-background text-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground",
+        disabled && "pointer-events-none opacity-50",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function RichTextInput(props: EditWidgetProps): ReactNode {
   return props.field.meta.kind === "markdown" ? (
     <MarkdownInput {...props} />
@@ -124,27 +230,32 @@ function RichTextValueInput({
   const initial = useMemo(() => fromWire(asValue(value)), [value]);
 
   return (
-    <RichTextEditor
-      value={initial}
-      onChange={(next) => onChange(toWire(next))}
-      plugins={plugins}
-      components={components}
-      placeholder="Write something, or press / for commands, @ to mention…"
-      toolbar={
-        <>
-          <RichTextToolbar
-            model={toolbar}
-            extra={canInsertImage ? <RichTextImageButton upload={MEDIA.upload} /> : undefined}
-          />
-          <RichTextFloatingToolbar model={toolbar} />
-        </>
-      }
-      readOnly={disabled}
-      id={id}
-      aria-labelledby={labelId}
-      aria-invalid={error ? true : undefined}
-      aria-describedby={error ? `${id}-error` : undefined}
-    />
+    <EditorShell error={error} disabled={disabled}>
+      <RichTextEditor
+        value={initial}
+        onChange={(next) => onChange(toWire(next))}
+        plugins={plugins}
+        components={components}
+        placeholder="Write something, or press / for commands, @ to mention…"
+        toolbar={
+          <>
+            <EditorHeader>
+              <RichTextToolbar
+                model={toolbar}
+                className="voila-rich-text-toolbar voila-toolbar-bare"
+                extra={canInsertImage ? <RichTextImageButton upload={MEDIA.upload} /> : undefined}
+              />
+            </EditorHeader>
+            <RichTextFloatingToolbar model={toolbar} />
+          </>
+        }
+        readOnly={disabled}
+        id={id}
+        aria-labelledby={labelId}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+      />
+    </EditorShell>
   );
 }
 
@@ -167,14 +278,25 @@ function MarkdownInput({
   const [raw, setRaw] = useState(richFlavor === null);
 
   if (raw || richFlavor === null) {
+    // Raw source: the same shell, but the header carries a plain label (no
+    // formatting controls apply to a textarea) plus the mode switch — so the
+    // toggle lives in one consistent place across both modes.
     return (
-      <div className="space-y-2">
-        {richFlavor !== null ? (
-          <ModeToggle label="Rich editor" onClick={() => setRaw(false)} disabled={disabled} />
-        ) : null}
+      <EditorShell error={error} disabled={disabled}>
+        <EditorHeader
+          aside={
+            richFlavor !== null ? (
+              <ModeSwitch raw onChange={setRaw} disabled={disabled} />
+            ) : undefined
+          }
+        >
+          <span className="px-2.5 py-2 text-xs font-medium text-muted-foreground">
+            {richFlavor === null ? "MDX source" : "Markdown source"}
+          </span>
+        </EditorHeader>
         <Textarea
           id={id}
-          className="min-h-40 font-mono"
+          className="min-h-40 resize-y rounded-none border-0 bg-transparent font-mono shadow-none focus-visible:ring-0"
           value={text}
           placeholder={meta.description}
           disabled={disabled}
@@ -182,23 +304,21 @@ function MarkdownInput({
           aria-labelledby={labelId}
           {...aria(id, error)}
         />
-      </div>
+      </EditorShell>
     );
   }
 
   return (
-    <div className="space-y-2">
-      <ModeToggle label="Edit Markdown" onClick={() => setRaw(true)} disabled={disabled} />
-      <MarkdownRichEditor
-        text={text}
-        flavor={richFlavor}
-        onChange={onChange}
-        id={id}
-        labelId={labelId}
-        error={error}
-        disabled={disabled}
-      />
-    </div>
+    <MarkdownRichEditor
+      text={text}
+      flavor={richFlavor}
+      onChange={onChange}
+      onRaw={() => setRaw(true)}
+      id={id}
+      labelId={labelId}
+      error={error}
+      disabled={disabled}
+    />
   );
 }
 
@@ -206,6 +326,8 @@ interface MarkdownRichEditorProps {
   readonly text: string;
   readonly flavor: MarkdownFlavor;
   readonly onChange: (value: unknown) => void;
+  /** Switch back to the raw markdown source (the header's mode switch). */
+  readonly onRaw: () => void;
   readonly id: string;
   readonly labelId?: string;
   readonly error?: string;
@@ -216,6 +338,7 @@ function MarkdownRichEditor({
   text,
   flavor,
   onChange,
+  onRaw,
   id,
   labelId,
   error,
@@ -229,40 +352,39 @@ function MarkdownRichEditor({
   const initial = useMemo(() => fromMarkdown(text, { flavor }), [text, flavor]);
 
   return (
-    <RichTextEditor
-      value={initial}
-      // Serialize straight back to a markdown string so the form value stays the
-      // stored shape and re-validates against the field's own schema.
-      onChange={(next) => onChange(toMarkdown(next, { flavor }))}
-      plugins={plugins}
-      components={components}
-      toolbar={
-        <>
-          <RichTextToolbar model={toolbar} />
-          <RichTextFloatingToolbar model={toolbar} />
-        </>
-      }
-      readOnly={disabled}
-      id={id}
-      aria-labelledby={labelId}
-      aria-invalid={error ? true : undefined}
-      aria-describedby={error ? `${id}-error` : undefined}
-    />
-  );
-}
-
-function ModeToggle({
-  label,
-  onClick,
-  disabled,
-}: {
-  readonly label: string;
-  readonly onClick: () => void;
-  readonly disabled?: boolean;
-}): ReactNode {
-  return (
-    <Button type="button" variant="ghost" size="sm" onClick={onClick} disabled={disabled}>
-      {label}
-    </Button>
+    <EditorShell error={error} disabled={disabled}>
+      <RichTextEditor
+        value={initial}
+        // Serialize straight back to a markdown string so the form value stays the
+        // stored shape and re-validates against the field's own schema.
+        onChange={(next) => onChange(toMarkdown(next, { flavor }))}
+        plugins={plugins}
+        components={components}
+        toolbar={
+          <>
+            <EditorHeader
+              aside={
+                <ModeSwitch
+                  raw={false}
+                  onChange={(toRaw) => toRaw && onRaw()}
+                  disabled={disabled}
+                />
+              }
+            >
+              <RichTextToolbar
+                model={toolbar}
+                className="voila-rich-text-toolbar voila-toolbar-bare"
+              />
+            </EditorHeader>
+            <RichTextFloatingToolbar model={toolbar} />
+          </>
+        }
+        readOnly={disabled}
+        id={id}
+        aria-labelledby={labelId}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+      />
+    </EditorShell>
   );
 }

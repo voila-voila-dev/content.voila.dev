@@ -7,6 +7,12 @@
 export { AdminProvider, type AdminProviderProps, useAdmin } from "./context";
 export { defineAdmin } from "./define-admin";
 export { type AuthedFetchOptions, makeAuthedFetch } from "./lib/authed-fetch";
+export {
+  type BrandingHeadOptions,
+  brandingHead,
+  type HeadLink,
+  type HeadMeta,
+} from "./lib/branding-head";
 export { matchScreen, type ScreenMatch } from "./lib/match";
 export { buildExtraGroups, type NavGroup } from "./nav";
 export type {

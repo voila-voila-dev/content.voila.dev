@@ -9,11 +9,14 @@ import { createMediaInput } from "@voila/content-ui";
 import config from "../../content.config";
 import { RichTextInput } from "../components/widgets/rich-text";
 import { RichTextDisplay } from "../components/widgets/rich-text-display";
+// The SVG mark shown in the sidebar header (`?url` → a served asset path passed
+// to `branding.logo` as an image `src`). The same mark backs the favicon.
+import logoUrl from "../logo.svg?url";
 import { mediaClient } from "./content-client";
 
 export const admin = defineAdmin({
   config,
-  branding: { title: "Demo" },
+  branding: { title: "Demo", logo: logoUrl, favicon: logoUrl },
   widgets: {
     edit: {
       richText: RichTextInput,
