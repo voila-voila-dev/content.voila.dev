@@ -4,7 +4,7 @@
 // override replaces the default cards entirely.
 
 import { useLoaderData } from "@tanstack/react-router";
-import { Dashboard } from "@voila/content-ui";
+import { Dashboard, PageLayout } from "@voila/content-ui";
 import type { ReactNode } from "react";
 import { useAdmin } from "../context";
 import { AdminLink } from "../lib/admin-link";
@@ -17,10 +17,12 @@ export function DashboardScreen(): ReactNode {
   const cards = admin.slots.dashboard?.cards;
   if (cards) {
     return (
-      <section className="space-y-4">
-        {admin.slots.dashboard?.header ?? <h1 className="text-lg font-semibold">{title}</h1>}
-        {cards({ config: admin.config, counts })}
-      </section>
+      <PageLayout.Root>
+        <PageLayout.Header>
+          {admin.slots.dashboard?.header ?? <PageLayout.Title>{title}</PageLayout.Title>}
+        </PageLayout.Header>
+        <PageLayout.Body>{cards({ config: admin.config, counts })}</PageLayout.Body>
+      </PageLayout.Root>
     );
   }
 
