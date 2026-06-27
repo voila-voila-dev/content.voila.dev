@@ -38,25 +38,27 @@ const posts = defineCollection({
 
 ## Saved views, filters, columns, kanban & map
 
-The collection list screen is view-aware. Each user's views are **persisted**
-(the engine-owned `voila_views` table, scoped to the signed-in principal) and
-switchable; a view stores its columns + order, sort, filters, type, and the
-kanban/map field.
+The collection list screen is view-aware. Views are **shared** (the engine-owned
+`voila_views` table is global — scoped by collection, not by user, so everyone
+sees and edits the same set) and switchable via **`ViewTabs`**; a view stores its
+columns + order, sort, filters, type, and the kanban/map field. A seeded,
+undeletable default **Table** view always exists, and `?view=<uid>` makes any view
+a shareable URL.
 
-- **Columns** — `ColumnPicker`: toggle visibility, drag (or up/down) to reorder.
-- **Filters** — `FilterBuilder`: `field · operator · value` rows
+- **Columns** — toggle visibility, drag (or up/down) to reorder.
+- **Filters** — `field · operator · value` rows
   (`is / is not / contains / > / ≥ / < / ≤`), AND-ed. They run **server-side**
   (`?filter=field:op:value`), so paging + counts stay correct. Only scalar,
   non-localized fields are offered (the same gate the REST layer enforces).
 - **View types** — table, **kanban** (group cards by an enum/select field, drag a
-  card to change it), **map** (maplibre markers). The `ViewSwitcher` offers a
-  field picker when there's a real choice (which enum field kanban groups by,
-  which geo field the map plots). Kanban/map auto-load up to a bounded number of
-  pages; narrow with filters to see more.
+  card to change it), **map** (maplibre markers). Kanban/map auto-load up to a
+  bounded number of pages; narrow with filters to see more.
 
-These work with no host code — the config-driven list screen wires
-`ColumnPicker` / `FilterBuilder` / `ViewSwitcher` and persists through the typed
-client's `views` sub-API (`client.<collection>.views.{list,create,update,delete}`).
+Right-click a tab to Edit / Set-default / Delete, or drag tabs to reorder.
+Filters, columns, and the kanban/map field are edited inside the **Edit view**
+dialog. It all works with no host code — the config-driven list screen wires
+`ViewTabs` and persists through the typed client's `views` sub-API
+(`client.<collection>.views.{list,create,update,delete,reorder}`).
 
 ## Geo fields & maps
 

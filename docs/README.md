@@ -13,10 +13,9 @@
   kanban/map, geo fields, per-field save, local-dev auth (the 0.2 surface)
 - [releasing.md](./releasing.md) — how to cut a release
 
-**Standing reviews** (current state; updated in place, not re-dated):
+**Standing review** (current state; updated in place, not re-dated):
 
 - [dx-review.md](./dx-review.md) — DX findings, P1→P3
-- [ui-ux-review.md](./ui-ux-review.md) — UI / UX / a11y findings, P1→P3
 
 **Decision records** ([decision-records/](./decision-records)) — one short ADR
 per call, kept current as decisions evolve.

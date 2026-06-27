@@ -21,7 +21,7 @@ Originally one monorepo partitioned by `products/<domain>/`. That was **reversed
 in June 2026: each product now lives in its **own repo**, and shared packages were
 extracted to their own repos too.
 
-- `content.voila.dev` — `@voila/content`, `-cli`, `-ui`, `-registry`,
+- `content.voila.dev` — `@voila/content`, `-cli`, `-ui`, `-admin`,
   `create-content-voila`
 - `ui.voila.dev` — `@voila/ui` (primitives)
 - `rich-text-editor.voila.dev` — `@voila/rich-text-editor`
@@ -29,5 +29,5 @@ extracted to their own repos too.
 Cross-repo packages are consumed as published npm deps, not workspace links.
 
 **Consequence:** clean ownership boundaries, but cross-repo packages must be
-**published** before a consumer repo can install or test — the live blocker
-tracked in the [roadmap](../roadmap.md) and [DX review](../dx-review.md).
+**published** before a consumer repo can install or test. All packages are now
+published, so this is no longer a blocker.

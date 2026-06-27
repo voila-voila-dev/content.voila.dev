@@ -9,8 +9,10 @@ concepts. If a release breaks that, we cut features, not the north star.
 
 ## The whole app
 
-A fresh TanStack Start app needs three things from you: a config, a one-line
-mount, and the vended admin shell. That's the boilerplate.
+`bun create content-voila <dir>` scaffolds a deployable TanStack Start app: a
+`content.config.ts`, a `wrangler.jsonc`, an `.env`, and a tiny fixed set of route
+shims that re-export `@voila/content-admin` screens. The one file you maintain is
+the config.
 
 ```ts
 // content.config.ts — the one file you maintain
@@ -42,24 +44,25 @@ export default defineConfig({
 ```
 
 ```bash
-voila add admin           # vends the admin shell + routes into app/ (you own them)
-voila migrate generate    # DDL from your fields
-voila migrate apply       # apply to SQLite / D1 / Postgres
-bun dev                   # → http://localhost:3000/admin
+voila migrate generate    # DDL from your fields (+ auth tables)
+voila migrate apply       # apply to SQLite / D1
+bun dev                   # → http://localhost:3000
 ```
 
-That's it. You now have list views, detail editors, create/edit forms, a
-sidebar, and auth — for **every** collection and singleton — and you wrote zero
-table columns and zero form fields.
+That's it. The admin is **root-mounted** (each site is its own subdomain, so the
+admin *is* the whole site). You now have list views, detail editors, create/edit
+forms, a sidebar, and auth — for **every** collection and singleton — and you
+wrote zero table columns and zero form fields. Adding a collection is a config
+edit; **zero new files**.
 
 ## Auth & security (secure by default)
 
-A scaffolded app ships **locked down**, not open. The `/admin/api` mount is wired
+A scaffolded app ships **locked down**, not open. The `/api` mount is wired
 with all three protections out of the box (`app/lib/server.ts`):
 
 - **Authentication** — magic-link sign-in (Better Auth). Every content request
-  must carry a valid session or it's a `401`. `GET /admin/*` is guarded too: a
-  signed-out visitor is redirected to `/admin/login` before any UI renders.
+  must carry a valid session or it's a `401`. The UI is guarded too: a
+  signed-out visitor is redirected to `/login` before any UI renders.
 - **CSRF** — a signed double-submit token. Mutating requests (`POST/PATCH/
   DELETE`) without a valid `x-csrf-token` are `403`. The typed client mirrors the
   `voila_csrf` cookie into the header automatically; you don't manage it.
@@ -120,33 +123,31 @@ autocompletes and `post.title` is `string`. No sync step.
 ## The CLI is short
 
 ```
-voila add <item>          vend a registry item into your repo (admin, blocks, fields)
-voila diff [item]         show drift between your copy and upstream
-voila list                browse the catalog
-
-voila migrate generate    SQL from your field definitions
-voila migrate apply       --target sqlite | d1 | postgres
-voila seed                run seed scripts
-voila mcp                 run the MCP server
-voila doctor              sanity-check config, env, bindings
+voila migrate generate    SQL from your field definitions (--auth adds Better Auth tables)
+voila migrate apply       --target sqlite | d1-local | d1-remote
 ```
 
-No `voila plugin add`, no `voila page new`. Extensions are TypeScript imports.
+That's the whole CLI today. No `voila plugin add`, no `voila page new` —
+extensions are TypeScript imports, and the admin is a package, not vended files.
+(`seed` / `doctor` / `mcp` are on the [roadmap](./roadmap.md).)
 
 ## Escape hatches (you never get stuck)
 
-- **Own the files.** `voila add` vends real source. Edit, restyle, re-path — it's
-  your code, greppable and PR-diffable.
 - **Custom widget:** `fields.string({ widget: ColorPicker })` — a React component
   receiving `{ value, onChange, error, field }`.
-- **Custom page / dashboard widget / row action:** registered in the config.
+- **Custom screen / dashboard widget / nav / slot:** registered as config objects
+  on `defineAdmin` — data, not files.
+- **Override any screen:** fork a screen component and pass it back through
+  `defineAdmin`.
 - **Swap a backend:** pass a different database/storage adapter to `defineConfig`.
 - **Custom rich text:** `@voila/rich-text-editor` (Plate) — add plugins or
   override any node component without forking.
 
-## Errors are actionable
+## Errors are actionable (target)
 
-Every error names the field, the cause, and the fix — never a bare stack trace.
+The bar: every error names the field, the cause, and the fix — never a bare stack
+trace. (Field constructors don't yet thread their own key; tracked in the
+[DX review](./dx-review.md).)
 
 ```
 [voila] Field "posts.body" needs a richText editor adapter.
