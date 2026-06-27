@@ -1,10 +1,20 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "demo-content-voila-dev",
-  "main": "@tanstack/react-start/server-entry",
+  // Custom server entry (app/server.ts) re-exports the default Start handler plus
+  // the SandboxDO Durable Object class so the Worker exposes the DO binding.
+  "main": "app/server.ts",
   "compatibility_date": "2026-06-23",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+
+  // One Durable Object per signed-in demo user — its embedded SQLite holds that
+  // user's isolated content (the Worker keeps only auth in D1). SQLite storage
+  // requires `new_sqlite_classes`.
+  "durable_objects": {
+    "bindings": [{ "name": "SANDBOX", "class_name": "SandboxDO" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SandboxDO"] }],
 
   // The content + auth database. `createWorkerAdmin` binds `makeD1Driver(env.DB)`.
   "d1_databases": [
