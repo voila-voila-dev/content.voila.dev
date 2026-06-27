@@ -31,7 +31,7 @@ describe("readPoint", () => {
 describe("MapView", () => {
   test("renders a map container without loading WebGL/maplibre under happy-dom", () => {
     render(
-      <MapView
+      <MapView.Root
         collection={places}
         rows={[{ id: "1", name: "Paris", location: { lat: 48.85, lng: 2.35 } }]}
         geoField="location"
@@ -40,5 +40,17 @@ describe("MapView", () => {
     );
     // The container renders (the maplibre init is guarded out without WebGL).
     expect(screen.getByLabelText("Map")).toBeDefined();
+  });
+
+  test("exposes the map-view slot on its root", () => {
+    const { baseElement } = render(
+      <MapView.Root
+        collection={places}
+        rows={[]}
+        geoField="location"
+        mapStyleUrl="https://example.com/style.json"
+      />,
+    );
+    expect(baseElement.querySelector('[data-slot="map-view"]')).not.toBeNull();
   });
 });

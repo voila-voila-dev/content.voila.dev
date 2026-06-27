@@ -36,7 +36,10 @@ export function StatCard({
   renderLink = defaultRenderLink,
 }: StatCardProps): ReactNode {
   const card = (
-    <Card.Root className={href ? "transition-colors hover:bg-accent/50" : undefined}>
+    <Card.Root
+      data-slot="stat-card"
+      className={href ? "transition-colors hover:bg-accent/50" : undefined}
+    >
       <Card.Header.Root className="flex-row items-center justify-between gap-2 space-y-0 pb-2">
         <Card.Header.Title className="text-sm font-medium text-muted-foreground">
           {label}

@@ -18,8 +18,13 @@ const config = defineConfig({
 });
 
 describe("Dashboard", () => {
+  test("exposes the dashboard slot on its root", () => {
+    const { baseElement } = render(<Dashboard.Root config={config} />);
+    expect(baseElement.querySelector('[data-slot="dashboard"]')).not.toBeNull();
+  });
+
   test("renders one card per collection, linking to its list", () => {
-    render(<Dashboard config={config} counts={{ posts: 12, authors: 3 }} />);
+    render(<Dashboard.Root config={config} counts={{ posts: 12, authors: 3 }} />);
     const posts = screen.getByRole("link", { name: /Blog Posts/ });
     expect(posts.getAttribute("href")).toBe("/admin/posts");
     expect(within(posts).getByText("12")).toBeDefined();
@@ -29,38 +34,38 @@ describe("Dashboard", () => {
   });
 
   test("shows an em-dash for a collection with no count", () => {
-    render(<Dashboard config={config} counts={{ posts: 12 }} />);
+    render(<Dashboard.Root config={config} counts={{ posts: 12 }} />);
     const authors = screen.getByRole("link", { name: /Authors/ });
     expect(within(authors).getByText("—")).toBeDefined();
   });
 
   test("renders an em-dash for every card when no counts are given", () => {
-    render(<Dashboard config={config} />);
+    render(<Dashboard.Root config={config} />);
     expect(screen.getAllByText("—")).toHaveLength(2);
   });
 
   test("formats large counts with separators", () => {
-    render(<Dashboard config={config} counts={{ posts: 1200, authors: 0 }} />);
+    render(<Dashboard.Root config={config} counts={{ posts: 1200, authors: 0 }} />);
     expect(screen.getByText((1200).toLocaleString())).toBeDefined();
     // zero is a real count, not a missing one → renders "0", not an em-dash.
     expect(screen.getByText("0")).toBeDefined();
   });
 
   test("threads basePath into the card hrefs", () => {
-    render(<Dashboard config={config} basePath="/cms" />);
+    render(<Dashboard.Root config={config} basePath="/cms" />);
     expect(screen.getByRole("link", { name: /Blog Posts/ }).getAttribute("href")).toBe(
       "/cms/posts",
     );
   });
 
   test("renders a title when given", () => {
-    render(<Dashboard config={config} title="Overview" />);
+    render(<Dashboard.Root config={config} title="Overview" />);
     expect(screen.getByRole("heading", { name: "Overview" })).toBeDefined();
   });
 
   test("renderLink customizes the card links", () => {
     render(
-      <Dashboard
+      <Dashboard.Root
         config={config}
         renderLink={(href, children) => (
           <a href={href} data-variant="router">
@@ -76,7 +81,7 @@ describe("Dashboard", () => {
 
   test("shows the empty message with no collections", () => {
     const bare = defineConfig({ branding: { name: "Bare" } });
-    render(<Dashboard config={bare} />);
+    render(<Dashboard.Root config={bare} />);
     expect(screen.getByText("No collections configured.")).toBeDefined();
     expect(screen.queryByRole("link")).toBeNull();
   });

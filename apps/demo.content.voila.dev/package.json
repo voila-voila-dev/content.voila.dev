@@ -22,7 +22,7 @@
     "better-auth": "^1.6.12",
     "@voila/content-ui": "workspace:*",
     "@voila/rich-text-editor": "^0.1.1",
-    "@voila/ui": "^0.2.0",
+    "@voila/ui": "^0.4.0",
     "maplibre-gl": "^4.7.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

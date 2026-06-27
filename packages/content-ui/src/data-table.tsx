@@ -96,7 +96,7 @@ function isSortable(field: Field): boolean {
   return field.meta.localized !== true && SORTABLE_KINDS.has(field.meta.kind);
 }
 
-export function DataTable({
+function Root({
   collection,
   rows,
   columns,
@@ -118,7 +118,7 @@ export function DataTable({
   // heuristic can demote a styled table and drop row/columnheader semantics
   // from the a11y tree; redundant roles pin them.
   return (
-    <Table.Root role="table">
+    <Table.Root data-slot="data-table" role="table">
       {caption ? <Table.Caption>{caption}</Table.Caption> : null}
       <Table.Header role="rowgroup">
         <Table.Row role="row">
@@ -218,3 +218,9 @@ export function DataTable({
     </Table.Root>
   );
 }
+
+/** Schema-driven table. `DataTable.Root` is the table; columns and cells come
+ *  from the collection's field metadata. */
+export const DataTable = {
+  Root,
+};

@@ -65,7 +65,7 @@ function rowId(row: Doc): string | undefined {
   return typeof id === "string" ? id : typeof id === "number" ? String(id) : undefined;
 }
 
-export function KanbanView({
+function Root({
   collection,
   rows,
   groupField,
@@ -79,11 +79,15 @@ export function KanbanView({
   const fields = cardFields ?? defaultCardFields(collection, groupField);
 
   if (rows.length === 0) {
-    return <p className="text-muted-foreground text-sm">{emptyMessage}</p>;
+    return (
+      <p data-slot="kanban-view" className="text-muted-foreground text-sm">
+        {emptyMessage}
+      </p>
+    );
   }
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-2">
+    <div data-slot="kanban-view" className="flex gap-4 overflow-x-auto pb-2">
       {columns.map((column) => (
         <section
           key={column.key || "__none__"}
@@ -146,3 +150,9 @@ export function KanbanView({
     </div>
   );
 }
+
+/** Schema-driven kanban board. `KanbanView.Root` groups rows into columns by an
+ *  enum/select field; cards are draggable. */
+export const KanbanView = {
+  Root,
+};

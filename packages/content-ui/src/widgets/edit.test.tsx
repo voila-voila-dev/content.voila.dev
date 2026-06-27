@@ -293,3 +293,12 @@ describe("selectOptions", () => {
     expect(selectOptions(fields.string().meta)).toEqual([]);
   });
 });
+
+describe("data-slot", () => {
+  test("a widget renders its data-slot on the root element", () => {
+    const { baseElement } = render(
+      <TextInput value="x" onChange={mock()} field={fields.string()} id="s" />,
+    );
+    expect(baseElement.querySelector("[data-slot=text-input]")).not.toBeNull();
+  });
+});

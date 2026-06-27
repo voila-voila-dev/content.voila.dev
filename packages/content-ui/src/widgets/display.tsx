@@ -19,7 +19,11 @@ export type DisplayWidget = (props: DisplayWidgetProps) => ReactNode;
 /** Shared empty marker (muted em-dash) so blank values read the same
  *  everywhere — table cells, detail rows, dashboard counts. */
 export function Empty(): ReactNode {
-  return <span className="text-muted-foreground">—</span>;
+  return (
+    <span data-slot="empty-display" className="text-muted-foreground">
+      —
+    </span>
+  );
 }
 
 function isEmpty(value: unknown): boolean {
@@ -28,7 +32,7 @@ function isEmpty(value: unknown): boolean {
 
 export function TextDisplay({ value }: DisplayWidgetProps): ReactNode {
   if (isEmpty(value)) return <Empty />;
-  return <span>{String(value)}</span>;
+  return <span data-slot="text-display">{String(value)}</span>;
 }
 
 /**
@@ -40,7 +44,11 @@ export function TextDisplay({ value }: DisplayWidgetProps): ReactNode {
  */
 export function EnumDisplay({ value, meta }: DisplayWidgetProps): ReactNode {
   if (isEmpty(value)) return <Empty />;
-  return <Badge variant="secondary">{enumLabel(meta, value)}</Badge>;
+  return (
+    <Badge data-slot="enum-display" variant="secondary">
+      {enumLabel(meta, value)}
+    </Badge>
+  );
 }
 
 // The human label for an enum/select value: an `enum`'s `values` maps label →
@@ -64,7 +72,11 @@ function enumLabel(meta: FieldMetaBase, value: unknown): string {
  */
 export function MultilineTextDisplay({ value }: DisplayWidgetProps): ReactNode {
   if (isEmpty(value)) return <Empty />;
-  return <span className="whitespace-pre-wrap break-words">{String(value)}</span>;
+  return (
+    <span data-slot="multiline-text-display" className="whitespace-pre-wrap break-words">
+      {String(value)}
+    </span>
+  );
 }
 
 /**
@@ -76,7 +88,7 @@ export function ColorDisplay({ value }: DisplayWidgetProps): ReactNode {
   if (isEmpty(value)) return <Empty />;
   const color = String(value);
   return (
-    <span className="inline-flex items-center gap-2 align-middle">
+    <span data-slot="color-display" className="inline-flex items-center gap-2 align-middle">
       <span
         aria-hidden
         className="inline-block h-4 w-4 shrink-0 rounded border"
@@ -91,14 +103,22 @@ export function NumberDisplay({ value }: DisplayWidgetProps): ReactNode {
   if (value === null || value === undefined) return <Empty />;
   const n = typeof value === "number" ? value : Number(value);
   if (Number.isNaN(n)) return <Empty />;
-  return <span className="tabular-nums">{n.toLocaleString()}</span>;
+  return (
+    <span data-slot="number-display" className="tabular-nums">
+      {n.toLocaleString()}
+    </span>
+  );
 }
 
 export function BooleanDisplay({ value }: DisplayWidgetProps): ReactNode {
   if (value === null || value === undefined) return <Empty />;
   // Muted variants on purpose — a solid-primary badge reads as a button, too
   // heavy for a plain value in a table cell.
-  return <Badge variant={value ? "secondary" : "outline"}>{value ? "Yes" : "No"}</Badge>;
+  return (
+    <Badge data-slot="boolean-display" variant={value ? "secondary" : "outline"}>
+      {value ? "Yes" : "No"}
+    </Badge>
+  );
 }
 
 /** Coerce the values a date field round-trips to (Date, epoch ms, ISO string). */
@@ -120,7 +140,11 @@ export function DateDisplay({ value, meta }: DisplayWidgetProps): ReactNode {
       : meta.kind === "time"
         ? d.toLocaleTimeString()
         : d.toLocaleString();
-  return <time dateTime={d.toISOString()}>{text}</time>;
+  return (
+    <time data-slot="date-display" dateTime={d.toISOString()}>
+      {text}
+    </time>
+  );
 }
 
 /** Concatenate a rich-text node's leaf text (children joined without spaces, so
@@ -143,7 +167,11 @@ export function RichTextValueDisplay({ value }: DisplayWidgetProps): ReactNode {
   if (!Array.isArray(value)) return <Empty />;
   const text = value.map(nodeText).join(" ").replace(/\s+/g, " ").trim();
   if (text === "") return <Empty />;
-  return <span className="whitespace-pre-wrap break-words">{text}</span>;
+  return (
+    <span data-slot="rich-text-value-display" className="whitespace-pre-wrap break-words">
+      {text}
+    </span>
+  );
 }
 
 /** Fallback for arrays/objects/unknown kinds — compact, never throws. */
@@ -152,11 +180,16 @@ export function JsonDisplay({ value }: DisplayWidgetProps): ReactNode {
   if (Array.isArray(value)) {
     if (value.length === 0) return <Empty />;
     return (
-      <span>
+      <span data-slot="json-display">
         {value.map((v) => (typeof v === "object" ? JSON.stringify(v) : String(v))).join(", ")}
       </span>
     );
   }
-  if (typeof value === "object") return <code className="text-xs">{JSON.stringify(value)}</code>;
-  return <span>{String(value)}</span>;
+  if (typeof value === "object")
+    return (
+      <code data-slot="json-display" className="text-xs">
+        {JSON.stringify(value)}
+      </code>
+    );
+  return <span data-slot="json-display">{String(value)}</span>;
 }

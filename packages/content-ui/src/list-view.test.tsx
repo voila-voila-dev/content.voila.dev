@@ -21,26 +21,31 @@ const rows = [
 
 describe("ListView", () => {
   test("titles with the collection label and renders the table", () => {
-    render(<ListView collection={posts} rows={rows} />);
+    render(<ListView.Root collection={posts} rows={rows} />);
     expect(screen.getByRole("heading", { name: "Blog Posts" })).toBeDefined();
     expect(screen.getByText("Hello")).toBeDefined();
     expect(screen.getByText("World")).toBeDefined();
   });
 
+  test("exposes the list-view slot on its root", () => {
+    const { baseElement } = render(<ListView.Root collection={posts} rows={rows} />);
+    expect(baseElement.querySelector('[data-slot="list-view"]')).not.toBeNull();
+  });
+
   test("falls back to the humanized slug when there's no label", () => {
     const bare = defineCollection({ slug: "team-members", fields: { name: fields.string() } });
-    render(<ListView collection={bare} rows={[]} />);
+    render(<ListView.Root collection={bare} rows={[]} />);
     expect(screen.getByRole("heading", { name: "Team Members" })).toBeDefined();
   });
 
   test("an explicit title overrides the default", () => {
-    render(<ListView collection={posts} rows={rows} title="All the posts" />);
+    render(<ListView.Root collection={posts} rows={rows} title="All the posts" />);
     expect(screen.getByRole("heading", { name: "All the posts" })).toBeDefined();
   });
 
   test("renders an actions slot and a description", () => {
     render(
-      <ListView
+      <ListView.Root
         collection={posts}
         rows={rows}
         description="Everything published"
@@ -54,7 +59,7 @@ describe("ListView", () => {
   test("forwards row clicks", () => {
     const onRowClick = mock();
     const { container } = render(
-      <ListView collection={posts} rows={rows} onRowClick={onRowClick} />,
+      <ListView.Root collection={posts} rows={rows} onRowClick={onRowClick} />,
     );
     fireEvent.click(container.querySelector("tbody tr") as Element);
     expect(onRowClick).toHaveBeenCalledTimes(1);
@@ -62,25 +67,25 @@ describe("ListView", () => {
   });
 
   test("shows an error message", () => {
-    render(<ListView collection={posts} rows={[]} error="Could not load posts" />);
+    render(<ListView.Root collection={posts} rows={[]} error="Could not load posts" />);
     expect(screen.getByRole("alert").textContent).toBe("Could not load posts");
   });
 
   test("shows a loading note", () => {
-    render(<ListView collection={posts} rows={rows} loading />);
+    render(<ListView.Root collection={posts} rows={rows} loading />);
     // The visible bottom note plus the sr-only live region both say "Loading…".
     expect(screen.getAllByText("Loading…").length).toBeGreaterThanOrEqual(1);
   });
 
   test("loading an empty list shows Loading… in the table, never the empty message", () => {
-    render(<ListView collection={posts} rows={[]} loading emptyMessage="No records." />);
+    render(<ListView.Root collection={posts} rows={[]} loading emptyMessage="No records." />);
     // Both the table cell and the sr-only live region read "Loading…".
     expect(screen.getAllByText("Loading…")).toHaveLength(2);
     expect(screen.queryByText("No records.")).toBeNull();
   });
 
   test("an empty list without loading shows the empty message only", () => {
-    render(<ListView collection={posts} rows={[]} />);
+    render(<ListView.Root collection={posts} rows={[]} />);
     // Both the table cell and the sr-only live region read the empty message.
     expect(screen.getAllByText("No records.")).toHaveLength(2);
     expect(screen.queryByText("Loading…")).toBeNull();
@@ -89,24 +94,26 @@ describe("ListView", () => {
   test("shows Load more only when there's a cursor and a handler", () => {
     const onLoadMore = mock();
     const { rerender } = render(
-      <ListView collection={posts} rows={rows} nextCursor="abc" onLoadMore={onLoadMore} />,
+      <ListView.Root collection={posts} rows={rows} nextCursor="abc" onLoadMore={onLoadMore} />,
     );
     const button = screen.getByRole("button", { name: "Load more" });
     fireEvent.click(button);
     expect(onLoadMore).toHaveBeenCalledTimes(1);
 
-    rerender(<ListView collection={posts} rows={rows} nextCursor={null} onLoadMore={onLoadMore} />);
+    rerender(
+      <ListView.Root collection={posts} rows={rows} nextCursor={null} onLoadMore={onLoadMore} />,
+    );
     expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
   });
 
   test("hides Load more when there's a cursor but no handler", () => {
-    render(<ListView collection={posts} rows={rows} nextCursor="abc" />);
+    render(<ListView.Root collection={posts} rows={rows} nextCursor="abc" />);
     expect(screen.queryByRole("button", { name: "Load more" })).toBeNull();
   });
 
   test("uses a custom load-more label", () => {
     render(
-      <ListView
+      <ListView.Root
         collection={posts}
         rows={rows}
         nextCursor="abc"
@@ -124,19 +131,19 @@ describe("ListView live region", () => {
   }
 
   test("announces loading, empty, and result count as state changes", () => {
-    const { container, rerender } = render(<ListView collection={posts} rows={[]} loading />);
+    const { container, rerender } = render(<ListView.Root collection={posts} rows={[]} loading />);
     expect(liveRegion(container)?.textContent).toBe("Loading…");
 
-    rerender(<ListView collection={posts} rows={[]} emptyMessage="No records." />);
+    rerender(<ListView.Root collection={posts} rows={[]} emptyMessage="No records." />);
     expect(liveRegion(container)?.textContent).toBe("No records.");
 
-    rerender(<ListView collection={posts} rows={rows} />);
+    rerender(<ListView.Root collection={posts} rows={rows} />);
     expect(liveRegion(container)?.textContent).toBe("2 results");
   });
 
   test("uses the singular for a single result", () => {
     const { container } = render(
-      <ListView collection={posts} rows={[{ id: "1", title: "Hello", views: 12 }]} />,
+      <ListView.Root collection={posts} rows={[{ id: "1", title: "Hello", views: 12 }]} />,
     );
     expect(liveRegion(container)?.textContent).toBe("1 result");
   });
@@ -152,19 +159,19 @@ describe("ListView status filter", () => {
   test("shows the filter for a draft-enabled collection and reports changes", () => {
     const onStatusChange = mock();
     render(
-      <ListView collection={drafted} rows={[]} status="any" onStatusChange={onStatusChange} />,
+      <ListView.Root collection={drafted} rows={[]} status="any" onStatusChange={onStatusChange} />,
     );
     fireEvent.click(screen.getByRole("tab", { name: "Drafts" }));
     expect(onStatusChange).toHaveBeenCalledWith("draft");
   });
 
   test("hidden for a non-draft collection even when wired", () => {
-    render(<ListView collection={posts} rows={rows} status="any" onStatusChange={() => {}} />);
+    render(<ListView.Root collection={posts} rows={rows} status="any" onStatusChange={() => {}} />);
     expect(screen.queryByRole("tab")).toBeNull();
   });
 
   test("hidden when no onStatusChange handler is wired", () => {
-    render(<ListView collection={drafted} rows={[]} />);
+    render(<ListView.Root collection={drafted} rows={[]} />);
     expect(screen.queryByRole("tab")).toBeNull();
   });
 });
@@ -179,19 +186,24 @@ describe("ListView search box", () => {
   test("shows the search box for a search-enabled collection and reports typing", () => {
     const onSearchChange = mock();
     render(
-      <ListView collection={searchable} rows={[]} searchValue="" onSearchChange={onSearchChange} />,
+      <ListView.Root
+        collection={searchable}
+        rows={[]}
+        searchValue=""
+        onSearchChange={onSearchChange}
+      />,
     );
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "fox" } });
     expect(onSearchChange).toHaveBeenCalledWith("fox");
   });
 
   test("hidden for a non-search collection even when wired", () => {
-    render(<ListView collection={posts} rows={rows} onSearchChange={() => {}} />);
+    render(<ListView.Root collection={posts} rows={rows} onSearchChange={() => {}} />);
     expect(screen.queryByRole("searchbox")).toBeNull();
   });
 
   test("hidden when no onSearchChange handler is wired", () => {
-    render(<ListView collection={searchable} rows={[]} />);
+    render(<ListView.Root collection={searchable} rows={[]} />);
     expect(screen.queryByRole("searchbox")).toBeNull();
   });
 });

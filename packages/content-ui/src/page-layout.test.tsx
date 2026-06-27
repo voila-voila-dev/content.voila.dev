@@ -38,4 +38,26 @@ describe("PageLayout", () => {
     expect(screen.getByRole("navigation").textContent).toBe("sections");
     expect(container.querySelector("footer")?.textContent).toBe("footer");
   });
+
+  test("renders a data-slot on each part", () => {
+    const { baseElement: root } = render(
+      <PageLayout.Root>
+        <PageLayout.Header>
+          <PageLayout.Title>Posts</PageLayout.Title>
+          <PageLayout.Description>All posts</PageLayout.Description>
+        </PageLayout.Header>
+        <PageLayout.NavigationLayout>
+          <PageLayout.Body>body</PageLayout.Body>
+        </PageLayout.NavigationLayout>
+        <PageLayout.Footer>footer</PageLayout.Footer>
+      </PageLayout.Root>,
+    );
+    expect(root.querySelector("[data-slot=page-layout]")).not.toBeNull();
+    expect(root.querySelector("[data-slot=page-layout-header]")).not.toBeNull();
+    expect(root.querySelector("[data-slot=page-layout-title]")).not.toBeNull();
+    expect(root.querySelector("[data-slot=page-layout-description]")).not.toBeNull();
+    expect(root.querySelector("[data-slot=page-layout-navigation]")).not.toBeNull();
+    expect(root.querySelector("[data-slot=page-layout-body]")).not.toBeNull();
+    expect(root.querySelector("[data-slot=page-layout-footer]")).not.toBeNull();
+  });
 });

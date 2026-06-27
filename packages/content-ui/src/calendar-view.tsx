@@ -130,7 +130,7 @@ export interface CalendarViewProps {
   readonly emptyMessage?: string;
 }
 
-export function CalendarView({
+function Root({
   collection,
   rows,
   startField,
@@ -146,24 +146,36 @@ export function CalendarView({
   const { events, byId } = rowsToEvents(collection, rows, startField, endField, cardFields);
 
   if (events.length === 0) {
-    return <p className="text-muted-foreground text-sm">{emptyMessage}</p>;
+    return (
+      <p data-slot="calendar-view" className="text-muted-foreground text-sm">
+        {emptyMessage}
+      </p>
+    );
   }
 
   return (
-    <EventCalendar
-      events={events}
-      view={view}
-      defaultView={defaultView}
-      onViewChange={onViewChange}
-      weekStartsOn={weekStartsOn}
-      onEventClick={
-        onRowClick
-          ? (event) => {
-              const row = byId.get(event.id);
-              if (row) onRowClick(row);
-            }
-          : undefined
-      }
-    />
+    <div data-slot="calendar-view">
+      <EventCalendar
+        events={events}
+        view={view}
+        defaultView={defaultView}
+        onViewChange={onViewChange}
+        weekStartsOn={weekStartsOn}
+        onEventClick={
+          onRowClick
+            ? (event) => {
+                const row = byId.get(event.id);
+                if (row) onRowClick(row);
+              }
+            : undefined
+        }
+      />
+    </div>
   );
 }
+
+/** Schema-driven calendar. `CalendarView.Root` maps rows to events on the shared
+ *  `EventCalendar` (Month / Week / Day). */
+export const CalendarView = {
+  Root,
+};

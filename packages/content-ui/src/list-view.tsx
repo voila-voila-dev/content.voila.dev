@@ -68,7 +68,7 @@ export interface ListViewProps {
   readonly onSearchSubmit?: (value: string) => void;
 }
 
-export function ListView({
+function Root({
   collection,
   rows,
   columns,
@@ -110,7 +110,7 @@ export function ListView({
         : `${rows.length} results`;
 
   return (
-    <PageLayout.Root>
+    <PageLayout.Root data-slot="list-view">
       <PageLayout.Header>
         <div className="space-y-1">
           <PageLayout.Title>{heading}</PageLayout.Title>
@@ -156,7 +156,7 @@ export function ListView({
         {/* The table sits in a bordered, rounded panel (matching the guide-scpi
             admin's data table); `overflow-hidden` clips the corners. */}
         <div className="overflow-hidden rounded-lg border">
-          <DataTable
+          <DataTable.Root
             collection={collection}
             rows={rows}
             columns={columns}
@@ -182,3 +182,9 @@ export function ListView({
     </PageLayout.Root>
   );
 }
+
+/** Schema-driven list page for a collection. `ListView.Root` renders the header,
+ *  toolbar (search / status), the `DataTable`, and keyset pagination. */
+export const ListView = {
+  Root,
+};

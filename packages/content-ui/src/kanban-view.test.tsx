@@ -21,8 +21,17 @@ const rows = [
 ];
 
 describe("KanbanView", () => {
+  test("exposes the kanban-view slot on its root (board and empty state)", () => {
+    const { baseElement, rerender } = render(
+      <KanbanView.Root collection={tasks} rows={rows} groupField="status" />,
+    );
+    expect(baseElement.querySelector('[data-slot="kanban-view"]')).not.toBeNull();
+    rerender(<KanbanView.Root collection={tasks} rows={[]} groupField="status" />);
+    expect(baseElement.querySelector('[data-slot="kanban-view"]')).not.toBeNull();
+  });
+
   test("renders a column per declared enum value (empty ones included)", () => {
-    render(<KanbanView collection={tasks} rows={rows} groupField="status" />);
+    render(<KanbanView.Root collection={tasks} rows={rows} groupField="status" />);
     // Columns are <section aria-label> regions.
     expect(screen.getByRole("region", { name: "Todo" })).toBeDefined();
     expect(screen.getByRole("region", { name: "Doing" })).toBeDefined();
@@ -30,7 +39,7 @@ describe("KanbanView", () => {
   });
 
   test("places each row's card under its group, titled by titleField", () => {
-    render(<KanbanView collection={tasks} rows={rows} groupField="status" />);
+    render(<KanbanView.Root collection={tasks} rows={rows} groupField="status" />);
     const todo = screen.getByRole("region", { name: "Todo" });
     expect(todo.textContent).toContain("First");
     expect(todo.textContent).toContain("Third");
@@ -39,7 +48,7 @@ describe("KanbanView", () => {
 
   test("dropping a card on another column calls onMove with the row id + value", () => {
     const onMove = mock();
-    render(<KanbanView collection={tasks} rows={rows} groupField="status" onMove={onMove} />);
+    render(<KanbanView.Root collection={tasks} rows={rows} groupField="status" onMove={onMove} />);
     const card = screen.getByText("First").closest("article") as HTMLElement;
     const data = new Map<string, string>();
     const dataTransfer = {
@@ -55,7 +64,12 @@ describe("KanbanView", () => {
   test("clicking a card opens it via onRowClick", () => {
     const onRowClick = mock();
     render(
-      <KanbanView collection={tasks} rows={rows} groupField="status" onRowClick={onRowClick} />,
+      <KanbanView.Root
+        collection={tasks}
+        rows={rows}
+        groupField="status"
+        onRowClick={onRowClick}
+      />,
     );
     fireEvent.click(screen.getByText("Second").closest("article") as HTMLElement);
     expect(onRowClick.mock.calls[0]?.[0]).toMatchObject({ id: "2" });
@@ -63,7 +77,12 @@ describe("KanbanView", () => {
 
   test("shows the empty message with no rows", () => {
     render(
-      <KanbanView collection={tasks} rows={[]} groupField="status" emptyMessage="Nothing here" />,
+      <KanbanView.Root
+        collection={tasks}
+        rows={[]}
+        groupField="status"
+        emptyMessage="Nothing here"
+      />,
     );
     expect(screen.getByText("Nothing here")).toBeDefined();
   });
@@ -81,7 +100,7 @@ describe("KanbanView", () => {
     });
     const onMove = mock();
     render(
-      <KanbanView
+      <KanbanView.Root
         collection={priorities}
         rows={[{ id: "1", title: "T", priority: 1 }]}
         groupField="priority"

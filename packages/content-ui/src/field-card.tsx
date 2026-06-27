@@ -9,31 +9,58 @@ import { cn } from "@voila/ui/cn";
 import type { ComponentProps } from "react";
 
 function Root({ className, ...props }: ComponentProps<"section">) {
-  return <section className={cn("text-card-foreground", className)} {...props} />;
+  return (
+    <section data-slot="field-card" className={cn("text-card-foreground", className)} {...props} />
+  );
 }
 
 // A fully-closed, self-contained card (all four borders + corners). The read
 // view uses this — there's no Save footer to close the card off, so a bare
 // `Body` (which is open-bottomed, expecting a `Footer`) would look unfinished.
 function Card({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cn("rounded-lg border bg-card p-6", className)} {...props} />;
+  return (
+    <div
+      data-slot="field-card-card"
+      className={cn("rounded-lg border bg-card p-6", className)}
+      {...props}
+    />
+  );
 }
 
 function Body({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cn("rounded-t-lg border-x border-t bg-card p-6", className)} {...props} />;
+  return (
+    <div
+      data-slot="field-card-body"
+      className={cn("rounded-t-lg border-x border-t bg-card p-6", className)}
+      {...props}
+    />
+  );
 }
 
 function Title({ className, ...props }: ComponentProps<"h2">) {
-  return <h2 className={cn("font-semibold text-xl", className)} {...props} />;
+  return (
+    <h2
+      data-slot="field-card-title"
+      className={cn("font-semibold text-xl", className)}
+      {...props}
+    />
+  );
 }
 
 function Description({ className, ...props }: ComponentProps<"p">) {
-  return <p className={cn("my-3 text-muted-foreground text-xs", className)} {...props} />;
+  return (
+    <p
+      data-slot="field-card-description"
+      className={cn("my-3 text-muted-foreground text-xs", className)}
+      {...props}
+    />
+  );
 }
 
 function Footer({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
+      data-slot="field-card-footer"
       className={cn(
         "flex items-center justify-between rounded-b-lg border bg-muted/40 px-6 py-3",
         className,
@@ -44,11 +71,17 @@ function Footer({ className, ...props }: ComponentProps<"div">) {
 }
 
 function FooterDescription({ className, ...props }: ComponentProps<"p">) {
-  return <p className={cn("text-muted-foreground text-xs", className)} {...props} />;
+  return (
+    <p
+      data-slot="field-card-footer-description"
+      className={cn("text-muted-foreground text-xs", className)}
+      {...props}
+    />
+  );
 }
 
 function FieldCardButton(props: ComponentProps<typeof Button>) {
-  return <Button size="sm" {...props} />;
+  return <Button data-slot="field-card-button" size="sm" {...props} />;
 }
 
 /** Compound card for a field group's section. `FieldCard.Root` wraps a

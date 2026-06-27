@@ -116,7 +116,7 @@ export function CollectionDetailScreen(): ReactNode {
   }
 
   return (
-    <DetailView
+    <DetailView.Root
       collection={collection}
       doc={doc.data}
       registry={admin.displayWidgets}

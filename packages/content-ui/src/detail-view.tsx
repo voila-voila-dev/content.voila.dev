@@ -82,7 +82,7 @@ function resolveRows(collection: Collection, fields?: readonly string[]): Row[] 
   return out;
 }
 
-export function DetailView({
+function Root({
   collection,
   doc,
   fields,
@@ -161,7 +161,7 @@ export function DetailView({
   }
 
   return (
-    <PageLayout.Root>
+    <PageLayout.Root data-slot="detail-view">
       <p aria-live="polite" className="sr-only">
         {liveMessage}
       </p>
@@ -207,3 +207,9 @@ export function DetailView({
     </PageLayout.Root>
   );
 }
+
+/** Schema-driven read view for one document. `DetailView.Root` renders the
+ *  header + a definition list (or grouped cards) from the collection's fields. */
+export const DetailView = {
+  Root,
+};

@@ -29,5 +29,9 @@ export function StatusBadge({ doc, now }: StatusBadgeProps): ReactNode {
   const state = publishStatus(doc, now);
   if (state === null) return null;
   const { label, variant } = PRESENTATION[state];
-  return <Badge variant={variant}>{label}</Badge>;
+  return (
+    <Badge data-slot="status-badge" variant={variant}>
+      {label}
+    </Badge>
+  );
 }

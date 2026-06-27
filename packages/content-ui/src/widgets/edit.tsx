@@ -63,6 +63,7 @@ export function TextInput({
 }: EditWidgetProps): ReactNode {
   return (
     <Input
+      data-slot="text-input"
       id={id}
       value={typeof value === "string" ? value : ""}
       placeholder={field.meta.description}
@@ -83,6 +84,7 @@ export function TextareaInput({
 }: EditWidgetProps): ReactNode {
   return (
     <Textarea
+      data-slot="textarea-input"
       id={id}
       value={typeof value === "string" ? value : ""}
       placeholder={field.meta.description}
@@ -108,6 +110,7 @@ export function MonospaceTextareaInput({
 }: EditWidgetProps): ReactNode {
   return (
     <Textarea
+      data-slot="monospace-textarea-input"
       id={id}
       className="min-h-40 font-mono"
       value={typeof value === "string" ? value : ""}
@@ -148,7 +151,7 @@ export function ColorInput({
   // empty or holds a partial/named color so the picker still opens on a hue.
   const swatch = HEX_COLOR.test(text) ? text : "#000000";
   return (
-    <div className="flex items-center gap-2">
+    <div data-slot="color-input" className="flex items-center gap-2">
       <input
         type="color"
         aria-label="Color picker"
@@ -180,6 +183,7 @@ export function NumberInput({
   const m = field.meta as FieldMetaBase & NumberMetaShape;
   return (
     <Input
+      data-slot="number-input"
       id={id}
       type="number"
       value={typeof value === "number" ? String(value) : ""}
@@ -211,7 +215,7 @@ export function BooleanInput({
   // The block wrapper drops the inline-flex switch onto its own line below the
   // (inline) label, so the form's vertical spacing applies between them.
   return (
-    <div>
+    <div data-slot="boolean-input">
       <Switch
         id={id}
         aria-labelledby={labelId}
@@ -257,6 +261,7 @@ export function SelectInput({
   const current = value === null || value === undefined ? "" : String(value);
   return (
     <select
+      data-slot="select-input"
       id={id}
       value={current}
       disabled={disabled}
@@ -294,6 +299,7 @@ export function UnsupportedInput({ id, field }: EditWidgetProps): ReactNode {
   // static hint it is. Keeps `id` so the field `<label htmlFor>` still resolves.
   return (
     <p
+      data-slot="unsupported-input"
       id={id}
       className="rounded-md border border-dashed border-input px-3 py-2 text-sm text-muted-foreground"
     >
@@ -339,6 +345,7 @@ export function DateInput({
   const kind = field.meta.kind;
   return (
     <Input
+      data-slot="date-input"
       id={id}
       type={DATE_INPUT_TYPE[kind] ?? "date"}
       // `time` fields store HH:MM:SS, so ask the control for seconds precision.

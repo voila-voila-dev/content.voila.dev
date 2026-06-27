@@ -71,7 +71,7 @@ export function readPoint(value: unknown): Point | null {
   return typeof lat === "number" && typeof lng === "number" ? { lat, lng } : null;
 }
 
-export function MapView({
+function Root({
   collection,
   rows,
   geoField,
@@ -186,6 +186,7 @@ export function MapView({
   // — hue-rotated back so link colors survive — when the map sits in dark mode.
   return (
     <div
+      data-slot="map-view"
       className={cn(
         "h-[60vh] w-full overflow-hidden rounded-lg border",
         "dark:[&_.maplibregl-ctrl]:hue-rotate-180 dark:[&_.maplibregl-ctrl]:invert",
@@ -196,3 +197,9 @@ export function MapView({
     </div>
   );
 }
+
+/** Schema-driven map. `MapView.Root` plots rows' `geo` fields as maplibre
+ *  markers (client-only, maplibre-gl is an optional peer dep). */
+export const MapView = {
+  Root,
+};

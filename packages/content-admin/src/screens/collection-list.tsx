@@ -372,7 +372,7 @@ export function CollectionListScreen(): ReactNode {
             </p>
           ) : null}
           {viewType === "kanban" && kanbanField ? (
-            <KanbanView
+            <KanbanView.Root
               collection={collection}
               rows={rows}
               groupField={kanbanField}
@@ -384,7 +384,7 @@ export function CollectionListScreen(): ReactNode {
               }
             />
           ) : viewType === "map" && geoField ? (
-            <MapView
+            <MapView.Root
               collection={collection}
               rows={rows}
               geoField={geoField}
@@ -396,7 +396,7 @@ export function CollectionListScreen(): ReactNode {
               onRowClick={openRow}
             />
           ) : viewType === "calendar" && calendarField ? (
-            <CalendarView
+            <CalendarView.Root
               collection={collection}
               rows={rows}
               startField={calendarField}
@@ -413,7 +413,7 @@ export function CollectionListScreen(): ReactNode {
   }
 
   return (
-    <ListView
+    <ListView.Root
       collection={collection}
       rows={rows}
       columns={visibleColumns}

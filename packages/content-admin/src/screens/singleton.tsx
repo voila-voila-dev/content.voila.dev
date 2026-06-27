@@ -72,7 +72,7 @@ export function SingletonScreen({ slug }: { readonly slug: string }): ReactNode 
   }
 
   return (
-    <DetailView
+    <DetailView.Root
       collection={singleton}
       doc={doc.data}
       registry={admin.displayWidgets}

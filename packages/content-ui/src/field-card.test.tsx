@@ -25,6 +25,25 @@ describe("FieldCard", () => {
     expect(screen.getByRole("button", { name: "Save" })).toBeDefined();
   });
 
+  test("renders a data-slot on each part", () => {
+    const { baseElement: root } = render(
+      <FieldCard.Root>
+        <FieldCard.Body>
+          <FieldCard.Title>Content</FieldCard.Title>
+          <FieldCard.Description>The post body</FieldCard.Description>
+        </FieldCard.Body>
+        <FieldCard.Footer>
+          <FieldCard.FooterDescription>Unsaved</FieldCard.FooterDescription>
+        </FieldCard.Footer>
+      </FieldCard.Root>,
+    );
+    expect(root.querySelector("[data-slot=field-card]")).not.toBeNull();
+    expect(root.querySelector("[data-slot=field-card-body]")).not.toBeNull();
+    expect(root.querySelector("[data-slot=field-card-title]")).not.toBeNull();
+    expect(root.querySelector("[data-slot=field-card-description]")).not.toBeNull();
+    expect(root.querySelector("[data-slot=field-card-footer]")).not.toBeNull();
+  });
+
   test("Card renders a fully-closed, self-contained card", () => {
     const { container } = render(
       <FieldCard.Root>

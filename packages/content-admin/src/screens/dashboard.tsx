@@ -27,7 +27,7 @@ export function DashboardScreen(): ReactNode {
   }
 
   return (
-    <Dashboard
+    <Dashboard.Root
       config={admin.config}
       counts={counts}
       basePath={admin.basePath}

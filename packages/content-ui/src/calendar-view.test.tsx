@@ -112,7 +112,7 @@ describe("CalendarView", () => {
       },
     ];
     render(
-      <CalendarView
+      <CalendarView.Root
         collection={events}
         rows={rows}
         startField="startsAt"
@@ -129,7 +129,7 @@ describe("CalendarView", () => {
   test("shows the empty message when no row carries a usable date", () => {
     const rows = [{ id: "1", title: "Undated", startsAt: null }];
     render(
-      <CalendarView
+      <CalendarView.Root
         collection={events}
         rows={rows}
         startField="startsAt"
@@ -137,5 +137,22 @@ describe("CalendarView", () => {
       />,
     );
     expect(screen.getByText("Nothing scheduled")).toBeDefined();
+  });
+
+  test("exposes the calendar-view slot on its root (calendar and empty state)", () => {
+    const today = new Date();
+    const rows = [
+      {
+        id: "7",
+        title: "Demo",
+        startsAt: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 0),
+      },
+    ];
+    const { baseElement, rerender } = render(
+      <CalendarView.Root collection={events} rows={rows} startField="startsAt" />,
+    );
+    expect(baseElement.querySelector('[data-slot="calendar-view"]')).not.toBeNull();
+    rerender(<CalendarView.Root collection={events} rows={[]} startField="startsAt" />);
+    expect(baseElement.querySelector('[data-slot="calendar-view"]')).not.toBeNull();
   });
 });

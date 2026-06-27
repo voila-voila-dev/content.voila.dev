@@ -60,7 +60,7 @@ export function MediaDisplay({ value }: DisplayWidgetProps): ReactNode {
   if (media === null) return <Empty />;
   const size = formatBytes(media.size);
   return (
-    <span className="inline-flex items-center gap-2 align-middle">
+    <span data-slot="media-display" className="inline-flex items-center gap-2 align-middle">
       <a
         href={media.url}
         target="_blank"
@@ -137,7 +137,7 @@ export function createMediaInput(options: CreateMediaInputOptions): EditWidget {
     }
 
     return (
-      <div className="space-y-2">
+      <div data-slot="media-input" className="space-y-2">
         {media !== null ? (
           <div className="flex items-start gap-3">
             {isImage(media) ? (

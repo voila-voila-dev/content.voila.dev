@@ -29,16 +29,16 @@ describe("ColumnPicker", () => {
       />,
     );
     open();
-    expect(screen.getByLabelText("Title")).toBeDefined();
-    expect(screen.getByLabelText("Author")).toBeDefined();
-    expect(screen.queryByLabelText("Secret")).toBeNull();
+    expect(screen.getByRole("checkbox", { name: "Title" })).toBeDefined();
+    expect(screen.getByRole("checkbox", { name: "Author" })).toBeDefined();
+    expect(screen.queryByRole("checkbox", { name: "Secret" })).toBeNull();
   });
 
   test("toggling an unchecked field adds it to the visible list", () => {
     let next: string[] = [];
     render(<ColumnPicker collection={collection} value={["title"]} onChange={(c) => (next = c)} />);
     open();
-    fireEvent.click(screen.getByLabelText("Author"));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Author" }));
     expect(next).toEqual(["title", "author"]);
   });
 
@@ -52,7 +52,7 @@ describe("ColumnPicker", () => {
       />,
     );
     open();
-    fireEvent.click(screen.getByLabelText("Views"));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Views" }));
     expect(next).toEqual(["title"]);
   });
 
@@ -80,7 +80,8 @@ describe("ColumnPicker", () => {
       />,
     );
     open();
-    const row = (name: string) => screen.getByLabelText(name).closest("li") as HTMLElement;
+    const row = (name: string) =>
+      screen.getByRole("checkbox", { name }).closest("li") as HTMLElement;
     const data = new Map<string, string>();
     const dataTransfer = {
       setData: (k: string, v: string) => data.set(k, v),
@@ -105,7 +106,8 @@ describe("ColumnPicker", () => {
       />,
     );
     open();
-    const row = (name: string) => screen.getByLabelText(name).closest("li") as HTMLElement;
+    const row = (name: string) =>
+      screen.getByRole("checkbox", { name }).closest("li") as HTMLElement;
     const data = new Map<string, string>();
     const dataTransfer = {
       setData: (k: string, v: string) => data.set(k, v),

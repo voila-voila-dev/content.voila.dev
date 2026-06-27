@@ -14,7 +14,11 @@ import type { ComponentProps } from "react";
 // flex column instead of growing the page.
 function Root({ className, ...props }: ComponentProps<"div">) {
   return (
-    <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", className)} {...props} />
+    <div
+      data-slot="page-layout"
+      className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", className)}
+      {...props}
+    />
   );
 }
 
@@ -23,6 +27,7 @@ function Root({ className, ...props }: ComponentProps<"div">) {
 function Header({ className, ...props }: ComponentProps<"header">) {
   return (
     <header
+      data-slot="page-layout-header"
       className={cn(
         "flex shrink-0 flex-col items-start justify-between gap-4 border-b border-dashed border-border px-6 py-4 md:flex-row md:items-center",
         className,
@@ -37,6 +42,7 @@ function Title({ className, ...props }: ComponentProps<"h1">) {
   // management) without it landing in the tab order.
   return (
     <h1
+      data-slot="page-layout-title"
       tabIndex={-1}
       className={cn("font-bold text-2xl focus:outline-none", className)}
       {...props}
@@ -45,21 +51,33 @@ function Title({ className, ...props }: ComponentProps<"h1">) {
 }
 
 function Description({ className, ...props }: ComponentProps<"p">) {
-  return <p className={cn("text-muted-foreground text-sm", className)} {...props} />;
+  return (
+    <p
+      data-slot="page-layout-description"
+      className={cn("text-muted-foreground text-sm", className)}
+      {...props}
+    />
+  );
 }
 
 // The row holding a (full-height) sub-nav beside the `Body`. On mobile the nav
 // stacks above the body; on `lg` they sit side by side and the nav's right
 // border runs the full height (the body, not this row, is what scrolls).
 function NavigationLayout({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cn("flex min-h-0 flex-1 flex-col lg:flex-row", className)} {...props} />;
+  return (
+    <div
+      data-slot="page-layout-navigation"
+      className={cn("flex min-h-0 flex-1 flex-col lg:flex-row", className)}
+      {...props}
+    />
+  );
 }
 
 // The lone scroll region. An inner padded wrapper holds the content so the
 // scrollbar tracks the padded edge.
 function Body({ className, ...props }: ComponentProps<"div">) {
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
+    <div data-slot="page-layout-body" className="min-h-0 flex-1 overflow-y-auto">
       <div className={cn("p-6", className)} {...props} />
     </div>
   );
@@ -68,6 +86,7 @@ function Body({ className, ...props }: ComponentProps<"div">) {
 function Footer({ className, ...props }: ComponentProps<"footer">) {
   return (
     <footer
+      data-slot="page-layout-footer"
       className={cn(
         "flex shrink-0 items-center justify-between gap-4 border-t border-dashed border-border px-6 py-4",
         className,

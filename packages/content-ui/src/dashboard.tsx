@@ -30,7 +30,7 @@ function formatCount(counts: DashboardProps["counts"], slug: string): ReactNode 
   return typeof n === "number" ? n.toLocaleString() : <Empty />;
 }
 
-export function Dashboard({
+function Root({
   config,
   counts,
   basePath,
@@ -41,7 +41,7 @@ export function Dashboard({
   const { collections } = buildNav(config, { basePath });
 
   return (
-    <PageLayout.Root>
+    <PageLayout.Root data-slot="dashboard">
       {title ? (
         <PageLayout.Header>
           <PageLayout.Title>{title}</PageLayout.Title>
@@ -67,3 +67,9 @@ export function Dashboard({
     </PageLayout.Root>
   );
 }
+
+/** Config-derived admin landing grid. `Dashboard.Root` renders one `StatCard`
+ *  per collection. */
+export const Dashboard = {
+  Root,
+};

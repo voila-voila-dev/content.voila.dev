@@ -89,7 +89,7 @@ function aria(id: string, error?: string) {
  * `Textarea`, so a rich field doesn't look loose next to them. Error lights the
  * border red; disabled dims and inerts it.
  */
-function EditorShell({
+function Shell({
   error,
   disabled,
   children,
@@ -100,6 +100,7 @@ function EditorShell({
 }): ReactNode {
   return (
     <div
+      data-slot="rich-text-editor-shell"
       data-invalid={error ? "" : undefined}
       className={cn(
         "voila-editor-shell rounded-md border border-input bg-transparent shadow-sm",
@@ -118,7 +119,7 @@ function EditorShell({
  * optional control on the right (the markdown raw/rich switch). One muted bar
  * with a single divider underneath, rounded to nest inside the shell border.
  */
-function EditorHeader({
+function Header({
   children,
   aside,
 }: {
@@ -126,7 +127,10 @@ function EditorHeader({
   readonly aside?: ReactNode;
 }): ReactNode {
   return (
-    <div className="flex items-stretch rounded-t-[5px] border-b bg-muted/40">
+    <div
+      data-slot="rich-text-editor-header"
+      className="flex items-stretch rounded-t-[5px] border-b bg-muted/40"
+    >
       <div className="min-w-0 flex-1">{children}</div>
       {aside ? <div className="flex items-center border-l px-1.5">{aside}</div> : null}
     </div>
@@ -146,6 +150,7 @@ function ModeSwitch({
 }): ReactNode {
   return (
     <fieldset
+      data-slot="rich-text-mode-switch"
       aria-label="Editor mode"
       className="m-0 flex items-center gap-0.5 border-0 p-0 text-xs font-medium"
     >
@@ -189,6 +194,15 @@ function ModeButton({
   );
 }
 
+/** The editor chrome as a dot-notation namespace: `Editor.Shell` (the bordered,
+ *  focusable field container), `Editor.Header` (the muted toolbar strip), and
+ *  `Editor.ModeSwitch` (the Rich/Markdown segmented switch). */
+const Editor = {
+  Shell,
+  Header,
+  ModeSwitch,
+};
+
 export function RichTextInput(props: EditWidgetProps): ReactNode {
   return props.field.meta.kind === "markdown" ? (
     <MarkdownInput {...props} />
@@ -230,7 +244,7 @@ function RichTextValueInput({
   const initial = useMemo(() => fromWire(asValue(value)), [value]);
 
   return (
-    <EditorShell error={error} disabled={disabled}>
+    <Editor.Shell error={error} disabled={disabled}>
       <RichTextEditor
         value={initial}
         onChange={(next) => onChange(toWire(next))}
@@ -239,13 +253,13 @@ function RichTextValueInput({
         placeholder="Write something, or press / for commands, @ to mention…"
         toolbar={
           <>
-            <EditorHeader>
+            <Editor.Header>
               <RichTextToolbar
                 model={toolbar}
                 className="voila-rich-text-toolbar voila-toolbar-bare"
                 extra={canInsertImage ? <RichTextImageButton upload={MEDIA.upload} /> : undefined}
               />
-            </EditorHeader>
+            </Editor.Header>
             <RichTextFloatingToolbar model={toolbar} />
           </>
         }
@@ -255,7 +269,7 @@ function RichTextValueInput({
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
       />
-    </EditorShell>
+    </Editor.Shell>
   );
 }
 
@@ -282,18 +296,18 @@ function MarkdownInput({
     // formatting controls apply to a textarea) plus the mode switch — so the
     // toggle lives in one consistent place across both modes.
     return (
-      <EditorShell error={error} disabled={disabled}>
-        <EditorHeader
+      <Editor.Shell error={error} disabled={disabled}>
+        <Editor.Header
           aside={
             richFlavor !== null ? (
-              <ModeSwitch raw onChange={setRaw} disabled={disabled} />
+              <Editor.ModeSwitch raw onChange={setRaw} disabled={disabled} />
             ) : undefined
           }
         >
           <span className="px-2.5 py-2 text-xs font-medium text-muted-foreground">
             {richFlavor === null ? "MDX source" : "Markdown source"}
           </span>
-        </EditorHeader>
+        </Editor.Header>
         <Textarea
           id={id}
           className="min-h-40 resize-y rounded-none border-0 bg-transparent font-mono shadow-none focus-visible:ring-0"
@@ -304,7 +318,7 @@ function MarkdownInput({
           aria-labelledby={labelId}
           {...aria(id, error)}
         />
-      </EditorShell>
+      </Editor.Shell>
     );
   }
 
@@ -352,7 +366,7 @@ function MarkdownRichEditor({
   const initial = useMemo(() => fromMarkdown(text, { flavor }), [text, flavor]);
 
   return (
-    <EditorShell error={error} disabled={disabled}>
+    <Editor.Shell error={error} disabled={disabled}>
       <RichTextEditor
         value={initial}
         // Serialize straight back to a markdown string so the form value stays the
@@ -362,9 +376,9 @@ function MarkdownRichEditor({
         components={components}
         toolbar={
           <>
-            <EditorHeader
+            <Editor.Header
               aside={
-                <ModeSwitch
+                <Editor.ModeSwitch
                   raw={false}
                   onChange={(toRaw) => toRaw && onRaw()}
                   disabled={disabled}
@@ -375,7 +389,7 @@ function MarkdownRichEditor({
                 model={toolbar}
                 className="voila-rich-text-toolbar voila-toolbar-bare"
               />
-            </EditorHeader>
+            </Editor.Header>
             <RichTextFloatingToolbar model={toolbar} />
           </>
         }
@@ -385,6 +399,6 @@ function MarkdownRichEditor({
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
       />
-    </EditorShell>
+    </Editor.Shell>
   );
 }

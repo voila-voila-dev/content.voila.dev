@@ -18,6 +18,7 @@ export function RichTextDisplay({ value }: DisplayWidgetProps): ReactNode {
   const html = toHtml(fromWire(value as rt.RichTextValue));
   return (
     <div
+      data-slot="rich-text-display"
       className="voila-rich-text"
       // Safe to inject: the content is the app's own stored, schema-validated
       // richText, and `toHtml` escapes every text node and attribute.

@@ -44,6 +44,7 @@ export function GeoDisplay({ value }: DisplayWidgetProps): ReactNode {
   if (lat === undefined || lng === undefined) return <Empty />;
   return (
     <a
+      data-slot="geo-display"
       href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=12/${lat}/${lng}`}
       target="_blank"
       rel="noopener noreferrer"
@@ -100,7 +101,7 @@ export function GeoInput({
     "aria-required": required ? (true as const) : undefined,
   };
   return (
-    <div className="flex gap-2">
+    <div data-slot="geo-input" className="flex gap-2">
       <div className="flex-1 space-y-1">
         <span id={latHintId} className="block text-muted-foreground text-xs">
           Latitude
@@ -154,7 +155,7 @@ export interface CreateGeoInputOptions {
 export function createGeoInput(options: CreateGeoInputOptions): EditWidget {
   return function GeoInputWithPicker(props: EditWidgetProps): ReactNode {
     return (
-      <div className="space-y-2">
+      <div data-slot="geo-input-with-picker" className="space-y-2">
         <GeoInput {...props} />
         <GeoMapPicker
           value={props.value}
@@ -301,6 +302,7 @@ function GeoMapPicker({
   // top-left of the page, leaving the box empty.
   return (
     <div
+      data-slot="geo-map-picker"
       className={cn(
         "h-64 w-full overflow-hidden rounded-md border",
         disabled && "pointer-events-none opacity-60",
