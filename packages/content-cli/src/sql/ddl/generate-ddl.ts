@@ -38,7 +38,7 @@ const renderTable = (table: TableSchema, dialect: Dialect): string => {
   return `CREATE TABLE ${quote(table.name)} (\n${lines.join(",\n")}\n);`;
 };
 
-const renderIndex = (idx: IndexSchema, dialect: Dialect): string => {
+const renderIndex = (idx: IndexSchema): string => {
   const unique = idx.unique ? "UNIQUE " : "";
   const using = idx.using ? ` USING ${idx.using}` : "";
   // An expression index (Postgres GIN over `to_tsvector(...)`) carries its target
@@ -53,7 +53,7 @@ export function generateDDL(tables: ReadonlyArray<TableSchema>, dialect: Dialect
     const block: string[] = [renderTable(table, dialect)];
     // FTS5 self-indexes on SQLite, so the GIN-index row (Postgres-only) is skipped.
     const skipIndexes = table.fts !== undefined && dialect === "sqlite";
-    if (!skipIndexes) for (const idx of table.indexes) block.push(renderIndex(idx, dialect));
+    if (!skipIndexes) for (const idx of table.indexes) block.push(renderIndex(idx));
     blocks.push(block.join("\n"));
   }
   return `${blocks.join("\n\n")}\n`;
