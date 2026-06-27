@@ -8,6 +8,7 @@
 import type { NormalizedConfig } from "@voila/content";
 import type { ReactElement, ReactNode } from "react";
 import { buildNav } from "./lib/nav";
+import { PageLayout } from "./page-layout";
 import { Empty } from "./widgets/display";
 import { StatCard } from "./widgets/stat-card";
 
@@ -40,23 +41,29 @@ export function Dashboard({
   const { collections } = buildNav(config, { basePath });
 
   return (
-    <section className="space-y-4">
-      {title ? <h1 className="text-lg font-semibold">{title}</h1> : null}
-      {collections.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {collections.map((item) => (
-            <StatCard
-              key={item.slug}
-              label={item.label}
-              value={formatCount(counts, item.slug)}
-              href={item.href}
-              renderLink={renderLink}
-            />
-          ))}
-        </div>
-      )}
-    </section>
+    <PageLayout.Root>
+      {title ? (
+        <PageLayout.Header>
+          <PageLayout.Title>{title}</PageLayout.Title>
+        </PageLayout.Header>
+      ) : null}
+      <PageLayout.Body>
+        {collections.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {collections.map((item) => (
+              <StatCard
+                key={item.slug}
+                label={item.label}
+                value={formatCount(counts, item.slug)}
+                href={item.href}
+                renderLink={renderLink}
+              />
+            ))}
+          </div>
+        )}
+      </PageLayout.Body>
+    </PageLayout.Root>
   );
 }
