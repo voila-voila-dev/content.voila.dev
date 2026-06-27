@@ -23,7 +23,9 @@ export function createApiHandler(
   const { auth, restHandler, authSecret } = runtime;
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
-    if (url.pathname.startsWith(auth.basePath)) {
+    // Match the auth base path on a segment boundary so a collection whose slug
+    // starts with the base (e.g. `authors` under `/api/auth`) isn't swallowed.
+    if (url.pathname === auth.basePath || url.pathname.startsWith(`${auth.basePath}/`)) {
       return auth.handler(request);
     }
 

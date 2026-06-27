@@ -145,4 +145,31 @@ describe("createApiHandler", () => {
     const res = await handle(new Request("https://x/api/not-a-collection/x/y/z"));
     expect(res.status).toBe(404);
   });
+
+  it("routes a collection whose slug starts with the auth base to REST, not auth", async () => {
+    // `/api/authors` must not be swallowed by the `/api/auth` prefix check — the
+    // match has to respect the path-segment boundary.
+    const authors = defineCollection({ slug: "authors", fields: { name: fields.string() } });
+    const cfg = defineConfig({ branding: { name: "T" }, collections: { posts, authors } });
+    const driver = makeBunSqliteDriver({ url: ":memory:" });
+    await createTables(driver, cfg);
+    const runtime = createAdminRuntime(cfg, {
+      driver,
+      secret: SECRET,
+      authenticator: allowAuth,
+      access: allowAccess,
+    });
+    // Sentinel auth handler so a misroute is unambiguous (418, not a REST 404).
+    const handle = createApiHandler({
+      auth: {
+        basePath: runtime.auth.basePath,
+        authenticator: allowAuth,
+        handler: async () => new Response("AUTH", { status: 418 }),
+      },
+      restHandler: runtime.restHandler,
+      authSecret: SECRET,
+    });
+    expect((await handle(new Request("https://x/api/authors"))).status).toBe(200);
+    expect((await handle(new Request("https://x/api/auth/session"))).status).toBe(418);
+  });
 });

@@ -7,7 +7,8 @@
   },
   "exports": {
     ".": "./src/cli/index.ts",
-    "./sql": "./src/sql/index.ts"
+    "./sql": "./src/sql/index.ts",
+    "./sql/ddl": "./src/sql/ddl/generate-ddl.ts"
   },
   "publishConfig": {
     "access": "public"
