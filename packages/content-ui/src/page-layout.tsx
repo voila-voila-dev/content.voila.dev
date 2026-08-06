@@ -1,12 +1,12 @@
 // PageLayout — the per-screen frame the list/detail/edit views render inside.
 // The page itself never scrolls: a fixed `Header` (and, for grouped screens, a
 // fixed full-height sub-nav) sits above a single scrolling `Body`. Modeled on
-// the guide-scpi admin's `PageLayout`, retoned to `@voila/ui` tokens. Purely
+// the guide-scpi admin's `PageLayout`, retoned to `@voila.dev/ui` tokens. Purely
 // presentational and composable — `Root` caps the height and clips, `Header`
 // carries the page `<h1>` + actions over a dashed separator, `NavigationLayout`
 // lays a sub-nav beside the `Body`, and `Body` is the lone overflow-y region.
 
-import { cn } from "@voila/ui/cn";
+import { cn } from "@voila.dev/ui/utils";
 import type { ComponentProps } from "react";
 
 // Fills its parent (the shell's body slot) and clips, so the page is a fixed

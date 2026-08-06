@@ -1,9 +1,9 @@
 // StatusBadge — shows a draft-enabled document's publish state (Draft /
-// Published / Scheduled) as a `@voila/ui` Badge. Renders nothing for a document
+// Published / Scheduled) as a `@voila.dev/ui` Badge. Renders nothing for a document
 // with no `status` (a non-draft collection), so it's safe to drop into a row or
 // a detail header unconditionally.
 
-import { Badge } from "@voila/ui/badge";
+import { Badge } from "@voila.dev/ui/badge";
 import type { ReactNode } from "react";
 import type { Doc } from "../lib/doc";
 import { type PublishState, publishStatus } from "../lib/publish-status";

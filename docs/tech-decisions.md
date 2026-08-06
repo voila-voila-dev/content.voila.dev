@@ -50,7 +50,7 @@ pass it back through `defineAdmin`.
 
 **Decision:** split the UI in two.
 
-- **`@voila/ui`** — primitives: shadcn-on-[Base UI](https://base-ui.com),
+- **`@voila.dev/ui`** — primitives: shadcn-on-[Base UI](https://base-ui.com),
   Tailwind v4 tokens, Phosphor icons. Generic, styleable, no CMS knowledge.
 - **`@voila/content-ui`** — schema-aware blocks that compose primitives from your
   config: `DataTable`, `CollectionForm`, `FieldRenderer`, `AdminShell`,
@@ -89,7 +89,7 @@ framework. Lives in `@voila/content-cli` alongside the SQL/migrate code.
 
 ## Package map
 
-All `@voila/content*` packages are published (0.2.x); `@voila/ui` and
+All `@voila/content*` packages are published (0.2.x); `@voila.dev/ui` and
 `@voila/rich-text-editor` ship from their own repos.
 
 | Package | Role |
@@ -98,7 +98,7 @@ All `@voila/content*` packages are published (0.2.x); `@voila/ui` and
 | `@voila/content-cli` | `voila` CLI + SQL/DDL/migrate |
 | `@voila/content-ui` | schema-aware blocks & layouts |
 | `@voila/content-admin` | config-driven admin framework (CRUD screens, Cloudflare wiring) |
-| `@voila/ui` | primitives (shadcn-on-Base-UI) |
+| `@voila.dev/ui` | primitives (shadcn-on-Base-UI) |
 | `@voila/rich-text-editor` | Plate editor + node components |
 
 → [Philosophy](./philosophy.md) · [Developer Experience](./dx.md) · [Roadmap](./roadmap.md)

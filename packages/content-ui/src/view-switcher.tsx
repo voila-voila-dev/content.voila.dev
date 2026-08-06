@@ -5,11 +5,11 @@
 // view types offered can be narrowed (e.g. drop "Map" for a collection with no
 // geo field) via `availableTypes`.
 
-import { Button, buttonVariants } from "@voila/ui/button";
-import { cn } from "@voila/ui/cn";
-import { Dialog } from "@voila/ui/dialog";
-import { Input } from "@voila/ui/input";
-import { Tabs } from "@voila/ui/tabs";
+import { Button, buttonVariants } from "@voila.dev/ui/button";
+import { Dialog } from "@voila.dev/ui/dialog";
+import { Input } from "@voila.dev/ui/input";
+import { Tabs } from "@voila.dev/ui/tabs";
+import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useState } from "react";
 
 export type ViewType = "table" | "kanban" | "map" | "calendar";

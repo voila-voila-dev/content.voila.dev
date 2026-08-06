@@ -31,8 +31,8 @@ const posts = defineCollection({
 });
 ```
 
-- `icon` is a [Phosphor](https://phosphoricons.com) name (rendered from
-  `@voila/ui/icons`); unknown names render nothing.
+- `icon` is a [Phosphor](https://phosphoricons.com) name (resolved from
+  `@phosphor-icons/react`); unknown names render nothing.
 - Fields omitted from every group fall into a synthesized trailing **General**
   group — nothing disappears. No `groups` → the flat form (unchanged).
 

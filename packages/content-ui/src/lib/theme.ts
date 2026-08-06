@@ -1,4 +1,4 @@
-// Theme handling for the admin. `@voila/ui` ships `.dark` token overrides keyed
+// Theme handling for the admin. `@voila.dev/ui` ships `.dark` token overrides keyed
 // off a class on `<html>`; these helpers decide which theme applies — an
 // explicit localStorage choice, else the OS `prefers-color-scheme` — and flip
 // that class. `themeInitScript` is the same resolution logic as an inline-able

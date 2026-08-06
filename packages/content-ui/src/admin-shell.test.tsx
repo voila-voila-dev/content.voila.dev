@@ -66,7 +66,7 @@ describe("AdminShell", () => {
         <span>body</span>
       </AdminShell>,
     );
-    expect(screen.getByRole("link", { name: "Posts" }).getAttribute("data-active")).toBe("true");
+    expect(screen.getByRole("link", { name: "Posts" }).hasAttribute("data-active")).toBe(true);
   });
 
   test("renders a theme toggle in the header bar", () => {

@@ -1,6 +1,9 @@
-/* Pulls in Tailwind v4 plus the @voila/ui design tokens (light + dark) and the
- * utilities derived from them (bg-background, text-foreground, …). Restyle by
- * overriding any token on :root or .dark in this file. */
-@import "@voila/ui/tailwind";
+/* Pulls in Tailwind v4 plus the @voila.dev/ui design tokens and the utilities
+ * derived from them (bg-background, text-foreground, …). `globals.css` carries
+ * the token *contract* and the @source registrations; the theme file carries the
+ * :root / .dark values — both are required. Restyle by overriding any token on
+ * :root or .dark in this file. */
+@import "@voila.dev/ui/styles/globals.css";
+@import "@voila.dev/ui/styles/themes/default.css";
 @import "@voila/content-ui/tailwind";
 @import "@voila/content-admin/tailwind";

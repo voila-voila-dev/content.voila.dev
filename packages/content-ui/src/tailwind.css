@@ -1,9 +1,10 @@
 /*
  * @voila/content-ui — Tailwind v4 source registration.
  *
- * Import from an app's entry stylesheet, after `@voila/ui/tailwind`:
+ * Import from an app's entry stylesheet, after the @voila.dev/ui styles:
  *
- *     @import "@voila/ui/tailwind";
+ *     @import "@voila.dev/ui/styles/globals.css";
+ *     @import "@voila.dev/ui/styles/themes/default.css";
  *     @import "@voila/content-ui/tailwind";
  *
  * Tailwind only auto-scans the app's own files, so without this the classes

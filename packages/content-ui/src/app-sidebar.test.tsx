@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { cleanup, render, screen } from "@testing-library/react";
 import { defineCollection, defineConfig, defineSingleton, fields } from "@voila/content";
-import { Sidebar } from "@voila/ui/sidebar";
+import { Sidebar } from "@voila.dev/ui/sidebar";
 import { AppSidebar, type AppSidebarProps } from "./app-sidebar";
 
 // `screen` queries the whole document; AppSidebar needs an ambient
@@ -53,8 +53,8 @@ describe("AppSidebar", () => {
 
   test("marks the active collection via aria/data state", () => {
     renderSidebar({ currentPath: "/admin/posts/123" });
-    expect(screen.getByRole("link", { name: "Posts" }).getAttribute("data-active")).toBe("true");
-    expect(screen.getByRole("link", { name: "Authors" }).getAttribute("data-active")).toBe("false");
+    expect(screen.getByRole("link", { name: "Posts" }).hasAttribute("data-active")).toBe(true);
+    expect(screen.getByRole("link", { name: "Authors" }).hasAttribute("data-active")).toBe(false);
   });
 
   test("threads basePath through to the hrefs", () => {

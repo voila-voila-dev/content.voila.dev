@@ -98,7 +98,7 @@ Two UI packages do the composition for you:
 
 | Package | What it is | Examples |
 | --- | --- | --- |
-| **`@voila/ui`** | Styled primitives (shadcn-on-Base-UI) | `Button`, `Input`, `Select`, `Card`, `Table`, `Dialog`, `Sidebar`, `Toast` |
+| **`@voila.dev/ui`** | Styled primitives (shadcn-on-Base-UI) | `Button`, `Input`, `Select`, `Card`, `Table`, `Dialog`, `Sidebar`, `Toast` |
 | **`@voila/content-ui`** | Schema-aware blocks that read your config | `DataTable`, `CollectionForm`, `FieldRenderer`, `AdminShell`, `ListView`, `DetailView`, dashboard widgets |
 
 A `DataTable` builds its columns and cells from a collection's `list.columns` +

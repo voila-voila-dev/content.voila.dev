@@ -8,7 +8,7 @@
 // "load all" the list screen does for board views) and wires `onMove`/`onRowClick`.
 
 import type { Collection } from "@voila/content";
-import { cn } from "@voila/ui/cn";
+import { cn } from "@voila.dev/ui/utils";
 import type { ReactNode } from "react";
 import { documentTitle } from "./detail-view";
 import { FieldRenderer } from "./field-renderer";

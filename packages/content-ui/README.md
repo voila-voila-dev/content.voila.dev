@@ -1,7 +1,7 @@
 # @voila/content-ui
 
 Schema-aware admin blocks that read a [`@voila/content`](../content) config and
-compose [`@voila/ui`](../../../../packages/ui) primitives. You write a config;
+compose [`@voila.dev/ui`](https://ui.voila.dev) primitives. You write a config;
 these blocks render the list/detail/edit surfaces with no hand-written columns
 or form fields.
 

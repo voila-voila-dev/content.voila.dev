@@ -10,12 +10,12 @@
 // non-localized columns; `contains` for text, comparisons for numbers/dates), so
 // the admin can't author a filter the REST layer would 400.
 
+import { FunnelIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
 import type { Collection, Field } from "@voila/content";
 import type { FilterOp, ListFilter } from "@voila/content/client";
-import { buttonVariants } from "@voila/ui/button";
-import { cn } from "@voila/ui/cn";
-import { FunnelIcon, PlusIcon, XIcon } from "@voila/ui/icons";
-import { Popover } from "@voila/ui/popover";
+import { buttonVariants } from "@voila.dev/ui/button";
+import { Popover } from "@voila.dev/ui/popover";
+import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useRef, useState } from "react";
 import { getFieldLabel } from "./lib/humanize";
 import { selectOptions } from "./widgets/edit";

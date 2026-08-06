@@ -11,8 +11,8 @@
 // Emits `{ lat, lng }` (or `undefined` when both inputs are cleared) so the value
 // re-validates against the geo field's own `{ lat, lng }` schema.
 
-import { cn } from "@voila/ui/cn";
-import { Input } from "@voila/ui/input";
+import { Input } from "@voila.dev/ui/input";
+import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { activeMapStyleUrl, followThemeStyle } from "../lib/map-style";
 import { hasWebGL } from "../lib/webgl";

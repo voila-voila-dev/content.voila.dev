@@ -17,6 +17,8 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.7",
+    "@voila.dev/ui": "^2.0.42",
     "@voila/content": "workspace:*",
     "@voila/content-ui": "workspace:*"
   },

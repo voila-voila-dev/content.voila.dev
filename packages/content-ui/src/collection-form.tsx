@@ -6,9 +6,9 @@
 // surfaces server failures (e.g. a 409 conflict).
 
 import { type Collection, type InferFields, slugify } from "@voila/content";
-import { buttonVariants } from "@voila/ui/button";
-import { cn } from "@voila/ui/cn";
-import { Label } from "@voila/ui/label";
+import { buttonVariants } from "@voila.dev/ui/button";
+import { Label } from "@voila.dev/ui/label";
+import { cn } from "@voila.dev/ui/utils";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { FieldCard } from "./field-card";
 import { FieldGroupNav } from "./field-group-nav";
@@ -582,7 +582,7 @@ export function CollectionForm<C extends Collection = Collection>({
                   <FieldCard.FooterDescription>
                     {dirty ? "Unsaved changes" : ""}
                   </FieldCard.FooterDescription>
-                  {/* Native submit button (not `FieldCard.Button`): the @voila/ui
+                  {/* Native submit button (not `FieldCard.Button`): the @voila.dev/ui
                       Button keeps its own `type="button"`, which wouldn't submit. */}
                   <button
                     type="submit"
@@ -610,7 +610,7 @@ export function CollectionForm<C extends Collection = Collection>({
           {formLevelErrors}
           {formError}
           {/* A native submit button so pressing Enter / clicking submits the form;
-              styled with the @voila/ui button tokens. */}
+              styled with the @voila.dev/ui button tokens. */}
           <button type="submit" disabled={submitting} className={cn(buttonVariants())}>
             {submitLabel}
           </button>
