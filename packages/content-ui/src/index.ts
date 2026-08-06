@@ -1,5 +1,5 @@
 // @voila/content-ui — schema-aware blocks that read a `@voila/content` config
-// and compose `@voila/ui` primitives. Phase 3: the widget registries,
+// and compose `@voila.dev/ui` primitives. Phase 3: the widget registries,
 // `FieldRenderer`, `DataTable` (read/display), `CollectionForm` (write), the
 // `AdminShell` + `AppSidebar` layout (nav from config), the `ListView` /
 // `DetailView` pages, and the `Dashboard` + `StatCard` landing widgets.

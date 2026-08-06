@@ -1,11 +1,11 @@
 // FieldCard — the polished card a grouped detail/edit page wraps each section in:
 // a padded body over a distinct footer bar (where a group's Save lives in the
 // edit form). Compound API mirroring the guide-scpi admin's `FormCard`, retoned
-// to `@voila/ui` tokens (it has no `card-footer` token, so the footer uses a
+// to `@voila.dev/ui` tokens (it has no `card-footer` token, so the footer uses a
 // muted tint). Purely presentational — the body/footer content is the caller's.
 
-import { Button } from "@voila/ui/button";
-import { cn } from "@voila/ui/cn";
+import { Button } from "@voila.dev/ui/button";
+import { cn } from "@voila.dev/ui/utils";
 import type { ComponentProps } from "react";
 
 function Root({ className, ...props }: ComponentProps<"section">) {

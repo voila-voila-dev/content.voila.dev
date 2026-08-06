@@ -7,7 +7,7 @@
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     // Schema-aware blocks forward props through React components and read the
     // erased `Field`/`FieldMetaBase` shapes, which routinely defeat inference
-    // for isolatedDeclarations — disable it here only, exactly like @voila/ui.
+    // for isolatedDeclarations — disable it here only, exactly like @voila.dev/ui.
     "isolatedDeclarations": false
   },
   "references": [{ "path": "../content/tsconfig.build.json" }],

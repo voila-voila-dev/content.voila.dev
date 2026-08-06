@@ -6,12 +6,12 @@
 // `value` (the column keys, e.g. from a saved view's `config.columns`) and feeds
 // it straight into `ListView`'s `columns` prop; `onChange` emits the next list.
 
+import { CaretDownIcon, CaretUpIcon, DotsSixVerticalIcon } from "@phosphor-icons/react";
 import type { Collection } from "@voila/content";
-import { buttonVariants } from "@voila/ui/button";
-import { Checkbox } from "@voila/ui/checkbox";
-import { cn } from "@voila/ui/cn";
-import { CaretDownIcon, CaretUpIcon, DotsSixVerticalIcon } from "@voila/ui/icons";
-import { Popover } from "@voila/ui/popover";
+import { buttonVariants } from "@voila.dev/ui/button";
+import { Checkbox } from "@voila.dev/ui/checkbox";
+import { Popover } from "@voila.dev/ui/popover";
+import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useState } from "react";
 import { getFieldLabel } from "./lib/humanize";
 

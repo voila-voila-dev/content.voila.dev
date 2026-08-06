@@ -12,7 +12,7 @@
 // bounded "load all" the list screen does for map views).
 
 import type { Collection } from "@voila/content";
-import { cn } from "@voila/ui/cn";
+import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { documentTitle } from "./detail-view";
 import type { Doc } from "./lib/doc";

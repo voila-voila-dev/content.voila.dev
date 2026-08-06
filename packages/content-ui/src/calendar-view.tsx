@@ -1,5 +1,5 @@
 // CalendarView — lays a collection's rows out on a Month / Week / Day calendar
-// (the shared `@voila/ui` EventCalendar). It maps each row to a calendar event
+// (the shared `@voila.dev/ui` EventCalendar). It maps each row to a calendar event
 // from a `startField` and an optional `endField`, then delegates rendering and
 // navigation. Presentational and router-agnostic like the rest of content-ui:
 // the host fetches the rows (see the bounded "load all" the list screen does for
@@ -13,13 +13,17 @@
 // (read on its local day/time).
 
 import type { Collection } from "@voila/content";
-import { type CalendarEvent, type CalendarViewMode, EventCalendar } from "@voila/ui/event-calendar";
+import {
+  type CalendarEvent,
+  type CalendarViewMode,
+  EventCalendar,
+} from "@voila.dev/ui/event-calendar";
 import type { ReactNode } from "react";
 import { documentTitle } from "./detail-view";
 import type { Doc } from "./lib/doc";
 import { getFieldLabel } from "./lib/humanize";
 
-export type { CalendarViewMode } from "@voila/ui/event-calendar";
+export type { CalendarViewMode } from "@voila.dev/ui/event-calendar";
 
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -155,7 +159,7 @@ function Root({
 
   return (
     <div data-slot="calendar-view">
-      <EventCalendar
+      <EventCalendar.Root
         events={events}
         view={view}
         defaultView={defaultView}

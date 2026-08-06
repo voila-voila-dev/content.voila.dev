@@ -1,5 +1,5 @@
 // `@voila/content-admin/server` — the framework's server runtime, free of any React or
-// `@voila/ui` dependency. Deployment targets (`@voila/content-admin/cloudflare`,
+// `@voila.dev/ui` dependency. Deployment targets (`@voila/content-admin/cloudflare`,
 // `@voila/content-admin/node`) build a driver + storage from their environment and call
 // `createAdminRuntime`; the host's `admin.api.$.ts` route delegates to
 // `createApiHandler`.

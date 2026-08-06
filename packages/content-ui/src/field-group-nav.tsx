@@ -4,19 +4,19 @@
 // `@voila/content-ui`: the host owns which group is active (`activeGroup`, e.g.
 // derived from `?group=`) and what selecting one does (`onSelect`, e.g. a router
 // navigate). Modeled on the guide-scpi admin's `PageLayout.Navigation`. Icons
-// resolve by Phosphor name from `@voila/ui/icons`; an unknown name renders no
-// icon (the label still shows).
+// resolve by Phosphor name; an unknown name renders no icon (the label still
+// shows).
 
-import { cn } from "@voila/ui/cn";
-import * as Icons from "@voila/ui/icons";
+import * as Icons from "@phosphor-icons/react";
+import { cn } from "@voila.dev/ui/utils";
 import type { ComponentType, ReactNode } from "react";
 import type { ResolvedGroup } from "./lib/groups";
 
 type IconComponent = ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 
-// `@voila/ui/icons` re-exports every Phosphor icon as a named export; the
-// namespace import is the registry. Phosphor ships both the bare (`FileText`)
-// and the suffixed (`FileTextIcon`) forms, so we tolerate either spelling.
+// The Phosphor namespace import is the registry: it exports every icon as a
+// named export, in both the bare (`FileText`) and the suffixed (`FileTextIcon`)
+// forms, so we tolerate either spelling.
 const iconRegistry = Icons as unknown as Record<string, IconComponent | undefined>;
 
 /** Resolve a Phosphor icon by name (bare or `…Icon` suffixed); unknown → undefined. */

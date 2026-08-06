@@ -11,6 +11,7 @@
 // through to the shared view (no separate save step). Mounted by the host's
 // fixed `admin.$collection.index.tsx` shim.
 
+import { FunnelIcon } from "@phosphor-icons/react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { Collection } from "@voila/content";
@@ -27,9 +28,8 @@ import {
   PageLayout,
   ViewTabs,
 } from "@voila/content-ui";
-import { buttonVariants } from "@voila/ui/button";
-import { cn } from "@voila/ui/cn";
-import { FunnelIcon } from "@voila/ui/icons";
+import { buttonVariants } from "@voila.dev/ui/button";
+import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useAdmin } from "../context";
 import { useCollectionMutations } from "../hooks/use-collection-mutations";

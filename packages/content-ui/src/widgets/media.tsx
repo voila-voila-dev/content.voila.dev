@@ -9,9 +9,9 @@
 // stored `MediaValue` so the form re-validates it against the field's schema.
 
 import type { MediaValue } from "@voila/content";
-import { Button } from "@voila/ui/button";
-import { cn } from "@voila/ui/cn";
-import { Input } from "@voila/ui/input";
+import { Button } from "@voila.dev/ui/button";
+import { Input } from "@voila.dev/ui/input";
+import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useRef, useState } from "react";
 import type { DisplayWidgetProps } from "./display";
 import { Empty } from "./display";

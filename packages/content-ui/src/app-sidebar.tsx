@@ -7,7 +7,7 @@
 // (`AdminShell` supplies one).
 
 import type { NormalizedConfig } from "@voila/content";
-import { Sidebar } from "@voila/ui/sidebar";
+import { Sidebar } from "@voila.dev/ui/sidebar";
 import { cloneElement, type ReactElement, type ReactNode } from "react";
 import { buildNav, type NavItem } from "./lib/nav";
 
@@ -59,26 +59,26 @@ function NavGroup({
 }): ReactNode {
   if (items.length === 0) return null;
   return (
-    <Sidebar.Group.Root>
-      <Sidebar.Group.Label>{label}</Sidebar.Group.Label>
-      <Sidebar.Group.Content>
-        <Sidebar.Menu.Root>
+    <Sidebar.Group>
+      <Sidebar.GroupLabel>{label}</Sidebar.GroupLabel>
+      <Sidebar.GroupContent>
+        <Sidebar.Menu>
           {items.map((item) => (
-            <Sidebar.Menu.Item key={item.slug}>
-              <Sidebar.Menu.Button
+            <Sidebar.MenuItem key={item.slug}>
+              <Sidebar.MenuButton
                 isActive={item.isActive}
                 tooltip={item.label}
-                // Cast mirrors @voila/ui's own `render` plumbing: a concrete
+                // Cast mirrors @voila.dev/ui's own `render` plumbing: a concrete
                 // anchor element's props aren't a `Record<string, unknown>`.
                 render={renderLink(item) as ReactElement<Record<string, unknown>>}
               >
                 <span>{item.label}</span>
-              </Sidebar.Menu.Button>
-            </Sidebar.Menu.Item>
+              </Sidebar.MenuButton>
+            </Sidebar.MenuItem>
           ))}
-        </Sidebar.Menu.Root>
-      </Sidebar.Group.Content>
-    </Sidebar.Group.Root>
+        </Sidebar.Menu>
+      </Sidebar.GroupContent>
+    </Sidebar.Group>
   );
 }
 

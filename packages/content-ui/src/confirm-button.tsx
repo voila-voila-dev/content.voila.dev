@@ -1,13 +1,13 @@
-// ConfirmButton — a trigger that asks "are you sure?" in an `@voila/ui`
+// ConfirmButton — a trigger that asks "are you sure?" in an `@voila.dev/ui`
 // AlertDialog before running an action, for destructive, one-click operations
 // like delete. The host wires `onConfirm` to the real mutation; the dialog
 // guards it. Router-agnostic and presentational, like the rest of content-ui:
 // the trigger styles itself from the `variant`, and the caller controls the
 // pending/disabled state (e.g. `disabled` while the mutation runs).
 
-import { AlertDialog } from "@voila/ui/alert-dialog";
-import { buttonVariants } from "@voila/ui/button";
-import { cn } from "@voila/ui/cn";
+import { AlertDialog } from "@voila.dev/ui/alert-dialog";
+import { buttonVariants } from "@voila.dev/ui/button";
+import { cn } from "@voila.dev/ui/utils";
 import type { ReactNode } from "react";
 
 export interface ConfirmButtonProps {

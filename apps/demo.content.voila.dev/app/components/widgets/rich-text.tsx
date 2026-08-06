@@ -36,8 +36,8 @@ import {
 } from "@voila/rich-text-editor/content";
 import { fromMarkdown, type MarkdownFlavor, toMarkdown } from "@voila/rich-text-editor/serialize";
 import "@voila/rich-text-editor/styles.css";
-import { cn } from "@voila/ui/cn";
-import { Textarea } from "@voila/ui/textarea";
+import { Textarea } from "@voila.dev/ui/textarea";
+import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useMemo, useState } from "react";
 import { mediaClient } from "../../lib/content-client";
 

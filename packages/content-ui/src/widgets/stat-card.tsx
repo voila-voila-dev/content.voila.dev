@@ -1,11 +1,11 @@
 // StatCard — a single dashboard metric: a label, a prominent value, and an
-// optional description and icon, over the `@voila/ui` Card. Generic (not tied to
+// optional description and icon, over the `@voila.dev/ui` Card. Generic (not tied to
 // a config) so it's reusable for any number. When `href` is set the whole card
 // becomes a link; like the rest of content-ui it's router-agnostic — pass
 // `renderLink` to render through a framework `Link` (it receives the href and
 // the card body as children), defaulting to a plain `<a>`.
 
-import { Card } from "@voila/ui/card";
+import { Card } from "@voila.dev/ui/card";
 import type { ReactElement, ReactNode } from "react";
 
 export interface StatCardProps {
@@ -40,12 +40,10 @@ export function StatCard({
       data-slot="stat-card"
       className={href ? "transition-colors hover:bg-accent/50" : undefined}
     >
-      <Card.Header.Root className="flex-row items-center justify-between gap-2 space-y-0 pb-2">
-        <Card.Header.Title className="text-sm font-medium text-muted-foreground">
-          {label}
-        </Card.Header.Title>
+      <Card.Header className="flex-row items-center justify-between gap-2 space-y-0 pb-2">
+        <Card.Title className="text-sm font-medium text-muted-foreground">{label}</Card.Title>
         {icon ? <span className="text-muted-foreground">{icon}</span> : null}
-      </Card.Header.Root>
+      </Card.Header>
       <Card.Content>
         <div className="text-2xl font-semibold tabular-nums">{value}</div>
         {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}

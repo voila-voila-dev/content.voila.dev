@@ -8,11 +8,11 @@
 // callback-driven: the host owns persistence through the typed client.
 
 import type { ViewConfig, ViewType } from "@voila/content/client";
-import { buttonVariants } from "@voila/ui/button";
-import { cn } from "@voila/ui/cn";
-import { ContextMenu } from "@voila/ui/context-menu";
-import { Dialog } from "@voila/ui/dialog";
-import { Input } from "@voila/ui/input";
+import { buttonVariants } from "@voila.dev/ui/button";
+import { ContextMenu } from "@voila.dev/ui/context-menu";
+import { Dialog } from "@voila.dev/ui/dialog";
+import { Input } from "@voila.dev/ui/input";
+import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useState } from "react";
 import type { FieldChoice } from "./view-switcher";
 

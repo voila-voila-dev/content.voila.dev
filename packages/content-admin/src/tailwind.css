@@ -1,10 +1,11 @@
 /*
  * @voila/content-admin — Tailwind v4 source registration.
  *
- * Import from an app's entry stylesheet, after `@voila/ui/tailwind` and
+ * Import from an app's entry stylesheet, after the @voila.dev/ui styles and
  * `@voila/content-ui/tailwind`:
  *
- *     @import "@voila/ui/tailwind";
+ *     @import "@voila.dev/ui/styles/globals.css";
+ *     @import "@voila.dev/ui/styles/themes/default.css";
  *     @import "@voila/content-ui/tailwind";
  *     @import "@voila/content-admin/tailwind";
  *
