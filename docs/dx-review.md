@@ -42,46 +42,38 @@ regenerated, and a fresh external scaffold installs and builds.
 
 ## P2 — Rough edges
 
-**1. `@voila/ui`'s barrel forces optional peers onto every consumer.**
-Its index re-exports `chart.tsx` / `form.tsx`, which statically import the
-*optional* peers `recharts` / `react-hook-form`. A clean consumer that doesn't
-install them fails the bundler build (rollup can't resolve the optional-peer
-stub) even though the admin never uses charts/forms. **Current workaround:** the
-scaffold template depends on both. **Proper fix (in the `@voila/ui` repo):** move
-`chart`/`form` to subpath exports so the main barrel is peer-free.
-
-**2. `voila seed` / `voila doctor` / `voila mcp` are documented but unimplemented.**
+**1. `voila seed` / `voila doctor` / `voila mcp` are documented but unimplemented.**
 `dx.md` advertises them; the CLI now handles only `migrate`. A `doctor` (config
 loads, `VOILA_AUTH_SECRET` set, migrations applied, `database_id` filled before
 deploy) would directly de-risk onboarding. Implement, or drop the rows from `dx.md`.
 
-**3. The flagship "actionable errors" example doesn't exist.**
+**2. The flagship "actionable errors" example doesn't exist.**
 `dx.md` shows `[voila] Field "posts.body" … Fix: …`. Real constructor errors are
 bare and nameless (`rich-text: at least one element is required`) because
 constructors don't know their own key. Thread the field key + collection slug into
 validation (in `defineCollection`/`defineConfig`, where keys are known).
 
-**4. `slug({ from })` and `relation({ to })` take unchecked free strings.**
+**3. `slug({ from })` and `relation({ to })` take unchecked free strings.**
 A typo (`from: "titel"`) is accepted and fails later in the admin. `collection.ts`
 already types `titleField` as `keyof Fields & string` — do the same for `from`,
 and validate `relation.to` against known collection slugs at normalization time.
 
 ## P3 — Polish
 
-**5. `migrate apply` has no Postgres target.** `generate` emits a `postgres`
+**4. `migrate apply` has no Postgres target.** `generate` emits a `postgres`
 dialect but `apply` targets are `sqlite | d1-local | d1-remote`. Emit a clear
 "Postgres apply lands with the pg client" error and align the docs.
 
-**6. `database_id` placeholder.** A fresh scaffold ships a generated placeholder
+**5. `database_id` placeholder.** A fresh scaffold ships a generated placeholder
 `database_id` so `bun run dev` (local miniflare D1) works immediately; it must be
 replaced with the real id from `wrangler d1 create` before deploy. A `doctor`
 check (see P2.2) should flag the unreplaced placeholder.
 
-**7. `worker-configuration.d.ts` is generated, not committed.** The scaffold runs
+**6. `worker-configuration.d.ts` is generated, not committed.** The scaffold runs
 `wrangler types` once; it's git-ignored, so a fresh clone must re-run `cf-typegen`
 before `tsc` passes (same shape as `routeTree.gen.ts`). Acceptable, but document it.
 
-**8. `loadConfig` error is thin** — "config has no default export with a
+**7. `loadConfig` error is thin** — "config has no default export with a
 `collections` map" should hint `export default defineConfig(...)`.
 
 ## What's already strong (keep)
