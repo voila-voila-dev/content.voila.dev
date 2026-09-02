@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | `@voila/<product>` | product runtime entry | `@voila/content` |
 | `@voila/<product>-<pkg>` | product sub-package | `@voila/content-ui` |
-| `@voila/<pkg>` | cross-product, no prefix | `@voila/ui` |
+| `@voila.dev/<pkg>` | cross-product design-system scope | `@voila.dev/ui` |
 
 Product prefix = subdomain (`content.voila.dev` → `content`). Versioning:
 Changesets, lock-step across the `@voila/*` packages in each repo.
@@ -23,7 +23,7 @@ extracted to their own repos too.
 
 - `content.voila.dev` — `@voila/content`, `-cli`, `-ui`, `-admin`,
   `create-content-voila`
-- `ui.voila.dev` — `@voila/ui` (primitives)
+- `ui` — `@voila.dev/ui` (primitives; supersedes the retired `ui.voila.dev` / `@voila/ui`)
 - `rich-text-editor.voila.dev` — `@voila/rich-text-editor`
 
 Cross-repo packages are consumed as published npm deps, not workspace links.
