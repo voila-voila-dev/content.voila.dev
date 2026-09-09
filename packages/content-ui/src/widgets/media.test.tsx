@@ -45,13 +45,20 @@ describe("MediaDisplay", () => {
     expect(link.querySelector("img")).not.toBeNull();
   });
 
-  test("shows the empty marker for a missing or malformed value", () => {
+  test("shows a placeholder tile on the detail page and the em-dash in a cell", () => {
     const { container: a } = render(<MediaDisplay value={null} meta={fields.media().meta} />);
-    expect(a.textContent).toBe("—");
+    expect(a.textContent).toBe("No image");
     const { container: b } = render(
-      <MediaDisplay value={{ size: 1 }} meta={fields.media().meta} />,
+      <MediaDisplay value={{ size: 1 }} meta={fields.media().meta} context="cell" />,
     );
     expect(b.textContent).toBe("—");
+  });
+
+  test("renders a 24px thumbnail in a table cell", () => {
+    const { container } = render(
+      <MediaDisplay value={IMAGE} meta={fields.media().meta} context="cell" />,
+    );
+    expect(container.querySelector("img")?.className).toContain("size-6");
   });
 
   test("is registered for the media kind by default", () => {
@@ -68,7 +75,7 @@ describe("createMediaInput", () => {
       <Widget value={undefined} onChange={onChange} field={fields.media()} id="cover" />,
     );
     // Empty state offers an Upload button and an empty file control.
-    expect(screen.getByRole("button", { name: "Upload" })).toBeDefined();
+    expect(screen.getByRole("button", { name: /click to upload/ })).toBeDefined();
     const file = new File(["x"], "cat.png", { type: "image/png" });
     fireEvent.change(fileInput(container), { target: { files: [file] } });
     await waitFor(() => expect(upload).toHaveBeenCalledTimes(1));

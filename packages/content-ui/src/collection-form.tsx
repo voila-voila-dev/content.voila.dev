@@ -1,15 +1,25 @@
 // CollectionForm — builds a create/edit form from a collection's fields. Each
-// field renders its edit widget (resolved from the registry); on submit the
-// values are validated against the fields' Standard Schemas via `validateFields`
-// (the same contract the REST write path enforces) and, only if clean, handed
-// to `onSubmit` decoded. Field errors render inline; a form-level `error` slot
-// surfaces server failures (e.g. a 409 conflict).
+// field renders its edit widget (resolved from the registry) with its label,
+// help text (`meta.description`) and, for bounded strings, a character count;
+// on submit the values are validated against the fields' Standard Schemas via
+// `validateFields` (the same contract the REST write path enforces) and, only if
+// clean, handed to `onSubmit` decoded. Field errors render inline; a form-level
+// `error` slot surfaces server failures (e.g. a 409 conflict).
+//
+// Page chrome: the single `PageLayout.Header` carries the back link, the title
+// and the actions — in `form` mode the Save/Create button lives THERE (a sticky
+// action bar, not a card footer), next to the host's Cancel; in `field` mode
+// (grouped collections saving per field) each edited field shows its own inline
+// Save right under the input, so a section is ONE card, not a stack of five.
+// Grouped collections show one section at a time; the section list lives in
+// the sidebar on desktop (the host registers it) and in the `FieldGroupNav`
+// strip on mobile.
 
 import { type Collection, type InferFields, slugify } from "@voila/content";
-import { buttonVariants } from "@voila.dev/ui/button";
+import { Button } from "@voila.dev/ui/button";
 import { Label } from "@voila.dev/ui/label";
 import { cn } from "@voila.dev/ui/utils";
-import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useId, useState } from "react";
 import { FieldCard } from "./field-card";
 import { FieldGroupNav } from "./field-group-nav";
 import type { Doc } from "./lib/doc";
@@ -17,7 +27,7 @@ import { resolveFieldGroups } from "./lib/groups";
 import { getFieldLabel, humanize } from "./lib/humanize";
 import { localizedFieldErrors, validateFields } from "./lib/validate";
 import { LocalizedFieldEditor } from "./localized-field";
-import { PageLayout } from "./page-layout";
+import { type BodyWidth, PageLayout } from "./page-layout";
 import { defaultEditRegistry, type EditRegistry, resolveEditWidget } from "./registry/edit";
 
 /**
@@ -53,15 +63,19 @@ export interface CollectionFormProps<C extends Collection = Collection> {
   readonly onSubmit: (values: FormValues<C>) => void | Promise<void>;
   readonly submitLabel?: string;
   /**
-   * The page title shown in the pinned header (e.g. "Edit Post" / "New Post").
-   * When set (or `actions` is), the form renders a `PageLayout` frame: a fixed
-   * header over a single scrolling body, matching the read/list views. Omit
-   * both to render the bare form (e.g. embedded elsewhere).
+   * The page title shown in the pinned header (e.g. "Edit Fjords by Ferry" /
+   * "New post"). When set (or `actions` is), the form renders a `PageLayout`
+   * frame: a fixed header over a single scrolling body, matching the read/list
+   * views. Omit both to render the bare form (e.g. embedded elsewhere).
    */
   readonly title?: ReactNode;
   readonly description?: ReactNode;
-  /** Header actions shown on the right of the page header (e.g. Done / Back). */
+  /** The header's back link (see `PageLayout.Back`). */
+  readonly back?: ReactNode;
+  /** Header actions rendered BEFORE the submit button (e.g. Cancel / Done). */
   readonly actions?: ReactNode;
+  /** Content measure of the body. Defaults to `reading`. */
+  readonly width?: BodyWidth;
   /** Form-level error (e.g. a server conflict) shown above the submit button. */
   readonly error?: string;
   /**
@@ -74,20 +88,18 @@ export interface CollectionFormProps<C extends Collection = Collection> {
   readonly serverErrors?: Readonly<Record<string, string>>;
   /**
    * The active field group's id, when the collection declares `groups`. The
-   * form renders a left sub-nav + one card per group, with a single Save in the
-   * active group's footer that submits (and validates) the whole form. Optional
-   * and controlled — omit it and the form tracks its own active group,
-   * defaulting to the first. Ignored when the collection has no `groups`.
+   * form renders one card for that group; a single Save submits (and validates)
+   * the whole form. Optional and controlled — omit it and the form tracks its
+   * own active group, defaulting to the first. Ignored without `groups`.
    */
   readonly activeGroup?: string;
-  /** Called with a group id when the user picks one in the sub-nav. */
+  /** Called with a group id when the user picks one in the mobile strip. */
   readonly onGroupChange?: (id: string) => void;
   /**
    * How the form saves:
-   * - `"form"` (default) — one Save validates and submits every rendered field
-   *   at once (the whole form, or the whole active group's worth in one
-   *   `onSubmit`).
-   * - `"field"` — each field is its own card with its own Save, which validates
+   * - `"form"` (default) — one Save (in the header) validates and submits every
+   *   rendered field at once.
+   * - `"field"` — each edited field shows its own inline Save, which validates
    *   and submits just that field as a partial update. `onSubmit` receives a
    *   one-key document, so it only suits a PATCH-style update (collections, not
    *   the singleton's full-document `set`).
@@ -124,6 +136,15 @@ function slugDerivations(collection: Collection, keys: ReadonlyArray<string>): S
   return { bySource, derivable };
 }
 
+/** `n / max` for a bounded string, when the field declares a `max`. */
+function charCount(value: unknown, meta: { max?: number }): string | undefined {
+  if (typeof meta.max !== "number" || typeof value !== "string") return undefined;
+  return `${value.length} / ${meta.max}`;
+}
+
+/** How long a "Saved" confirmation lingers under a per-field save. */
+const SAVED_FLASH_MS = 2000;
+
 export function CollectionForm<C extends Collection = Collection>({
   collection,
   defaultValues,
@@ -134,7 +155,9 @@ export function CollectionForm<C extends Collection = Collection>({
   submitLabel = "Save",
   title,
   description,
+  back,
   actions,
+  width = "reading",
   error,
   serverErrors,
   activeGroup,
@@ -142,6 +165,7 @@ export function CollectionForm<C extends Collection = Collection>({
   saveMode = "form",
 }: CollectionFormProps<C>): ReactNode {
   const perField = saveMode === "field";
+  const formId = useId();
   const keys = resolveFieldKeys(collection, fields);
   const { bySource, derivable } = slugDerivations(collection, keys);
   // Internally the form edits a loose record (widgets are kind-keyed, not
@@ -153,10 +177,16 @@ export function CollectionForm<C extends Collection = Collection>({
     ...serverErrors,
   }));
   const [submitting, setSubmitting] = useState(false);
-  // Per-field save (`saveMode="field"`): which field is mid-save, and which
-  // fields have unsaved edits — each card's footer reads these for its own Save.
+  // Per-field save (`saveMode="field"`): which field is mid-save, which fields
+  // have unsaved edits, and which just saved (for the brief confirmation).
   const [savingField, setSavingField] = useState<string | null>(null);
   const [dirtyFields, setDirtyFields] = useState<ReadonlySet<string>>(() => new Set());
+  const [savedField, setSavedField] = useState<string | null>(null);
+  useEffect(() => {
+    if (savedField === null) return;
+    const timer = setTimeout(() => setSavedField(null), SAVED_FLASH_MS);
+    return () => clearTimeout(timer);
+  }, [savedField]);
   // Unsaved-changes guard: once the user edits a field, a full-page navigation
   // (reload / tab close / external link) prompts the native "leave site?"
   // confirm so in-progress input isn't lost silently. In-app router navigation
@@ -164,9 +194,6 @@ export function CollectionForm<C extends Collection = Collection>({
   // this covers the cases the component can see on its own. Cleared on a
   // successful submit (the values are persisted; leaving is now intended).
   const [dirty, setDirty] = useState(false);
-  // Whether there are unsaved edits. In per-field mode each card saves on its own
-  // (there's no whole-form submit to clear `dirty`), so the guard tracks the
-  // per-field `dirtyFields` set, which a successful per-field save empties.
   const hasUnsavedChanges = perField ? dirtyFields.size > 0 : dirty;
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -198,19 +225,15 @@ export function CollectionForm<C extends Collection = Collection>({
     return latched;
   });
 
-  // Grouped layout (when the collection declares `groups`): a left sub-nav + one
-  // card holding the active group's fields, with a single Save that submits the
-  // whole form. The form keeps ONE shared values/errors/slug state above —
-  // groups only partition which fields render, so validation and submit still
-  // cover every field (and slug derivation works across groups). The active
-  // group is internal state so a focus-driven switch (below) takes effect
-  // immediately; the controlled `activeGroup` prop is synced into it.
+  // Grouped layout (when the collection declares `groups`): one card holding
+  // the active group's fields. The form keeps ONE shared values/errors/slug
+  // state above — groups only partition which fields render, so validation and
+  // submit still cover every field (and slug derivation works across groups).
+  // The active group is internal state so a focus-driven switch (below) takes
+  // effect immediately; the controlled `activeGroup` prop is synced into it.
   const grouped = (collection.groups?.length ?? 0) > 0;
   const resolvedGroups = grouped ? resolveFieldGroups(collection, { fields }) : [];
   const firstGroupId = resolvedGroups[0]?.id;
-  // Seed from the controlled prop so it's honored on the first render too (the
-  // sync below only fires on subsequent prop changes); fall back to the first
-  // group when uncontrolled.
   const [internalGroup, setInternalGroup] = useState<string | undefined>(
     activeGroup ?? firstGroupId,
   );
@@ -241,8 +264,7 @@ export function CollectionForm<C extends Collection = Collection>({
   // Server errors (a 422/409 on submit) can land on a field in a group that
   // isn't currently shown. Switch to the first such field's group so its inline
   // message is visible — the form-level mirror covers it regardless, but this
-  // brings the user to the field. Runs after render, so the parent
-  // `onGroupChange` call is safe.
+  // brings the user to the field.
   useEffect(() => {
     if (!grouped || serverErrors === undefined) return;
     const firstKey = keys.find((key) => serverErrors[key] !== undefined);
@@ -256,7 +278,7 @@ export function CollectionForm<C extends Collection = Collection>({
     setDirty(true);
     const derivedKeys = (bySource[name] ?? []).filter((k) => !latchedSlugs.has(k));
     // Track the edited field (+ any slug just re-derived from it) as unsaved, so
-    // each per-field card knows whether to enable its Save.
+    // each field's inline Save knows whether to show.
     if (perField) {
       setDirtyFields((prev) => {
         const next = new Set(prev);
@@ -309,9 +331,6 @@ export function CollectionForm<C extends Collection = Collection>({
     const localized = collection.fields[firstKey]?.meta.localized === true && locales !== undefined;
     const id = `${collection.slug}-${firstKey}`;
     const targetId = localized ? `${id}-${locales?.[0]}` : id;
-    // Grouped: if the first failed field lives in another group, switch to it
-    // and defer the focus until it's mounted (next render). Otherwise the
-    // control is already on-screen, so focus it synchronously.
     if (grouped) {
       const target = resolvedGroups.find((g) => g.fieldKeys.includes(firstKey));
       if (target && target.id !== activeGroupId) {
@@ -347,8 +366,7 @@ export function CollectionForm<C extends Collection = Collection>({
 
   // Per-field save: validate + submit just this field as a one-key partial. A
   // failed field surfaces its error inline and takes focus; a clean save clears
-  // the field's unsaved flag. The slug it derives (if any) is a separate card
-  // the user saves on its own.
+  // the field's unsaved flag and flashes "Saved".
   async function submitField(key: string) {
     const result = validateFields(collection.fields, values, [key]);
     if (result.errors[key] !== undefined) {
@@ -376,14 +394,14 @@ export function CollectionForm<C extends Collection = Collection>({
         next.delete(key);
         return next;
       });
+      setSavedField(key);
     } finally {
       setSavingField(null);
     }
   }
 
-  // One field's label + widget + inline error, shared by the flat and grouped
-  // layouts. `keys` order drives the flat layout; a group's `fieldKeys` order
-  // drives the grouped one.
+  // One field's label + widget + help text + inline error, shared by every
+  // layout. In per-field mode a dirty field grows an inline Save row.
   function renderField(key: string): ReactNode {
     const field = collection.fields[key];
     if (!field) return null;
@@ -397,23 +415,38 @@ export function CollectionForm<C extends Collection = Collection>({
     const Widget = localized ? null : resolveEditWidget(field.meta, registry);
     // For a failed localized field, resolve the message down to the locale(s)
     // that actually failed so the error doesn't repeat under every locale.
-    // Empty (e.g. a server error client validation can't reproduce) → fall
-    // back to the single field-level message below.
     const localeErrors =
       localized && fieldError !== undefined
         ? localizedFieldErrors(field, values[key], locales ?? [])
         : undefined;
     const hasLocaleErrors = localeErrors !== undefined && Object.keys(localeErrors).length > 0;
+    const help = field.meta.description;
+    const count = localized ? undefined : charCount(values[key], field.meta as { max?: number });
+    const isDirty = perField && dirtyFields.has(key);
+    const saving = savingField === key;
+    const justSaved = savedField === key;
     return (
-      <div key={key} className="space-y-1.5">
-        <Label id={`${id}-label`} htmlFor={localized ? `${id}-${locales?.[0]}` : id}>
-          {getFieldLabel(key, field)}
-          {required ? (
-            <span aria-hidden className="ml-0.5 text-destructive">
-              *
+      <div
+        key={key}
+        data-slot="form-field"
+        data-dirty={isDirty || undefined}
+        className="space-y-1.5"
+      >
+        <div className="flex items-baseline justify-between gap-2">
+          <Label id={`${id}-label`} htmlFor={localized ? `${id}-${locales?.[0]}` : id}>
+            {getFieldLabel(key, field)}
+            {required ? (
+              <span aria-hidden className="ml-0.5 text-destructive">
+                *
+              </span>
+            ) : null}
+          </Label>
+          {count ? (
+            <span className="text-muted-foreground text-xs tabular-nums" aria-live="off">
+              {count}
             </span>
           ) : null}
-        </Label>
+        </div>
         {localized ? (
           <LocalizedFieldEditor
             field={field}
@@ -437,12 +470,39 @@ export function CollectionForm<C extends Collection = Collection>({
             disabled={fieldDisabled}
           />
         ) : null}
+        {help ? (
+          <p id={`${id}-description`} className="text-muted-foreground text-xs">
+            {help}
+          </p>
+        ) : null}
         {/* Field-level message — suppressed for a localized field once its
             per-locale errors render inline, to avoid showing it twice. */}
         {fieldError && !hasLocaleErrors ? (
-          <p id={`${id}-error`} role="alert" className="text-sm text-destructive">
+          <p id={`${id}-error`} role="alert" className="text-destructive text-sm">
             {fieldError}
           </p>
+        ) : null}
+        {perField && (isDirty || saving || justSaved) ? (
+          <div
+            data-slot="field-save"
+            className="flex items-center justify-end gap-2 text-muted-foreground text-xs"
+          >
+            {justSaved && !isDirty ? (
+              <span role="status">Saved</span>
+            ) : (
+              <>
+                <span>Unsaved changes</span>
+                <Button
+                  type="button"
+                  size="xs"
+                  disabled={saving || !isDirty}
+                  onClick={() => submitField(key)}
+                >
+                  {saving ? "Saving…" : submitLabel}
+                </Button>
+              </>
+            )}
+          </div>
         ) : null}
       </div>
     );
@@ -456,165 +516,95 @@ export function CollectionForm<C extends Collection = Collection>({
   const formLevelErrors = Object.entries(errors)
     .filter(([key]) => !renderedKeys.includes(key))
     .map(([key, message]) => (
-      <p key={key} role="alert" className="text-sm text-destructive">
+      <p key={key} role="alert" className="text-destructive text-sm">
         {humanize(key)}: {message}
       </p>
     ));
   const formError = error ? (
-    <p role="alert" className="text-sm text-destructive">
+    <p role="alert" className="text-destructive text-sm">
       {error}
     </p>
   ) : null;
 
-  // The pinned page header, rendered when the host supplies a title/actions (the
-  // create/edit screens do). Without either, the form renders bare inside the
-  // frame — e.g. when embedded in a host-owned layout.
-  const header =
-    title !== undefined || description !== undefined || actions !== undefined ? (
-      <PageLayout.Header>
-        <div className="space-y-1">
-          {title !== undefined ? <PageLayout.Title>{title}</PageLayout.Title> : null}
-          {description !== undefined ? (
-            <PageLayout.Description>{description}</PageLayout.Description>
-          ) : null}
-        </div>
-        {actions !== undefined ? <div className="flex items-center gap-2">{actions}</div> : null}
-      </PageLayout.Header>
+  // The pinned page header. In `form` mode the submit button lives here (a
+  // native submit bound to the `<form>` by id, so Enter in a field still
+  // submits); in `field` mode the host's actions (Done) stand alone.
+  const submitButton = perField ? null : (
+    <Button type="submit" form={formId} disabled={submitting} size="sm">
+      {submitting ? `${submitLabel}…` : submitLabel}
+    </Button>
+  );
+  const hasHeader = title !== undefined || description !== undefined || actions !== undefined;
+  const header = hasHeader ? (
+    <PageLayout.Header
+      back={back}
+      actions={
+        <>
+          {actions}
+          {submitButton}
+        </>
+      }
+    >
+      {title !== undefined ? <PageLayout.Title>{title}</PageLayout.Title> : null}
+      {description !== undefined ? (
+        <PageLayout.Description>{description}</PageLayout.Description>
+      ) : null}
+    </PageLayout.Header>
+  ) : null;
+
+  const strip =
+    grouped && activeResolved ? (
+      <FieldGroupNav
+        groups={resolvedGroups}
+        activeGroup={activeResolved.id}
+        onSelect={selectGroup}
+      />
     ) : null;
 
-  // Per-field card: one field with its own footer Save (`saveMode="field"`).
-  function renderFieldCard(key: string): ReactNode {
-    if (!collection.fields[key]) return null;
-    const isDirty = dirtyFields.has(key);
-    const saving = savingField === key;
-    return (
-      <FieldCard.Root key={key}>
-        <FieldCard.Body>{renderField(key)}</FieldCard.Body>
-        <FieldCard.Footer>
-          <FieldCard.FooterDescription>
-            {isDirty ? "Unsaved changes" : ""}
-          </FieldCard.FooterDescription>
-          <button
-            type="button"
-            disabled={saving || !isDirty}
-            onClick={() => submitField(key)}
-            className={cn(buttonVariants({ size: "sm" }))}
-          >
-            {saving ? "Saving…" : submitLabel}
-          </button>
-        </FieldCard.Footer>
-      </FieldCard.Root>
-    );
-  }
+  // The body card: the active group's fields (or every field, flat) in ONE
+  // closed card, with the group description on top and any errors at the foot.
+  const bodyKeys = grouped && activeResolved ? activeResolved.fieldKeys : keys;
+  const card = (
+    <FieldCard.Root>
+      <FieldCard.Card className="space-y-5 p-5 sm:p-6">
+        {activeResolved?.description ? (
+          <FieldCard.Description className="my-0">
+            {activeResolved.description}
+          </FieldCard.Description>
+        ) : null}
+        {bodyKeys.map(renderField)}
+        {formLevelErrors}
+        {formError}
+        {/* Without a header there's no header button, so the bare form keeps a
+            submit of its own. */}
+        {!perField && !hasHeader ? (
+          <Button type="submit" disabled={submitting}>
+            {submitLabel}
+          </Button>
+        ) : null}
+      </FieldCard.Card>
+    </FieldCard.Root>
+  );
 
-  // Per-field grouped layout: the pinned full-height sub-nav beside the active
-  // group's fields, each its own card + Save. No wrapping `<form>` — every card
-  // saves independently. The active section is already named by the page header
-  // and the highlighted nav item, so there's no redundant group heading.
-  if (grouped && activeResolved && perField) {
-    return (
-      <PageLayout.Root>
-        {header}
-        <PageLayout.NavigationLayout>
-          <FieldGroupNav
-            groups={resolvedGroups}
-            activeGroup={activeResolved.id}
-            onSelect={selectGroup}
-            title="Sections"
-          />
-          <PageLayout.Body className="space-y-4">
-            {activeResolved.description ? (
-              <p className="text-muted-foreground text-xs">{activeResolved.description}</p>
-            ) : null}
-            {activeResolved.fieldKeys.map(renderFieldCard)}
-            {formLevelErrors}
-            {formError}
-          </PageLayout.Body>
-        </PageLayout.NavigationLayout>
-      </PageLayout.Root>
-    );
-  }
-
-  // Per-field flat layout: every field its own card + Save.
+  // Per-field mode: no wrapping `<form>` — every field saves independently.
   if (perField) {
     return (
-      <PageLayout.Root>
+      <PageLayout.Root data-slot="collection-form">
         {header}
-        <PageLayout.Body className="max-w-2xl space-y-4">
-          {keys.map(renderFieldCard)}
-          {formLevelErrors}
-          {formError}
-        </PageLayout.Body>
+        {strip}
+        <PageLayout.Body width={width}>{card}</PageLayout.Body>
       </PageLayout.Root>
     );
   }
 
-  // Grouped layout: a pinned full-height sub-nav + the active group's fields in
-  // a card, with a single Save in the footer that submits (and validates) the
-  // whole form. The active section is named by the page header + nav highlight,
-  // so the card carries no redundant group heading. The `<form>` uses
-  // `display:contents` so it doesn't break the page frame's flex column.
-  if (grouped && activeResolved) {
-    return (
-      <PageLayout.Root>
-        {header}
-        <form onSubmit={handleSubmit} noValidate className="contents">
-          <PageLayout.NavigationLayout>
-            <FieldGroupNav
-              groups={resolvedGroups}
-              activeGroup={activeResolved.id}
-              onSelect={selectGroup}
-              title="Sections"
-            />
-            <PageLayout.Body>
-              <FieldCard.Root>
-                <FieldCard.Body className="space-y-4">
-                  {activeResolved.description ? (
-                    <FieldCard.Description className="mt-0">
-                      {activeResolved.description}
-                    </FieldCard.Description>
-                  ) : null}
-                  {activeResolved.fieldKeys.map(renderField)}
-                  {formLevelErrors}
-                  {formError}
-                </FieldCard.Body>
-                <FieldCard.Footer>
-                  <FieldCard.FooterDescription>
-                    {dirty ? "Unsaved changes" : ""}
-                  </FieldCard.FooterDescription>
-                  {/* Native submit button (not `FieldCard.Button`): the @voila.dev/ui
-                      Button keeps its own `type="button"`, which wouldn't submit. */}
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className={cn(buttonVariants({ size: "sm" }))}
-                  >
-                    {submitLabel}
-                  </button>
-                </FieldCard.Footer>
-              </FieldCard.Root>
-            </PageLayout.Body>
-          </PageLayout.NavigationLayout>
-        </form>
-      </PageLayout.Root>
-    );
-  }
-
-  // Flat layout (no `groups`): every field stacked, one submit button.
+  // Form mode: the `<form>` uses `display:contents` so it doesn't break the page
+  // frame's flex column; the header submit targets it by id.
   return (
-    <PageLayout.Root>
+    <PageLayout.Root data-slot="collection-form">
       {header}
-      <form onSubmit={handleSubmit} noValidate className="contents">
-        <PageLayout.Body className="max-w-2xl space-y-4">
-          {keys.map(renderField)}
-          {formLevelErrors}
-          {formError}
-          {/* A native submit button so pressing Enter / clicking submits the form;
-              styled with the @voila.dev/ui button tokens. */}
-          <button type="submit" disabled={submitting} className={cn(buttonVariants())}>
-            {submitLabel}
-          </button>
-        </PageLayout.Body>
+      {strip}
+      <form id={formId} onSubmit={handleSubmit} noValidate className={cn("contents")}>
+        <PageLayout.Body width={width}>{card}</PageLayout.Body>
       </form>
     </PageLayout.Root>
   );

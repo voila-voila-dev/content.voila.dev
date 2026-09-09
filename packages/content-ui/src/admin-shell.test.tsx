@@ -1,7 +1,9 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, mock, test } from "bun:test";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { defineCollection, defineConfig, fields } from "@voila/content";
 import { AdminShell } from "./admin-shell";
+import { useRegisterSidebarSection } from "./lib/shell-context";
+import { PageLayout } from "./page-layout";
 
 afterEach(cleanup);
 
@@ -24,22 +26,50 @@ describe("AdminShell", () => {
     expect(screen.getByText("Dashboard body")).toBeDefined();
   });
 
-  test("shows the title and header actions in the header bar", () => {
+  test("renders no header bar of its own — the page's PageLayout.Header is the one bar", () => {
     render(
-      // A title distinct from any nav label ("Posts") so the assertion below
-      // matches the header chrome, not the sidebar link.
-      <AdminShell
-        config={config}
-        title="Overview"
-        headerActions={<button type="button">New</button>}
-      >
-        <span>body</span>
+      <AdminShell config={config}>
+        <PageLayout.Root>
+          <PageLayout.Header actions={<button type="button">New</button>}>
+            <PageLayout.Title>Posts list</PageLayout.Title>
+          </PageLayout.Header>
+        </PageLayout.Root>
       </AdminShell>,
     );
-    // The header title is app chrome, not a heading — each page view owns the
-    // screen's single <h1>, so this is a plain label.
-    expect(screen.getByText("Overview")).toBeDefined();
+    expect(screen.getAllByRole("banner")).toHaveLength(1);
+    expect(screen.getByRole("heading", { name: "Posts list" })).toBeDefined();
     expect(screen.getByRole("button", { name: "New" })).toBeDefined();
+    // Inside the shell, the page header carries the sidebar trigger (the rail
+    // is a second, edge-mounted toggle) + the theme toggle.
+    expect(screen.getAllByRole("button", { name: "Toggle Sidebar" }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Toggle theme" })).toBeDefined();
+  });
+
+  test("swaps the sidebar to a registered entity section", () => {
+    function Entity() {
+      useRegisterSidebarSection({
+        title: "Fjords by Ferry",
+        back: { href: "/admin/posts", label: "Posts" },
+        items: [
+          { id: "content", label: "Content", href: "/admin/posts/1/content", isActive: true },
+          { id: "meta", label: "Metadata", href: "/admin/posts/1/meta", isActive: false },
+        ],
+      });
+      return <span>entity</span>;
+    }
+    render(
+      <AdminShell config={config}>
+        <Entity />
+      </AdminShell>,
+    );
+    expect(screen.getByText("Fjords by Ferry")).toBeDefined();
+    expect(screen.getByRole("link", { name: "Metadata" }).getAttribute("href")).toBe(
+      "/admin/posts/1/meta",
+    );
+    expect(screen.getByRole("link", { name: "Content" }).hasAttribute("data-active")).toBe(true);
+    // The top-level tree is gone while the section is registered.
+    // …except as the section's back row, which links to the list.
+    expect(screen.getByRole("link", { name: "Posts" }).getAttribute("href")).toBe("/admin/posts");
   });
 
   test("wraps the page body in a main landmark", () => {
@@ -51,13 +81,13 @@ describe("AdminShell", () => {
     expect(screen.getByRole("main")).toBeDefined();
   });
 
-  test("includes a sidebar toggle trigger", () => {
+  test("shows count badges on nav items when counts are given", () => {
     render(
-      <AdminShell config={config}>
+      <AdminShell config={config} counts={{ posts: 1200 }}>
         <span>body</span>
       </AdminShell>,
     );
-    expect(screen.getByRole("button", { name: "Toggle Sidebar" })).toBeDefined();
+    expect(screen.getByText((1200).toLocaleString())).toBeDefined();
   });
 
   test("threads currentPath to the active nav item", () => {
@@ -69,13 +99,22 @@ describe("AdminShell", () => {
     expect(screen.getByRole("link", { name: "Posts" }).hasAttribute("data-active")).toBe(true);
   });
 
-  test("renders a theme toggle in the header bar", () => {
+  test("renders a search entry only when onSearch is wired", () => {
+    const onSearch = mock();
+    const { unmount } = render(
+      <AdminShell config={config} onSearch={onSearch}>
+        <span>body</span>
+      </AdminShell>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Search/ }));
+    expect(onSearch).toHaveBeenCalledTimes(1);
+    unmount();
     render(
       <AdminShell config={config}>
         <span>body</span>
       </AdminShell>,
     );
-    expect(screen.getByRole("button", { name: "Toggle theme" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: /Search/ })).toBeNull();
   });
 
   test("renders a sidebar footer when provided", () => {

@@ -412,8 +412,8 @@ describe('CollectionForm — per-field save (saveMode="field")', () => {
     ],
   });
 
-  test("each active-group field gets its own Save, disabled until edited", () => {
-    render(
+  test("no Save shows until a field is edited; the section is one card", () => {
+    const { container } = render(
       <CollectionForm
         collection={grouped}
         onSubmit={mock()}
@@ -421,9 +421,28 @@ describe('CollectionForm — per-field save (saveMode="field")', () => {
         defaultValues={{ title: "T", body: "B", seo: "S" }}
       />,
     );
-    const saves = screen.getAllByRole("button", { name: "Save" }) as HTMLButtonElement[];
-    expect(saves).toHaveLength(2);
-    expect(saves.every((b) => b.disabled)).toBe(true);
+    expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
+    expect(container.querySelectorAll('[data-slot="field-card-card"]')).toHaveLength(1);
+    // Only the active group's fields render.
+    expect(container.querySelector("#posts-title")).not.toBeNull();
+    expect(container.querySelector("#posts-seo")).toBeNull();
+  });
+
+  test("a saved field flashes a Saved confirmation", async () => {
+    const onSubmit = mock();
+    const { container } = render(
+      <CollectionForm
+        collection={grouped}
+        onSubmit={onSubmit}
+        saveMode="field"
+        defaultValues={{ title: "T", body: "B", seo: "S" }}
+      />,
+    );
+    fireEvent.change(container.querySelector("#posts-title") as HTMLInputElement, {
+      target: { value: "New title" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Saved"));
   });
 
   test("editing one field enables only its Save and submits a one-key partial", async () => {

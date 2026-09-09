@@ -1,65 +1,130 @@
-// The magic-link login screen. Mounted by the host's `admin_.login.tsx` shim
+// The magic-link login screen. Mounted by the host's `login.tsx` shim
 // (un-nested from the guard so a signed-out visitor isn't bounced in a loop).
 // Submitting emails a sign-in link; in dev it prints to the server console. The
-// first account to sign in becomes the admin.
+// first account to sign in becomes the admin. Branded from `admin.branding` +
+// the config's `branding.name`, built on the kit's form primitives, with an
+// explicit "check your inbox" state and an inline error state.
 
-import { type FormEvent, type ReactNode, useState } from "react";
+import { EnvelopeSimpleIcon } from "@phosphor-icons/react";
+import { Button } from "@voila.dev/ui/button";
+import { Card } from "@voila.dev/ui/card";
+import { Input } from "@voila.dev/ui/input";
+import { Label } from "@voila.dev/ui/label";
+import { type FormEvent, type ReactNode, useId, useState } from "react";
+import { useAdmin } from "../context";
 import { useSignIn } from "../hooks/use-auth-mutations";
+import { resolveBrandLogo } from "../lib/brand-logo";
 
 export function LoginScreen(): ReactNode {
+  const { admin } = useAdmin();
   const [email, setEmail] = useState("");
   const signIn = useSignIn();
+  const emailId = useId();
 
   const sent = signIn.isSuccess;
   const pending = signIn.isPending;
   const error = signIn.error instanceof Error ? signIn.error.message : undefined;
+  const name = admin.config.branding.name;
+  const logo = resolveBrandLogo(admin.branding.logo);
 
-  function submit(event: FormEvent): void {
+  function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    signIn.mutate(email);
+    if (email.trim() === "") return;
+    signIn.mutate(email.trim());
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 p-8">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold">Sign in</h1>
-        <p className="text-sm text-muted-foreground">
-          We'll email you a magic link. The first account to sign in becomes the admin.
-        </p>
-      </div>
-
-      {sent ? (
-        <div className="rounded-md border border-border bg-muted/40 p-4 text-sm" role="status">
-          Check your inbox for a sign-in link. In development it's printed to the server terminal
-          (look for <code>[voila/auth] magic link</code>).
-        </div>
-      ) : (
-        <form onSubmit={submit} className="space-y-4">
-          <label className="block space-y-1">
-            <span className="text-sm font-medium">Email</span>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-          </label>
-          {error ? (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          ) : null}
-          <button
-            type="submit"
-            disabled={pending}
-            className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+    <main className="flex min-h-svh flex-col items-center justify-center bg-muted/30 px-4 py-10">
+      <div className="w-full max-w-sm space-y-6">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <span
+            aria-hidden
+            className="flex size-12 items-center justify-center overflow-hidden rounded-xl bg-primary text-primary-foreground [&_img]:size-7 [&_svg]:size-7"
           >
-            {pending ? "Sending…" : "Send magic link"}
-          </button>
-        </form>
-      )}
+            {logo ?? (
+              <span className="font-semibold text-lg">{name.trim().charAt(0).toUpperCase()}</span>
+            )}
+          </span>
+          <div className="space-y-1">
+            <h1 className="font-semibold text-xl">{name}</h1>
+            {admin.branding.title ? (
+              <p className="text-muted-foreground text-sm">{admin.branding.title}</p>
+            ) : null}
+          </div>
+        </div>
+
+        <Card.Root>
+          <Card.Header>
+            <Card.Title>Sign in</Card.Title>
+            <Card.Description>
+              We'll email you a magic link. The first account to sign in becomes the admin.
+            </Card.Description>
+          </Card.Header>
+          <Card.Content>
+            {sent ? (
+              <div
+                role="status"
+                data-slot="login-sent"
+                className="flex items-start gap-3 rounded-md border bg-muted/40 p-4 text-sm"
+              >
+                <EnvelopeSimpleIcon
+                  className="mt-0.5 size-5 shrink-0 text-muted-foreground"
+                  aria-hidden
+                />
+                <div className="space-y-1">
+                  <p className="font-medium">Check your inbox</p>
+                  <p className="text-muted-foreground">
+                    We sent a sign-in link to{" "}
+                    <span className="font-medium text-foreground">{email}</span>. In development
+                    it's printed to the server terminal (look for{" "}
+                    <code className="rounded bg-muted px-1 py-0.5 text-xs">
+                      [voila/auth] magic link
+                    </code>
+                    ).
+                  </p>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0"
+                    onClick={() => signIn.reset()}
+                  >
+                    Use a different email
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={submit} className="space-y-4" noValidate>
+                <div className="space-y-1.5">
+                  <Label htmlFor={emailId}>Email</Label>
+                  <Input
+                    id={emailId}
+                    type="email"
+                    name="email"
+                    autoComplete="email"
+                    inputMode="email"
+                    required
+                    autoFocus
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    aria-invalid={error ? true : undefined}
+                    aria-describedby={error ? `${emailId}-error` : undefined}
+                  />
+                </div>
+                {error ? (
+                  <p id={`${emailId}-error`} className="text-destructive text-sm" role="alert">
+                    {error}
+                  </p>
+                ) : null}
+                <Button type="submit" className="w-full" disabled={pending || email.trim() === ""}>
+                  {pending ? "Sending…" : "Send magic link"}
+                </Button>
+              </form>
+            )}
+          </Card.Content>
+        </Card.Root>
+      </div>
     </main>
   );
 }

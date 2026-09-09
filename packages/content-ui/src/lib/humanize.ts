@@ -20,3 +20,20 @@ export function humanize(key: string): string {
     .filter(Boolean);
   return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
+
+/**
+ * The singular form of a collection label for one document ("New post", "Edit
+ * post"): the explicit `labelSingular`, else a naive singularization of the
+ * label — a trailing "ies" → "y", else a trailing "s" (not "ss") is dropped.
+ */
+export function singularLabel(entity: {
+  readonly slug: string;
+  readonly label?: string;
+  readonly labelSingular?: string;
+}): string {
+  if (entity.labelSingular) return entity.labelSingular;
+  const label = entity.label ?? humanize(entity.slug);
+  if (/ies$/i.test(label)) return label.replace(/ies$/i, "y");
+  if (/[^s]s$/i.test(label)) return label.slice(0, -1);
+  return label;
+}

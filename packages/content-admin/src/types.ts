@@ -59,6 +59,8 @@ export interface CustomScreen<C extends NormalizedConfig = NormalizedConfig> {
     readonly label: string;
     readonly group?: string;
     readonly order?: number;
+    /** Phosphor icon name shown beside the label. */
+    readonly icon?: string;
   };
 }
 
@@ -73,9 +75,10 @@ export interface NavExtension {
 /** Slot overrides — config-to-prop adapters over the `@voila/content-ui` blocks. */
 export interface AdminSlots<C extends NormalizedConfig = NormalizedConfig> {
   readonly shell?: {
-    readonly sidebarHeader?: ReactNode;
+    /** Replace the sidebar footer (the default is the `UserMenu` account block). */
     readonly sidebarFooter?: (ctx: { user?: AdminUser }) => ReactNode;
-    readonly headerActions?: ReactNode;
+    /** Muted line under the brand name in the sidebar (an environment, "Admin"). */
+    readonly brandSubtitle?: ReactNode;
   };
   readonly dashboard?: {
     readonly header?: ReactNode;
@@ -88,6 +91,7 @@ export interface AdminSlots<C extends NormalizedConfig = NormalizedConfig> {
       id: string;
       client: ContentClient<C>;
     }) => ReactNode;
+    /** The list's empty-state primary action (defaults to a "New …" button). */
     readonly emptyState?: (ctx: { slug: string; collection: Collection }) => ReactNode;
   };
 }
@@ -114,6 +118,11 @@ export interface DefineAdminOptions<C extends NormalizedConfig = NormalizedConfi
   /** Dark-theme basemap; when set (here or via `config.map.darkStyleUrl`), map
    *  surfaces follow the admin's light/dark theme. */
   readonly mapDarkStyleUrl?: string;
+  /**
+   * Resolve the per-collection document counts shown as sidebar badges and on
+   * the dashboard tiles (e.g. a server function). Omit to show no counts.
+   */
+  readonly counts?: () => Promise<Readonly<Record<string, number>>>;
 }
 
 /** The built admin instance shared through context to every screen. */
@@ -133,4 +142,6 @@ export interface AdminInstance<C extends NormalizedConfig = NormalizedConfig> {
   readonly mapStyleUrl: string;
   /** Dark-theme basemap; when set, map surfaces follow the admin theme. */
   readonly mapDarkStyleUrl?: string;
+  /** Per-collection count resolver for the sidebar badges / dashboard. */
+  readonly counts?: () => Promise<Readonly<Record<string, number>>>;
 }

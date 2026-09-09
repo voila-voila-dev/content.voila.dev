@@ -22,6 +22,8 @@ import type { ReactNode } from "react";
 import { documentTitle } from "./detail-view";
 import type { Doc } from "./lib/doc";
 import { getFieldLabel } from "./lib/humanize";
+import { type I18nContextValue, resolveLocalized, useI18n } from "./lib/i18n";
+import { richTextToPlain, truncateText } from "./lib/text";
 
 export type { CalendarViewMode } from "@voila.dev/ui/event-calendar";
 
@@ -64,18 +66,22 @@ function cardMeta(
   collection: Collection,
   row: Doc,
   cardFields: readonly string[] | undefined,
+  i18n?: I18nContextValue,
 ): string[] | undefined {
   if (!cardFields || cardFields.length === 0) return undefined;
   const lines = cardFields.flatMap((key) => {
     const field = collection.fields[key];
     if (!field) return [];
-    const value = row[key];
+    const raw = row[key];
+    const value = field.meta.localized === true ? resolveLocalized(raw, i18n).value : raw;
     const text =
       value === null || value === undefined || value === ""
         ? "—"
-        : typeof value === "object"
-          ? JSON.stringify(value)
-          : String(value);
+        : field.meta.kind === "richText"
+          ? truncateText(richTextToPlain(value), 60)
+          : typeof value === "object"
+            ? JSON.stringify(value)
+            : String(value);
     return [`${getFieldLabel(key, field)}: ${text}`];
   });
   return lines.length > 0 ? lines : undefined;
@@ -87,6 +93,7 @@ export function rowsToEvents(
   startField: string,
   endField: string | undefined,
   cardFields?: readonly string[],
+  i18n?: I18nContextValue,
 ): { events: CalendarEvent[]; byId: Map<string, Doc> } {
   const byId = new Map<string, Doc>();
   const events: CalendarEvent[] = [];
@@ -105,11 +112,11 @@ export function rowsToEvents(
     byId.set(id, row);
     events.push({
       id,
-      title: documentTitle(collection, row) ?? "Untitled",
+      title: documentTitle(collection, row, i18n) ?? "Untitled",
       start: start.date,
       end: endDate,
       allDay: start.dateOnly,
-      meta: cardMeta(collection, row, cardFields),
+      meta: cardMeta(collection, row, cardFields, i18n),
     });
   }
   return { events, byId };
@@ -147,7 +154,8 @@ function Root({
   onRowClick,
   emptyMessage = "No records.",
 }: CalendarViewProps): ReactNode {
-  const { events, byId } = rowsToEvents(collection, rows, startField, endField, cardFields);
+  const i18n = useI18n();
+  const { events, byId } = rowsToEvents(collection, rows, startField, endField, cardFields, i18n);
 
   if (events.length === 0) {
     return (

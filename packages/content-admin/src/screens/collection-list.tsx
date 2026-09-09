@@ -4,37 +4,47 @@
 //
 // Views are SHARED (the same for everyone) and Notion-style: a `ViewTabs` bar
 // lists the collection's saved views — always at least a seeded, undeletable
-// "Table" — and "+ Add view" creates more (a board/calendar/map), choosing the
+// "Table" — and "Add view" creates more (a board/calendar/map), choosing the
 // field(s) that type needs up front. The active view lives in the URL as
 // `?view=<uid>` so a view is shareable by link; its `type` + `config` drive what
-// renders. Editing columns / sort / filters / calendar granularity writes
-// through to the shared view (no separate save step). Mounted by the host's
-// fixed `admin.$collection.index.tsx` shim.
+// renders. The visible toolbar (search · status · filters · columns/card fields
+// · map position · density) edits the active view and writes through to the
+// shared view (no separate save step); the tab's context menu keeps rename /
+// default / delete. Rows select for bulk delete. Mounted by the host's fixed
+// `_app.$collection.index.tsx` shim.
 
-import { FunnelIcon } from "@phosphor-icons/react";
+import { FunnelIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { Collection } from "@voila/content";
 import type { ListFilter, SavedView, ViewConfig } from "@voila/content/client";
-import type { Doc, FieldChoice, ViewFieldChoices } from "@voila/content-ui";
+import type { Doc, FieldChoice, StatusFilterValue, ViewFieldChoices } from "@voila/content-ui";
 import {
   CalendarView,
   ColumnEditor,
+  defaultCardFields,
   FilterEditor,
   getFieldLabel,
   KanbanView,
   ListView,
   MapView,
   PageLayout,
+  pageGutter,
+  searchEnabled,
+  singularLabel,
   ViewTabs,
 } from "@voila/content-ui";
-import { buttonVariants } from "@voila.dev/ui/button";
+import { AlertDialog } from "@voila.dev/ui/alert-dialog";
+import { Button, buttonVariants } from "@voila.dev/ui/button";
+import { Input } from "@voila.dev/ui/input";
+import { Popover } from "@voila.dev/ui/popover";
 import { cn } from "@voila.dev/ui/utils";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useAdmin } from "../context";
 import { useCollectionMutations } from "../hooks/use-collection-mutations";
 import { useViewMutations } from "../hooks/use-view-mutations";
 import { AdminLink } from "../lib/admin-link";
+import { backToHome } from "../lib/back";
 import { type AnyListParams, collectionClient } from "../lib/client-access";
 import { CustomScreenDispatcher } from "./custom-dispatcher";
 import { SingletonScreen } from "./singleton";
@@ -44,6 +54,7 @@ import { SingletonScreen } from "./singleton";
 // huge collection can't load forever; a notice shows when capped).
 const BOARD_PAGE_LIMIT = 100;
 const BOARD_PAGE_CAP = 5;
+const DEFAULT_PAGE_SIZE = 25;
 
 /** The collection's non-hidden field keys — the default visible columns. */
 function defaultColumns(collection: Collection): string[] {
@@ -103,8 +114,6 @@ export function CollectionListScreen(): ReactNode {
   // A local mirror of the active view's config, for snappy edits; it resets when
   // the active view changes and writes through to the shared view on each edit.
   const [working, setWorking] = useState<ViewConfig>({});
-  // Which inline section of the "Edit view" dialog is expanded (one at a time).
-  const [editorPanel, setEditorPanel] = useState<"filters" | "fields" | "map" | null>(null);
   const loadedViewId = useRef<string | null>(null);
   if (activeView && activeView.id !== loadedViewId.current) {
     loadedViewId.current = activeView.id;
@@ -114,6 +123,39 @@ export function CollectionListScreen(): ReactNode {
   const viewType = activeView?.type ?? "table";
   const isBoardView = viewType === "kanban" || viewType === "map" || viewType === "calendar";
 
+  // Toolbar state that isn't part of the shared view: the search term, the
+  // publish-state scope, the page size, and the row selection.
+  const [searchValue, setSearchValue] = useState("");
+  const [status, setStatus] = useState<StatusFilterValue>("any");
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+  const searching =
+    collection !== undefined && searchEnabled(collection.search) && searchValue.trim() !== "";
+
+  // The fields a board/map/calendar card shows — the view's own pick, else the
+  // shared defaults — so the list query fetches exactly what the cards render.
+  const cardFields = useMemo<readonly string[]>(() => {
+    if (!collection) return [];
+    if (working.cardFields && working.cardFields.length > 0) return working.cardFields;
+    const organiser =
+      viewType === "kanban"
+        ? [working.kanbanField]
+        : viewType === "map"
+          ? [working.geoField]
+          : viewType === "calendar"
+            ? [working.calendarField, working.calendarEndField]
+            : [];
+    return defaultCardFields(collection, organiser);
+  }, [
+    collection,
+    viewType,
+    working.cardFields,
+    working.kanbanField,
+    working.geoField,
+    working.calendarField,
+    working.calendarEndField,
+  ]);
+
   // Fetch only the fields the active view renders, so the list query stays lean
   // (especially the board "load all" path). `id` always comes back server-side;
   // the title field rides along for card/row titles. `undefined` → all columns
@@ -121,31 +163,30 @@ export function CollectionListScreen(): ReactNode {
   const listFields = useMemo<readonly string[] | undefined>(() => {
     if (!collection) return undefined;
     const title = collection.titleField ? [collection.titleField] : [];
-    const card = working.cardFields ?? [];
     if (viewType === "kanban") {
-      return working.kanbanField ? [working.kanbanField, ...card, ...title] : undefined;
+      return working.kanbanField ? [working.kanbanField, ...cardFields, ...title] : undefined;
     }
     if (viewType === "map") {
-      return working.geoField ? [working.geoField, ...card, ...title] : undefined;
+      return working.geoField ? [working.geoField, ...cardFields, ...title] : undefined;
     }
     if (viewType === "calendar") {
       return working.calendarField
         ? [
             working.calendarField,
             ...(working.calendarEndField ? [working.calendarEndField] : []),
-            ...card,
+            ...cardFields,
             ...title,
           ]
         : undefined;
     }
     const cols =
       working.columns && working.columns.length > 0 ? working.columns : defaultColumns(collection);
-    return [...cols, ...title];
+    return [...new Set([...cols, ...title])];
   }, [
     collection,
     viewType,
     working.columns,
-    working.cardFields,
+    cardFields,
     working.kanbanField,
     working.geoField,
     working.calendarField,
@@ -160,18 +201,33 @@ export function CollectionListScreen(): ReactNode {
       working.filters ?? null,
       listFields ?? null,
       isBoardView,
+      status,
+      pageSize,
     ],
     queryFn: ({ pageParam }: { pageParam: string | undefined }) =>
       api.list({
         ...(working.sort ? { orderBy: working.sort.field, order: working.sort.direction } : {}),
         ...(working.filters && working.filters.length > 0 ? { filters: working.filters } : {}),
         ...(listFields ? { fields: listFields } : {}),
-        ...(isBoardView ? { limit: BOARD_PAGE_LIMIT } : {}),
-        ...(pageParam ? { cursor: pageParam } : {}),
+        ...(status !== "any" ? { status } : {}),
+        limit: isBoardView ? BOARD_PAGE_LIMIT : pageSize,
+        // The first page also carries the scope's total, for the count line.
+        ...(pageParam ? { cursor: pageParam } : { count: true }),
       } as AnyListParams),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    enabled: collection !== undefined,
+    enabled: collection !== undefined && !searching,
+  });
+
+  // Full-text search replaces the list while a term is typed (ranked rows).
+  const searchQuery = useQuery({
+    queryKey: [slug, "search", searchValue.trim(), status],
+    queryFn: () =>
+      api.search(searchValue.trim(), {
+        limit: BOARD_PAGE_LIMIT,
+        ...(status !== "any" ? { status } : {}),
+      }),
+    enabled: searching,
   });
 
   // Board/map/calendar views: keep pulling pages (up to the cap) until loaded.
@@ -183,7 +239,7 @@ export function CollectionListScreen(): ReactNode {
     }
   }, [isBoardView, query.hasNextPage, query.isFetchingNextPage, loadedPages, query.fetchNextPage]);
 
-  const { update: updateRow } = useCollectionMutations(slug);
+  const { update: updateRow, removeMany } = useCollectionMutations(slug);
 
   function selectView(id: string) {
     navigate({ to: ".", search: (prev: Record<string, unknown>) => ({ ...prev, view: id }) });
@@ -204,9 +260,14 @@ export function CollectionListScreen(): ReactNode {
   // route; hand off to the dispatcher (which 404s if unregistered).
   if (!collection) return <CustomScreenDispatcher />;
 
-  const rows = query.data?.pages.flatMap((page) => page.data) ?? [];
+  const rows = searching
+    ? (searchQuery.data?.data ?? [])
+    : (query.data?.pages.flatMap((page) => page.data) ?? []);
+  const total = searching ? searchQuery.data?.data.length : query.data?.pages[0]?.total;
   const visibleColumns =
     working.columns && working.columns.length > 0 ? working.columns : defaultColumns(collection);
+  const label = collection.label ?? slug;
+  const singular = singularLabel(collection);
 
   const kanbanable = kanbanFields(collection);
   const geoable = geoFields(collection);
@@ -257,75 +318,79 @@ export function CollectionListScreen(): ReactNode {
   function changeCalendarView(view: "month" | "week" | "day") {
     patchConfig({ calendarView: view });
   }
+  function rowHref(row: Doc): string {
+    return `${admin.basePath}/${slug}/${row.id}`;
+  }
   function openRow(row: Doc) {
-    navigate({ href: `${admin.basePath}/${slug}/${row.id}` });
+    navigate({ href: rowHref(row) });
   }
 
-  // The per-view editor — filters always; columns on the table view, card fields
-  // on a board/map/calendar, plus the map's default position. Lives INLINE inside
-  // the view's "Edit view" dialog (opened from a tab's context menu), bound to the
-  // active view's config. Inline — not nested popovers — because a Base UI popover
-  // opened inside a Base UI dialog renders behind the dialog's backdrop.
+  // The visible toolbar: filters always; columns on the table view, card fields
+  // on a board/map/calendar; the map's default position on a map. Each is a
+  // popover over the active view's config (writes through on change).
   const fieldsLabel = viewType === "table" ? "Columns" : "Card fields";
-  const fieldsValue = viewType === "table" ? visibleColumns : (working.cardFields ?? []);
+  const fieldsValue = viewType === "table" ? visibleColumns : cardFields;
   const onFieldsChange =
-    viewType === "table" ? changeColumns : (cardFields: string[]) => patchConfig({ cardFields });
+    viewType === "table" ? changeColumns : (next: string[]) => patchConfig({ cardFields: next });
   const filterCount = working.filters?.length ?? 0;
 
-  function togglePanel(panel: "filters" | "fields" | "map") {
-    setEditorPanel((current) => (current === panel ? null : panel));
-  }
-
-  const viewEditor = (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <PanelToggle active={editorPanel === "filters"} onClick={() => togglePanel("filters")}>
-          <FunnelIcon className="size-4" aria-hidden />
-          {filterCount > 0 ? `Filters (${filterCount})` : "Filters"}
-        </PanelToggle>
-        <PanelToggle active={editorPanel === "fields"} onClick={() => togglePanel("fields")}>
-          {fieldsLabel}
-        </PanelToggle>
-        {viewType === "map" ? (
-          <PanelToggle active={editorPanel === "map"} onClick={() => togglePanel("map")}>
-            Map position
-          </PanelToggle>
-        ) : null}
-      </div>
-      {editorPanel === "filters" ? (
-        <div className="space-y-2 rounded-md border p-3">
+  const toolbar = (
+    <>
+      <Popover.Root>
+        <Popover.Trigger
+          className={cn(
+            buttonVariants({ variant: filterCount > 0 ? "secondary" : "outline", size: "sm" }),
+          )}
+        >
+          <FunnelIcon aria-hidden />
+          {filterCount > 0 ? `Filters (${filterCount})` : "Filter"}
+        </Popover.Trigger>
+        <Popover.Content align="end" className="w-[26rem] max-w-[calc(100vw-2rem)]">
           <FilterEditor
             collection={collection}
             value={working.filters ?? []}
             onChange={changeFilters}
           />
-        </div>
+        </Popover.Content>
+      </Popover.Root>
+      <Popover.Root>
+        <Popover.Trigger className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+          {fieldsLabel}
+        </Popover.Trigger>
+        <Popover.Content align="end" className="w-64">
+          <div className="max-h-72 overflow-auto">
+            <ColumnEditor
+              collection={collection}
+              value={fieldsValue}
+              onChange={onFieldsChange}
+              label={fieldsLabel}
+            />
+          </div>
+        </Popover.Content>
+      </Popover.Root>
+      {viewType === "map" ? (
+        <Popover.Root>
+          <Popover.Trigger className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
+            Map position
+          </Popover.Trigger>
+          <Popover.Content align="end" className="w-80">
+            <MapDefaultsEditor
+              center={working.mapCenter}
+              zoom={working.mapZoom}
+              onChange={(patch) => patchConfig(patch)}
+            />
+          </Popover.Content>
+        </Popover.Root>
       ) : null}
-      {editorPanel === "fields" ? (
-        <div className="max-h-56 overflow-auto rounded-md border p-3">
-          <ColumnEditor
-            collection={collection}
-            value={fieldsValue}
-            onChange={onFieldsChange}
-            label={fieldsLabel}
-          />
-        </div>
-      ) : null}
-      {editorPanel === "map" && viewType === "map" ? (
-        <MapDefaultsEditor
-          center={working.mapCenter}
-          zoom={working.mapZoom}
-          onChange={(patch) => patchConfig(patch)}
-        />
-      ) : null}
-    </div>
+    </>
   );
 
-  // The view tab bar (create / switch / configure shared views).
+  // The view tab bar (create / switch / rename shared views).
   const tabs = (
     <ViewTabs
       views={savedViews}
       activeViewId={activeViewId}
+      loading={viewsQuery.isLoading}
       onSelect={selectView}
       onCreate={(input) => views.create.mutate(input)}
       onRename={(id, name) => views.rename.mutate({ id, name })}
@@ -333,26 +398,34 @@ export function CollectionListScreen(): ReactNode {
       onSetDefault={(id, isDefault) => views.setDefault.mutate({ id, isDefault })}
       onReorder={(ids) => views.reorder.mutate(ids)}
       fields={viewFields}
-      editor={viewEditor}
     />
   );
 
-  // Toolbar actions kept beside the title (filters/columns now live in the view
-  // editor). Host-supplied list actions + the New link remain.
+  const newHref = `${admin.basePath}/${slug}/new`;
+  const newButton = (
+    <Button size="sm" nativeButton={false} render={<AdminLink href={newHref} />}>
+      <PlusIcon aria-hidden />
+      New {singular.toLowerCase()}
+    </Button>
+  );
   const controls = (
-    <div className="flex flex-wrap items-center gap-3">
+    <>
       {admin.slots.collection?.listActions?.({ slug, client: admin.client })}
-      <AdminLink
-        href={`${admin.basePath}/${slug}/new`}
-        className="text-sm font-medium text-primary"
-      >
-        New
-      </AdminLink>
-    </div>
+      {newButton}
+    </>
+  );
+  const home = backToHome(admin.basePath);
+  const back = (
+    <PageLayout.Back
+      href={home.href}
+      label={home.label}
+      renderLink={(href) => <AdminLink href={href} />}
+    />
   );
 
-  // Board / map / calendar views render their own header (ListView is
-  // table-specific), in the same pinned-header + scrolling-body page frame.
+  // Board / map / calendar views render their own frame (ListView is
+  // table-specific): the same header, the pinned tabs + toolbar, then the board
+  // in the scrolling body.
   if (
     (viewType === "kanban" && kanbanField) ||
     (viewType === "map" && geoField) ||
@@ -360,12 +433,16 @@ export function CollectionListScreen(): ReactNode {
   ) {
     return (
       <PageLayout.Root>
-        <PageLayout.Header>
-          <PageLayout.Title>{collection.label ?? slug}</PageLayout.Title>
-          <div className="flex items-center gap-2">{controls}</div>
+        <PageLayout.Header back={back} actions={controls}>
+          <PageLayout.Title>{label}</PageLayout.Title>
         </PageLayout.Header>
+        <PageLayout.Toolbar>
+          <div className={pageGutter}>{tabs}</div>
+          <div className={cn("flex flex-wrap items-center justify-end gap-2 py-2", pageGutter)}>
+            {toolbar}
+          </div>
+        </PageLayout.Toolbar>
         <PageLayout.Body className="space-y-4">
-          {tabs}
           {cappedOut ? (
             <p className="text-muted-foreground text-sm">
               Showing the first {rows.length} records. Narrow the set with a filter to see more.
@@ -376,7 +453,7 @@ export function CollectionListScreen(): ReactNode {
               collection={collection}
               rows={rows}
               groupField={kanbanField}
-              cardFields={working.cardFields}
+              cardFields={cardFields}
               registry={admin.displayWidgets}
               onRowClick={openRow}
               onMove={(rowId, value) =>
@@ -388,7 +465,7 @@ export function CollectionListScreen(): ReactNode {
               collection={collection}
               rows={rows}
               geoField={geoField}
-              cardFields={working.cardFields}
+              cardFields={cardFields}
               mapStyleUrl={admin.mapStyleUrl}
               darkStyleUrl={admin.mapDarkStyleUrl}
               defaultCenter={working.mapCenter}
@@ -401,7 +478,7 @@ export function CollectionListScreen(): ReactNode {
               rows={rows}
               startField={calendarField}
               endField={calendarEndField}
-              cardFields={working.cardFields}
+              cardFields={cardFields}
               view={calendarView}
               onViewChange={changeCalendarView}
               onRowClick={openRow}
@@ -412,52 +489,88 @@ export function CollectionListScreen(): ReactNode {
     );
   }
 
+  const loading = searching ? searchQuery.isLoading : query.isLoading || query.isFetchingNextPage;
+  const error = searching ? searchQuery.error : query.error;
+
   return (
     <ListView.Root
       collection={collection}
       rows={rows}
       columns={visibleColumns}
       registry={admin.displayWidgets}
-      loading={query.isLoading || query.isFetchingNextPage}
-      error={query.error instanceof Error ? query.error.message : undefined}
-      nextCursor={query.hasNextPage ? "more" : null}
+      loading={loading}
+      error={error instanceof Error ? error.message : undefined}
+      nextCursor={!searching && query.hasNextPage ? "more" : null}
       onLoadMore={() => query.fetchNextPage()}
+      total={total}
+      pageSize={pageSize}
+      onPageSizeChange={setPageSize}
       onRowClick={openRow}
+      rowHref={rowHref}
+      renderLink={(href) => <AdminLink href={href} />}
       sort={working.sort}
       onSortChange={changeSort}
+      back={back}
       actions={controls}
       header={tabs}
+      toolbar={toolbar}
+      searchValue={searchValue}
+      onSearchChange={setSearchValue}
+      status={status}
+      onStatusChange={setStatus}
+      emptyAction={admin.slots.collection?.emptyState?.({ slug, collection }) ?? newButton}
+      selectable
+      selected={selected}
+      onSelectedChange={setSelected}
+      bulkActions={(ids) => (
+        <BulkDelete
+          count={ids.size}
+          pending={removeMany.isPending}
+          onConfirm={() => removeMany.mutate([...ids], { onSuccess: () => setSelected(new Set()) })}
+        />
+      )}
     />
   );
 }
 
-/** A disclosure button for one inline section of the "Edit view" dialog. */
-function PanelToggle({
-  active,
-  onClick,
-  children,
+/** The selection bar's Delete, behind a confirm dialog. */
+function BulkDelete({
+  count,
+  pending,
+  onConfirm,
 }: {
-  readonly active: boolean;
-  readonly onClick: () => void;
-  readonly children: ReactNode;
+  readonly count: number;
+  readonly pending: boolean;
+  readonly onConfirm: () => void;
 }): ReactNode {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        buttonVariants({ variant: active ? "secondary" : "outline", size: "sm" }),
-        "gap-1.5",
-      )}
-    >
-      {children}
-    </button>
+    <AlertDialog.Root>
+      <AlertDialog.Trigger
+        disabled={pending}
+        className={cn(buttonVariants({ variant: "destructive", size: "xs" }))}
+      >
+        <TrashIcon aria-hidden />
+        {pending ? "Deleting…" : `Delete ${count}`}
+      </AlertDialog.Trigger>
+      <AlertDialog.Content>
+        <AlertDialog.Header>
+          <AlertDialog.Title>
+            Delete {count} {count === 1 ? "record" : "records"}?
+          </AlertDialog.Title>
+          <AlertDialog.Description>
+            It's a soft delete — the records are hidden but recoverable through the API.
+          </AlertDialog.Description>
+        </AlertDialog.Header>
+        <AlertDialog.Footer>
+          <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+          <AlertDialog.Action variant="destructive" onClick={onConfirm}>
+            Delete
+          </AlertDialog.Action>
+        </AlertDialog.Footer>
+      </AlertDialog.Content>
+    </AlertDialog.Root>
   );
 }
-
-const COORD_INPUT_CLASS =
-  "h-8 w-full rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
 /**
  * Edits a map view's opening camera — latitude, longitude, and zoom. A center
@@ -477,11 +590,12 @@ function MapDefaultsEditor({
   const [lat, setLat] = useState(center ? String(center.lat) : "");
   const [lng, setLng] = useState(center ? String(center.lng) : "");
   const [zoomText, setZoomText] = useState(zoom !== undefined ? String(zoom) : "");
+  const id = useId();
 
   function commit(nextLat: string, nextLng: string, nextZoom: string) {
-    const latNum = Number.parseFloat(nextLat);
-    const lngNum = Number.parseFloat(nextLng);
-    const zoomNum = Number.parseFloat(nextZoom);
+    const latNum = Number.parseFloat(nextLat.replace(",", "."));
+    const lngNum = Number.parseFloat(nextLng.replace(",", "."));
+    const zoomNum = Number.parseFloat(nextZoom.replace(",", "."));
     onChange({
       mapCenter:
         Number.isFinite(latNum) && Number.isFinite(lngNum)
@@ -499,62 +613,52 @@ function MapDefaultsEditor({
   }
 
   return (
-    <div className="space-y-2 rounded-md border p-3">
+    <div className="space-y-3">
       <p className="font-medium text-sm">Map position</p>
       <div className="grid grid-cols-3 gap-2">
-        <label className="flex flex-col gap-1 text-muted-foreground text-xs">
-          Latitude
-          <input
-            aria-label="Default latitude"
-            type="number"
+        <div className="flex flex-col gap-1 text-muted-foreground text-xs">
+          <label htmlFor={`${id}-lat`}>Latitude</label>
+          <Input
+            id={`${id}-lat`}
+            type="text"
             inputMode="decimal"
-            className={COORD_INPUT_CLASS}
             value={lat}
             onChange={(event) => {
               setLat(event.target.value);
               commit(event.target.value, lng, zoomText);
             }}
           />
-        </label>
-        <label className="flex flex-col gap-1 text-muted-foreground text-xs">
-          Longitude
-          <input
-            aria-label="Default longitude"
-            type="number"
+        </div>
+        <div className="flex flex-col gap-1 text-muted-foreground text-xs">
+          <label htmlFor={`${id}-lng`}>Longitude</label>
+          <Input
+            id={`${id}-lng`}
+            type="text"
             inputMode="decimal"
-            className={COORD_INPUT_CLASS}
             value={lng}
             onChange={(event) => {
               setLng(event.target.value);
               commit(lat, event.target.value, zoomText);
             }}
           />
-        </label>
-        <label className="flex flex-col gap-1 text-muted-foreground text-xs">
-          Zoom
-          <input
-            aria-label="Default zoom"
-            type="number"
+        </div>
+        <div className="flex flex-col gap-1 text-muted-foreground text-xs">
+          <label htmlFor={`${id}-zoom`}>Zoom</label>
+          <Input
+            id={`${id}-zoom`}
+            type="text"
             inputMode="decimal"
-            min={0}
-            max={22}
-            step={0.5}
-            className={COORD_INPUT_CLASS}
             value={zoomText}
             onChange={(event) => {
               setZoomText(event.target.value);
               commit(lat, lng, event.target.value);
             }}
           />
-        </label>
+        </div>
       </div>
-      <button
-        type="button"
-        onClick={reset}
-        className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-      >
+      <Button type="button" variant="ghost" size="sm" onClick={reset}>
         Reset to auto-fit
-      </button>
+      </Button>
     </div>
   );
 }

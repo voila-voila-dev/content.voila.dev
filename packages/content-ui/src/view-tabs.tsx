@@ -7,19 +7,24 @@
 // default Table view can't be deleted). Purely presentational and
 // callback-driven: the host owns persistence through the typed client.
 
+import { PlusIcon, StarIcon } from "@phosphor-icons/react";
 import type { ViewConfig, ViewType } from "@voila/content/client";
 import { buttonVariants } from "@voila.dev/ui/button";
 import { ContextMenu } from "@voila.dev/ui/context-menu";
 import { Dialog } from "@voila.dev/ui/dialog";
 import { Input } from "@voila.dev/ui/input";
+import { NativeSelect } from "@voila.dev/ui/native-select";
+import { Skeleton } from "@voila.dev/ui/skeleton";
 import { cn } from "@voila.dev/ui/utils";
-import { type ReactNode, useState } from "react";
-import type { FieldChoice } from "./view-switcher";
+import { type ReactNode, useId, useState } from "react";
 
-const SELECT_CLASS = cn(
-  "h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm",
-  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-);
+export type { ViewType } from "@voila/content/client";
+
+/** A pickable field: its key and display label. */
+export interface FieldChoice {
+  readonly value: string;
+  readonly label: string;
+}
 
 const TYPE_LABELS: Record<ViewType, string> = {
   table: "Table",
@@ -57,10 +62,10 @@ export interface ViewTabsProps {
   /** Persist a drag-reordered tab order (the complete ordered list of view ids). */
   readonly onReorder: (ids: string[]) => void;
   readonly fields: ViewFieldChoices;
-  /** Per-view editor controls (filters / columns) shown in the edit dialog. The
-   *  host binds these to the *active* view's config, so opening the editor also
-   *  selects the view being edited. */
+  /** Optional extra controls shown in the edit dialog under the name. */
   readonly editor?: ReactNode;
+  /** While the views are loading, render a skeleton tab (no layout shift). */
+  readonly loading?: boolean;
 }
 
 /**
@@ -87,7 +92,7 @@ function availableTypes(fields: ViewFieldChoices): ViewType[] {
   ];
 }
 
-/** A labelled native `<select>` for the create dialog's field pickers. */
+/** A labelled native select for the create dialog's field pickers. */
 function Picker({
   label,
   value,
@@ -101,23 +106,23 @@ function Picker({
   readonly onChange: (value: string) => void;
   readonly emptyLabel?: string;
 }): ReactNode {
+  const id = useId();
   return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium">{label}</span>
-      <select
-        aria-label={label}
-        className={SELECT_CLASS}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {emptyLabel !== undefined ? <option value="">{emptyLabel}</option> : null}
+    <div className="flex flex-col gap-1 text-sm">
+      <label htmlFor={id} className="font-medium">
+        {label}
+      </label>
+      <NativeSelect.Root id={id} value={value} onChange={(event) => onChange(event.target.value)}>
+        {emptyLabel !== undefined ? (
+          <NativeSelect.Option value="">{emptyLabel}</NativeSelect.Option>
+        ) : null}
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <NativeSelect.Option key={option.value} value={option.value}>
             {option.label}
-          </option>
+          </NativeSelect.Option>
         ))}
-      </select>
-    </label>
+      </NativeSelect.Root>
+    </div>
   );
 }
 
@@ -138,6 +143,7 @@ function CreateViewForm({
   const [geoField, setGeoField] = useState(fields.geo[0]?.value ?? "");
   const [calendarField, setCalendarField] = useState(fields.date[0]?.value ?? "");
   const [calendarEndField, setCalendarEndField] = useState("");
+  const typeId = useId();
 
   // A type is only submittable once its required field is chosen.
   const ready =
@@ -174,21 +180,23 @@ function CreateViewForm({
         value={name}
         onChange={(event) => setName(event.target.value)}
       />
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium">Type</span>
-        <select
+      <div className="flex flex-col gap-1 text-sm">
+        <label htmlFor={typeId} className="font-medium">
+          Type
+        </label>
+        <NativeSelect.Root
+          id={typeId}
           aria-label="View type"
-          className={SELECT_CLASS}
           value={type}
           onChange={(event) => setType(event.target.value as ViewType)}
         >
           {types.map((t) => (
-            <option key={t} value={t}>
+            <NativeSelect.Option key={t} value={t}>
               {TYPE_LABELS[t]}
-            </option>
+            </NativeSelect.Option>
           ))}
-        </select>
-      </label>
+        </NativeSelect.Root>
+      </div>
 
       {type === "kanban" ? (
         <Picker
@@ -242,6 +250,7 @@ export function ViewTabs({
   onReorder,
   fields,
   editor,
+  loading = false,
 }: ViewTabsProps): ReactNode {
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ViewTabItem | null>(null);
@@ -282,7 +291,17 @@ export function ViewTabs({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1 border-b">
+    <div
+      data-slot="view-tabs"
+      role="tablist"
+      aria-label="Views"
+      className="-mb-px flex flex-wrap items-center gap-1 overflow-x-auto"
+    >
+      {loading && views.length === 0 ? (
+        <div className="flex items-center gap-2 px-2 py-2" aria-hidden>
+          <Skeleton className="h-4 w-14" />
+        </div>
+      ) : null}
       {views.map((view) => {
         const active = view.id === activeViewId;
         return (
@@ -307,7 +326,7 @@ export function ViewTabs({
                 setOverId(null);
               }}
               className={cn(
-                "-mb-px flex cursor-grab items-center border-b-2 px-1",
+                "flex cursor-grab items-center border-b-2 px-0.5",
                 active ? "border-primary" : "border-transparent",
                 dragId === view.id && "opacity-50",
                 overId === view.id && dragId !== view.id && "bg-accent",
@@ -319,11 +338,17 @@ export function ViewTabs({
                 aria-selected={active}
                 onClick={() => onSelect(view.id)}
                 className={cn(
-                  "rounded-md px-2 py-1.5 font-medium text-sm",
+                  "inline-flex h-9 items-center gap-1.5 rounded-md px-2 font-medium text-sm",
                   active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {view.isDefault ? "★ " : ""}
+                {view.isDefault ? (
+                  <StarIcon
+                    weight="fill"
+                    className="size-3 text-muted-foreground"
+                    aria-label="Default view"
+                  />
+                ) : null}
                 {view.name}
               </button>
             </ContextMenu.Trigger>
@@ -352,7 +377,8 @@ export function ViewTabs({
         <Dialog.Trigger
           className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "text-muted-foreground")}
         >
-          + Add view
+          <PlusIcon aria-hidden />
+          Add view
         </Dialog.Trigger>
         <Dialog.Content className="max-w-sm">
           <Dialog.Header>
@@ -369,9 +395,7 @@ export function ViewTabs({
         <Dialog.Content className="max-h-[85vh] max-w-sm overflow-y-auto">
           <Dialog.Header>
             <Dialog.Title>Edit view</Dialog.Title>
-            <Dialog.Description>
-              Rename this view and tune its filters and columns.
-            </Dialog.Description>
+            <Dialog.Description>Rename this shared view.</Dialog.Description>
           </Dialog.Header>
           <form
             className="space-y-3"

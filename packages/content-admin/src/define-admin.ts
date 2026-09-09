@@ -64,5 +64,6 @@ export function defineAdmin<C extends NormalizedConfig>(
     nav: options.nav,
     mapStyleUrl,
     mapDarkStyleUrl,
+    counts: options.counts,
   };
 }

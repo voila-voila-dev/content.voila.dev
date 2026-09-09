@@ -21,6 +21,23 @@ export interface CollectionDef<
   readonly slug: Slug;
   readonly label?: string;
   /**
+   * Singular form of `label` for one document ("New post", "Edit post"). Defaults
+   * to a naive singularization of `label` (a trailing "s" is dropped).
+   */
+  readonly labelSingular?: string;
+  /**
+   * Phosphor icon name (e.g. `"Article"`) shown beside the collection in the
+   * admin sidebar and command palette. An unknown name falls back to the kind's
+   * default icon.
+   */
+  readonly icon?: string;
+  /**
+   * Sidebar group label the collection is listed under. Collections that share
+   * a `group` render together, in first-seen declaration order; omit for the
+   * default "Collections" group.
+   */
+  readonly group?: string;
+  /**
    * Field whose value names a document (e.g. `"title"`). The admin UI uses it
    * wherever one row needs a human heading — the detail page, breadcrumbs —
    * falling back to the collection label when unset or empty.
@@ -79,6 +96,9 @@ export function defineCollection<
 >(def: {
   readonly slug: Slug;
   readonly label?: string;
+  readonly labelSingular?: string;
+  readonly icon?: string;
+  readonly group?: string;
   readonly titleField?: keyof Fields & string;
   readonly drafts?: Drafts;
   readonly revisions?: boolean;
@@ -90,6 +110,9 @@ export function defineCollection<
     kind: "collection",
     slug: def.slug,
     label: def.label,
+    labelSingular: def.labelSingular,
+    icon: def.icon,
+    group: def.group,
     titleField: def.titleField,
     drafts: def.drafts,
     revisions: def.revisions,

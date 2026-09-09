@@ -7,18 +7,10 @@
 
 import type { Field, FieldMetaBase } from "@voila/content";
 import { Input } from "@voila.dev/ui/input";
+import { Select } from "@voila.dev/ui/select";
 import { Switch } from "@voila.dev/ui/switch";
 import { Textarea } from "@voila.dev/ui/textarea";
 import type { ReactNode } from "react";
-
-// Token-based styling for the native `<select>`, matched to the `@voila.dev/ui`
-// Input/Select-Trigger look. A *native* control is deliberate here: it's the
-// right tool for a form field (native keyboard, mobile picker, no portal, fully
-// testable), so the form's select stays a plain `<select>` rather than the
-// portal-based `@voila.dev/ui` Select. Hoisted out of the JSX so the widget reads
-// like the Input/Textarea ones above.
-const NATIVE_SELECT_CLASS =
-  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 export interface EditWidgetProps {
   readonly value: unknown;
@@ -66,7 +58,6 @@ export function TextInput({
       data-slot="text-input"
       id={id}
       value={typeof value === "string" ? value : ""}
-      placeholder={field.meta.description}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
       {...aria(field, id, error)}
@@ -87,7 +78,6 @@ export function TextareaInput({
       data-slot="textarea-input"
       id={id}
       value={typeof value === "string" ? value : ""}
-      placeholder={field.meta.description}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
       {...aria(field, id, error)}
@@ -114,7 +104,6 @@ export function MonospaceTextareaInput({
       id={id}
       className="min-h-40 font-mono"
       value={typeof value === "string" ? value : ""}
-      placeholder={field.meta.description}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
       {...aria(field, id, error)}
@@ -163,7 +152,7 @@ export function ColorInput({
       <Input
         id={id}
         value={text}
-        placeholder={field.meta.description ?? "#000000"}
+        placeholder="#000000"
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         {...aria(field, id, error)}
@@ -248,6 +237,15 @@ export function selectOptions(meta: FieldMetaBase): Option[] {
   return options.map((o): Option => ({ value: o, label: o, raw: o }));
 }
 
+/** Sentinel item value for "no choice" — a kit Select can't hold `""`. */
+const NONE = "__none__";
+
+/**
+ * Enum/select editor on the kit `Select` (portal popup, typeahead, keyboard
+ * navigation), matching the rest of the form's controls. An optional field
+ * gets a leading "—" item so it can be cleared back to empty; the emitted
+ * value is the option's ORIGINAL raw (a numeric enum stays a number).
+ */
 export function SelectInput({
   value,
   onChange,
@@ -258,28 +256,43 @@ export function SelectInput({
 }: EditWidgetProps): ReactNode {
   const options = selectOptions(field.meta);
   const required = field.meta.required === true;
-  const current = value === null || value === undefined ? "" : String(value);
+  const current = value === null || value === undefined ? NONE : String(value);
+  const items: Record<string, string> = Object.fromEntries([
+    ...(required ? [] : [[NONE, "—"]]),
+    ...options.map((o) => [o.value, o.label]),
+  ]);
   return (
-    <select
-      data-slot="select-input"
-      id={id}
+    <Select.Root
       value={current}
+      items={items}
       disabled={disabled}
-      className={NATIVE_SELECT_CLASS}
-      onChange={(e) => {
-        const next = options.find((o) => o.value === e.target.value);
-        onChange(next ? next.raw : undefined);
+      onValueChange={(next) => {
+        if (next === null || next === undefined || next === NONE) return onChange(undefined);
+        const hit = options.find((o) => o.value === next);
+        onChange(hit ? hit.raw : undefined);
       }}
-      {...aria(field, id, error)}
     >
-      {/* A placeholder row so an optional select can be cleared back to empty. */}
-      {required ? null : <option value="">—</option>}
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+      <Select.Trigger
+        id={id}
+        data-slot="select-input"
+        className="w-full"
+        {...aria(field, id, error)}
+      >
+        <Select.Value />
+      </Select.Trigger>
+      <Select.Content>
+        {required ? null : (
+          <Select.Item value={NONE} className="text-muted-foreground">
+            —
+          </Select.Item>
+        )}
+        {options.map((o) => (
+          <Select.Item key={o.value} value={o.value}>
+            {o.label}
+          </Select.Item>
+        ))}
+      </Select.Content>
+    </Select.Root>
   );
 }
 
