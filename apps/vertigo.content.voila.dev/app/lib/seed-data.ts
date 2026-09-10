@@ -1,8 +1,8 @@
-// Sample content for a fresh sandbox. Each visitor's Durable Object calls this
-// once, right after it creates its schema, so the admin opens on a populated
-// project instead of empty lists — a repertory season across statuses (Kanban),
-// shooting locations on the map (geo), five weeks of showtimes (Calendar), the
-// people who made and programme the films, and a written journal.
+// The cinema's opening programme — what a fresh database is filled with, and
+// what both halves of the app show until an editor changes it: a repertory
+// season across statuses (the admin's Kanban), shooting locations on the map
+// (geo), five weeks of showtimes (Calendar), the people who made and programme
+// the films, and a written journal.
 //
 // The films are REAL. Titles, years, runtimes, countries, directors, synopses
 // and artwork come from Cinemeta (https://v3-cinemeta.strem.io), a public,
@@ -63,7 +63,7 @@ function image(id: string, url: string, size: number, alt: string) {
   return { id, url, mime: "image/jpeg", size, alt };
 }
 
-export async function seedSandbox(database: Database): Promise<void> {
+export async function seedProgramme(database: Database): Promise<void> {
   // --- Settings singleton ---
   await database.upsert("settings", {
     siteName: { "en-US": "Cinéma Vertigo", "pt-PT": "Cinéma Vertigo" },

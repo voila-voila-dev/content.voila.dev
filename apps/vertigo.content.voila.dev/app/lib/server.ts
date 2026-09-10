@@ -13,12 +13,12 @@
 import { createWorkerAdmin } from "@voila/content-admin/cloudflare";
 import config from "../../content.config";
 
-// NOTE: unlike `apps/demo.content.voila.dev`, this admin deliberately passes NO
-// `access` override. The demo gives every visitor a private, throwaway sandbox,
-// so `access: () => true` is harmless there. Here the admin edits the LIVE
-// public site, so the engine's secure default (first-user-wins: only the first
-// account to sign in is admitted past the RBAC guard) is what keeps a passer-by
-// from signing themselves in and rewriting the programme.
+// NOTE: this admin deliberately passes NO `access` override, so the engine's
+// secure default applies — first-user-wins: only the first account to sign in
+// is admitted past the RBAC guard. That is what keeps a passer-by from signing
+// themselves in and rewriting the programme. An `access: () => true` override
+// is only ever safe when each visitor edits a private throwaway copy, which is
+// not the case here: this admin edits the live public site.
 export const runtime = createWorkerAdmin(config, {
   // The admin mounts at `/admin`, so its REST + auth routes live under
   // `/admin/api` — matching `defineAdmin`'s default `apiPath`.

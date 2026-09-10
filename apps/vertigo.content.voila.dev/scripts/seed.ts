@@ -21,7 +21,7 @@ import { makeDatabase, type SqlDriver } from "@voila/content/server";
 import { makeBunSqliteDriver } from "@voila/content/server/bun-sqlite";
 import { deriveSchema } from "@voila/content/sql";
 import { generateDDL } from "@voila/content-cli/sql/ddl";
-import { seedSandbox } from "../../demo.content.voila.dev/app/lib/sandbox-seed";
+import { seedProgramme } from "../app/lib/seed-data";
 import config from "../content.config";
 
 const WORK_DIR = ".voila";
@@ -72,7 +72,7 @@ async function main(): Promise<void> {
   }
 
   // 2. Replay the shared seed through the runtime Database.
-  await seedSandbox(makeDatabase(config, driver));
+  await seedProgramme(makeDatabase(config, driver));
 
   // 3. Dump it as re-runnable SQL.
   const sql = [];

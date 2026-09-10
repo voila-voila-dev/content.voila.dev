@@ -43,16 +43,16 @@
   // magic links point at localhost instead of the live site.
   "vars": {
     "VOILA_BASE_URL": "https://vertigo.content.voila.dev",
-    // The sending domain has to be one Resend has verified, which today is the
-    // demo's subdomain; only the display name is this site's. Move it to a
-    // vertigo subdomain once that domain is verified in Resend.
+    // The sending domain has to be one Resend has verified. That is still the
+    // `updates.demo.content.voila.dev` subdomain — a Resend/DNS record, which
+    // outlived the demo Worker it was named for. Only the display name is this
+    // site's. Move it once a vertigo subdomain is verified in Resend.
     "VOILA_AUTH_FROM": "Cinéma Vertigo <noreply@updates.demo.content.voila.dev>"
   },
 
   // Serve the site at vertigo.content.voila.dev. A `custom_domain` route makes
   // wrangler provision the DNS record + certificate on deploy (the
-  // content.voila.dev zone is on this account) — the same shape the admin demo
-  // uses for demo.content.voila.dev.
+  // content.voila.dev zone is on this account).
   "routes": [{ "pattern": "vertigo.content.voila.dev", "custom_domain": true }]
 
   // Secrets are NOT committed. `VOILA_AUTH_SECRET` signs sessions, CSRF tokens
