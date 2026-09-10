@@ -128,7 +128,7 @@ Legend: ✅ fixed · 🟡 partial · ⏭ deferred (out of scope for this pass, r
 | N3 | ✅ | `icon` / `group` on collections & singletons (Phosphor), `Menu gap-1` from the kit, longest-prefix active (`isNavActive` shared by content-admin `nav.ts`). |
 | N4 | ✅ | `UserMenu`: initials avatar + email + menu (theme, sign out). |
 | N5 | ✅ | `collapsible="icon"` + tooltips + rail; auto-collapse ≤1023px; ⌘B from the kit provider. |
-| N6 | ✅ | Brand block (32px tinted mark + name + subtitle from `branding.title`); no "Demo" span in the bar. No switcher (single site). |
+| N6 | ✅ | Brand block (32px tinted mark + name + subtitle from `branding.title`) IS the home link — no separate Overview item; no "Demo" span in the bar. No switcher (single site). |
 | N7 | ✅ | ⌘K `CommandPalette`: jump to any entity, "New …", server search for search-enabled collections. |
 | N8 | ✅ | `defineAdmin({ counts })` resolver → `Sidebar.MenuBadge` (demo wires `fetchCounts`). |
 | N9 | ✅ | `PageLayout.Body width="narrow|reading|content|full"` + `pageGutter`; per-screen wrappers removed. |
@@ -139,7 +139,7 @@ Legend: ✅ fixed · 🟡 partial · ⏭ deferred (out of scope for this pass, r
 | N14 | ✅ | Not a layout bug: `main` fills the viewport (verified via `getBoundingClientRect`); the gap was screenshot scaling. Height now `calc(100svh-1rem)`. |
 | N15 | ✅ | `view-switcher.tsx` deleted; `slots.shell.sidebarHeader` removed; `slots.collection.emptyState` consumed (empty-state action); `RevisionHistory` mounted as the "History" section, `PublishControls` in the detail aside (draft collections). `reorderIds`/`reorderColumns` kept (different inputs). |
 | T1 | ✅ | `FieldRenderer` resolves localized records through the locale chain (`resolveLocalized`), locale badge on fallback. |
-| T2 | ✅ | Cards fetch + render the shared `defaultCardFields` (short fields, no bodies); calendar titles localized. |
+| T2 | ✅ | Cards fetch + render the shared `defaultCardFields` (short fields, no bodies); calendar titles localized. Board drag moved to `@dnd-kit/react` (pointer + keyboard, overlay clone, column highlight, optimistic move). |
 | T3/T4 | ✅ | `context="cell"` → one-line `Preview` for rich text / markdown / long text (demo `RichTextDisplay` too); no prose margins. |
 | T5 | ✅ | Table region `overflow-auto`; cells `max-w-[40ch]` + truncation. No sticky first column. |
 | T6 | ✅ | Sticky head row (table owns the scroll), compact rows by default (`density` prop, no toolbar toggle), `h-9` head, ~36px rows. |
@@ -147,7 +147,7 @@ Legend: ✅ fixed · 🟡 partial · ⏭ deferred (out of scope for this pass, r
 | T8 | 🟡 | Row selection + bulk **Delete** (confirm). Bulk publish/export not built. |
 | T9 | ✅ | "Showing N of M" via `?count=1`, page-size picker (25/50/100), Load more. |
 | T10 | ✅ | Caret icons, hover affordance, server-sortable columns only. |
-| T11 | ✅ | Skeleton tab while loading, pinned strip aligned to the gutter, `Star` icon default marker. |
+| T11 | ✅ | Skeleton tab while loading, tabs + toolbar on ONE pinned row (pill tabs), `Star` icon default marker. |
 | T12 | 🟡 | Status tones (`enumTone`), boolean = check/dash. Relation link-chips not built (no relation kind in the engine yet). |
 | T13 | ✅ | `Intl.DateTimeFormat` medium/short, no seconds, relative title. |
 | T14 | 🟡 | Media = 24px thumbnail in cells; geo still shows `lat, lng` (linked). |
@@ -171,7 +171,7 @@ Legend: ✅ fixed · 🟡 partial · ⏭ deferred (out of scope for this pass, r
 | F12 | ⏭ | No multi-line flag on `string` fields; `TextareaInput` stays opt-in via `widget`. |
 | S1 | ✅ | Rebuilt on kit `Button`/`Input`/`Label` with `type="submit"`, "Check your inbox" + error states; SSR verified. Request firing verified via the mutation path in tests. |
 | S2 | ✅ | Brand mark + name + title on the login card. |
-| S3 | ✅ | Tiles link + quick New; "Recently edited" feed (`orderBy=updatedAt` across collections). Drafts-to-review N/A (no draft collections in the demo). |
+| S3 | ✅ | Icon tiles (count + quick New); "Recently edited" feed with collection icon + status badge (`orderBy=updatedAt` across collections); Shortcuts card (⌘K, New …, singletons). Drafts-to-review N/A (no draft collections in the demo). |
 | S4 | ⏭ | Token tuning not done (kit-owned tokens); badge tones now carry colour in dark. |
 | S5 | ✅ | `sonner` toasts on create/save/delete/publish/restore; framed 404 (`NotFoundScreen`); unsaved guard already existed. |
 | S6 | ✅ | `COORD_INPUT_CLASS`, `SELECT_CLASS`, `NATIVE_SELECT_CLASS` and raw text-link buttons removed in favour of kit primitives. |

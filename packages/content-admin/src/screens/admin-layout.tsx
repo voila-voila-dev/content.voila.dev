@@ -10,12 +10,19 @@ import { useQuery } from "@tanstack/react-query";
 import { Outlet, useRouterState } from "@tanstack/react-router";
 import { AdminShell, UserMenu } from "@voila/content-ui";
 import { Toaster } from "@voila.dev/ui/sonner";
-import { type ReactNode, useEffect, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 import { useAdmin } from "../context";
 import { AdminLink } from "../lib/admin-link";
 import { resolveBrandLogo } from "../lib/brand-logo";
 import { buildExtraGroups } from "../nav";
 import { CommandPalette } from "./command-palette";
+
+/** Opens the ⌘K palette from anywhere in the shell (screens read it via `usePalette`). */
+const PaletteContext = createContext<() => void>(() => {});
+
+export function usePalette(): () => void {
+  return useContext(PaletteContext);
+}
 
 async function signOut(apiPath: string, loginPath: string): Promise<void> {
   await fetch(`${apiPath}/auth/sign-out`, { method: "POST" }).catch(() => {});
@@ -81,7 +88,9 @@ export function AdminLayoutScreen(): ReactNode {
       counts={counts}
       onSearch={() => setPaletteOpen(true)}
     >
-      <Outlet />
+      <PaletteContext.Provider value={() => setPaletteOpen(true)}>
+        <Outlet />
+      </PaletteContext.Provider>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
       <Toaster position="bottom-right" richColors closeButton />
     </AdminShell>

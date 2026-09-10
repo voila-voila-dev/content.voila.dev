@@ -295,7 +295,7 @@ export function ViewTabs({
       data-slot="view-tabs"
       role="tablist"
       aria-label="Views"
-      className="-mb-px flex flex-wrap items-center gap-1 overflow-x-auto"
+      className="flex flex-wrap items-center gap-1 overflow-x-auto"
     >
       {loading && views.length === 0 ? (
         <div className="flex items-center gap-2 px-2 py-2" aria-hidden>
@@ -326,8 +326,8 @@ export function ViewTabs({
                 setOverId(null);
               }}
               className={cn(
-                "flex cursor-grab items-center border-b-2 px-0.5",
-                active ? "border-primary" : "border-transparent",
+                "flex cursor-grab items-center rounded-md",
+                active && "bg-accent",
                 dragId === view.id && "opacity-50",
                 overId === view.id && dragId !== view.id && "bg-accent",
               )}
@@ -338,8 +338,10 @@ export function ViewTabs({
                 aria-selected={active}
                 onClick={() => onSelect(view.id)}
                 className={cn(
-                  "inline-flex h-9 items-center gap-1.5 rounded-md px-2 font-medium text-sm",
-                  active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                  "inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 font-medium text-[0.8rem]",
+                  active
+                    ? "text-accent-foreground"
+                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                 )}
               >
                 {view.isDefault ? (

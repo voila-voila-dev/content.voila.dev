@@ -196,34 +196,33 @@ function Root({
         {liveMessage}
       </p>
 
-      {/* Pinned strip: the view tabs (aligned to the title gutter) over one
-          toolbar row — search grows on the left, filters/columns sit on
-          the right. It never scrolls with the table. */}
+      {/* Pinned strip: ONE row — the view tabs on the left, search / status /
+          filters / columns on the right. It never scrolls with the table. */}
       <PageLayout.Toolbar>
-        {header ? <div className={cn(pageGutter)}>{header}</div> : null}
-        {
-          <div
-            data-slot="list-toolbar"
-            className={cn("flex flex-wrap items-center gap-2 py-2", pageGutter)}
-          >
-            {showSearch ? (
-              <div className="min-w-48 flex-1 sm:max-w-xs">
-                <SearchInput
-                  value={searchValue}
-                  onChange={onSearchChange}
-                  onSubmit={onSearchSubmit}
-                  disabled={loading}
-                />
-              </div>
-            ) : null}
-            {showStatusFilter ? (
-              <StatusFilter value={status} onChange={onStatusChange} disabled={loading} />
-            ) : null}
-            {toolbar ? (
-              <div className="ml-auto flex flex-wrap items-center gap-2">{toolbar}</div>
-            ) : null}
-          </div>
-        }
+        <div
+          data-slot="list-toolbar"
+          className={cn("flex flex-wrap items-center gap-2 py-1.5", pageGutter)}
+        >
+          {header ? <div className="min-w-0 flex-1">{header}</div> : null}
+          {showSearch ? (
+            <div className={cn("min-w-48", header ? "sm:max-w-xs" : "flex-1 sm:max-w-xs")}>
+              <SearchInput
+                value={searchValue}
+                onChange={onSearchChange}
+                onSubmit={onSearchSubmit}
+                disabled={loading}
+              />
+            </div>
+          ) : null}
+          {showStatusFilter ? (
+            <StatusFilter value={status} onChange={onStatusChange} disabled={loading} />
+          ) : null}
+          {toolbar ? (
+            <div className={cn("flex flex-wrap items-center gap-2", !header && "ml-auto")}>
+              {toolbar}
+            </div>
+          ) : null}
+        </div>
         {selectable && selectedCount > 0 ? (
           <div
             data-slot="list-selection-bar"

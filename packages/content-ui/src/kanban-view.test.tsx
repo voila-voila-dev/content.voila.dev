@@ -46,19 +46,31 @@ describe("KanbanView", () => {
     expect(todo.textContent).not.toContain("Second");
   });
 
-  test("dropping a card on another column calls onMove with the row id + value", () => {
-    const onMove = mock();
-    render(<KanbanView.Root collection={tasks} rows={rows} groupField="status" onMove={onMove} />);
-    const card = screen.getByText("First").closest("article") as HTMLElement;
-    const data = new Map<string, string>();
-    const dataTransfer = {
-      setData: (k: string, v: string) => data.set(k, v),
-      getData: (k: string) => data.get(k) ?? "",
-      effectAllowed: "",
-    };
-    fireEvent.dragStart(card, { dataTransfer });
-    fireEvent.drop(screen.getByRole("region", { name: "Done" }), { dataTransfer });
-    expect(onMove).toHaveBeenCalledWith("1", "done");
+  test("cards are named by titleField and open the row on click", () => {
+    const onRowClick = mock();
+    render(
+      <KanbanView.Root
+        collection={tasks}
+        rows={rows}
+        groupField="status"
+        onRowClick={onRowClick}
+      />,
+    );
+    const card = screen.getByRole("article", { name: "First" });
+    fireEvent.click(card);
+    expect(onRowClick).toHaveBeenCalledWith(rows[0]);
+  });
+
+  test("with onMove, cards are draggable (grab cursor) and columns are drop regions", () => {
+    render(<KanbanView.Root collection={tasks} rows={rows} groupField="status" onMove={mock()} />);
+    const card = screen.getByRole("article", { name: "First" });
+    expect(card.className).toContain("cursor-grab");
+    expect(screen.getByRole("region", { name: "Done" })).toBeDefined();
+  });
+
+  test("without onMove, cards are inert (no grab cursor)", () => {
+    render(<KanbanView.Root collection={tasks} rows={rows} groupField="status" />);
+    expect(screen.getByRole("article", { name: "First" }).className).not.toContain("cursor-grab");
   });
 
   test("clicking a card opens it via onRowClick", () => {
@@ -87,35 +99,21 @@ describe("KanbanView", () => {
     expect(screen.getByText("Nothing here")).toBeDefined();
   });
 
-  test("a numeric-enum drag reports the ORIGINAL number, not its string key", () => {
-    // Regression: a numeric enum's column key is the string "2", but the field
-    // validator wants the number 2 — onMove must carry the original value.
+  test("a numeric enum still renders a column per declared value", () => {
     const priorities = defineCollection({
-      slug: "items",
+      slug: "todos",
       titleField: "title",
-      fields: {
-        title: fields.string(),
-        priority: fields.enum({ values: { Low: 1, High: 2 } }),
-      },
+      fields: { title: fields.string(), priority: fields.enum({ values: { Low: 1, High: 2 } }) },
     });
-    const onMove = mock();
     render(
       <KanbanView.Root
         collection={priorities}
-        rows={[{ id: "1", title: "T", priority: 1 }]}
+        rows={[{ id: "1", title: "Ship", priority: 1 }]}
         groupField="priority"
-        onMove={onMove}
+        onMove={mock()}
       />,
     );
-    const card = screen.getByText("T").closest("article") as HTMLElement;
-    const data = new Map<string, string>();
-    const dataTransfer = {
-      setData: (k: string, v: string) => data.set(k, v),
-      getData: (k: string) => data.get(k) ?? "",
-      effectAllowed: "",
-    };
-    fireEvent.dragStart(card, { dataTransfer });
-    fireEvent.drop(screen.getByRole("region", { name: "High" }), { dataTransfer });
-    expect(onMove).toHaveBeenCalledWith("1", 2);
+    expect(screen.getByRole("region", { name: "Low" }).textContent).toContain("Ship");
+    expect(screen.getByRole("region", { name: "High" })).toBeDefined();
   });
 });

@@ -12,6 +12,7 @@ import type { ReactNode } from "react";
 import { useAdmin } from "../context";
 import { AdminLink } from "../lib/admin-link";
 import { type AnyListParams, collectionClient } from "../lib/client-access";
+import { usePalette } from "./admin-layout";
 
 const RECENT_PER_COLLECTION = 5;
 const RECENT_TOTAL = 8;
@@ -26,6 +27,7 @@ function toTime(value: unknown): number {
 export function DashboardScreen(): ReactNode {
   const { admin } = useAdmin();
   const i18n = useI18n();
+  const openPalette = usePalette();
   const counts = (useLoaderData({ strict: false }) as Record<string, number> | undefined) ?? {};
   const title = admin.branding.title ?? "Overview";
   const collections = Object.values(admin.config.collections) as Collection[];
@@ -50,8 +52,10 @@ export function DashboardScreen(): ReactNode {
         id: String(row.id),
         title: documentTitle(collection, row, i18n) ?? String(row.id),
         collection: collection.label ?? collection.slug,
+        icon: collection.icon,
         href: `${admin.basePath}/${collection.slug}/${String(row.id)}`,
         updatedAt: toTime(row.updatedAt ?? row.createdAt),
+        ...(collection.drafts === true ? { doc: row } : {}),
       })),
     )
     .sort((a, b) => toTime(b.updatedAt) - toTime(a.updatedAt))
@@ -77,6 +81,7 @@ export function DashboardScreen(): ReactNode {
       title={title}
       recent={recent}
       recentLoading={recentLoading}
+      onSearch={openPalette}
       renderLink={(href, children) => <AdminLink href={href}>{children}</AdminLink>}
     />
   );

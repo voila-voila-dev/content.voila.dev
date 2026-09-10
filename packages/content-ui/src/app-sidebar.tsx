@@ -6,7 +6,8 @@
 // brand block (32px tinted badge + name + subtitle, links home) and a search
 // entry (⌘K). Links are router-agnostic: by default each entry is a plain
 // `<a href>`, but pass `renderLink` to swap in a framework `Link` — it receives
-// the `NavItem` and returns the anchor the menu button renders through. Must be
+// the `NavItem` and returns the anchor the menu button renders through. There is
+// no "Overview" item: the brand block IS the home link. Must be
 // used inside a `Sidebar.Provider` (`AdminShell` supplies one). Collapsed, it's
 // an icon rail with tooltips.
 
@@ -281,7 +282,6 @@ export function AppSidebar({
           <SectionNav section={section} renderLink={renderLink} />
         ) : (
           <>
-            <NavGroup items={[homeItem]} renderLink={renderLink} />
             {nav.groups.map((group) => (
               <NavGroup
                 key={group.label}

@@ -437,9 +437,9 @@ export function CollectionListScreen(): ReactNode {
           <PageLayout.Title>{label}</PageLayout.Title>
         </PageLayout.Header>
         <PageLayout.Toolbar>
-          <div className={pageGutter}>{tabs}</div>
-          <div className={cn("flex flex-wrap items-center justify-end gap-2 py-2", pageGutter)}>
-            {toolbar}
+          <div className={cn("flex flex-wrap items-center gap-2 py-1.5", pageGutter)}>
+            <div className="min-w-0 flex-1">{tabs}</div>
+            <div className="flex flex-wrap items-center gap-2">{toolbar}</div>
           </div>
         </PageLayout.Toolbar>
         <PageLayout.Body className="space-y-4">
