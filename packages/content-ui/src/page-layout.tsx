@@ -1,7 +1,7 @@
 // PageLayout — the per-screen frame the list/detail/edit views render inside.
 // The page itself never scrolls: ONE pinned `h-14` header bar (sidebar trigger ·
-// back link · title · actions · theme toggle — the shell renders no bar of its
-// own) sits above a single scrolling `Body`. Modeled on the tries.care admin's
+// back link · title · actions — the shell renders no bar of its own; the theme
+// switch lives in the sidebar's user menu) sits above a single scrolling `Body`. Modeled on the tries.care admin's
 // `page-layout.tsx`, retoned to `@voila.dev/ui` tokens. Purely presentational
 // and composable — `Root` caps the height and clips, `Header` is the bar,
 // `Toolbar` an optional second pinned strip (view tabs, filters), `Body` the
@@ -14,7 +14,6 @@ import { cn } from "@voila.dev/ui/utils";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { cloneElement } from "react";
 import { useShell } from "./lib/shell-context";
-import { ThemeToggle } from "./theme-toggle";
 
 // Fills its parent (the shell's body slot) and clips, so the page is a fixed
 // frame and only `Body` scrolls. `min-h-0` lets it shrink inside the shell's
@@ -34,14 +33,12 @@ export interface HeaderProps extends Omit<ComponentProps<"header">, "title"> {
   readonly back?: ReactNode;
   /** Actions on the right (buttons, an overflow menu). */
   readonly actions?: ReactNode;
-  /** Hide the theme toggle (e.g. when a host renders its own). */
-  readonly hideThemeToggle?: boolean;
 }
 
 // The single pinned header bar. The sidebar trigger only renders inside the
 // shell (it needs the kit's `Sidebar.Provider`), so the same page renders
 // cleanly embedded or under test.
-function Header({ className, back, actions, hideThemeToggle, children, ...props }: HeaderProps) {
+function Header({ className, back, actions, children, ...props }: HeaderProps) {
   const { inShell } = useShell();
   return (
     <header
@@ -56,7 +53,6 @@ function Header({ className, back, actions, hideThemeToggle, children, ...props 
       {back}
       <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
-      {hideThemeToggle ? null : <ThemeToggle />}
     </header>
   );
 }

@@ -123,7 +123,7 @@ Legend: ✅ fixed · 🟡 partial · ⏭ deferred (out of scope for this pass, r
 
 | Item | Status | Notes |
 |---|---|---|
-| N1 | ✅ | One `h-14` bar per screen: `PageLayout.Header` = trigger · back · title · actions · theme. `AdminShell` renders no bar. |
+| N1 | ✅ | One `h-14` bar per screen: `PageLayout.Header` = trigger · back · title · actions (theme switch lives in the user menu). `AdminShell` renders no bar. |
 | N2 | ✅ | Sections are routes (`$collection/$id/$group`, singletons `/settings/$group`); sidebar swaps to back row + doc title + sections (`useRegisterSidebarSection`); `FieldGroupNav` is the mobile strip only. |
 | N3 | ✅ | `icon` / `group` on collections & singletons (Phosphor), `Menu gap-1` from the kit, longest-prefix active (`isNavActive` shared by content-admin `nav.ts`). |
 | N4 | ✅ | `UserMenu`: initials avatar + email + menu (theme, sign out). |
@@ -142,8 +142,8 @@ Legend: ✅ fixed · 🟡 partial · ⏭ deferred (out of scope for this pass, r
 | T2 | ✅ | Cards fetch + render the shared `defaultCardFields` (short fields, no bodies); calendar titles localized. |
 | T3/T4 | ✅ | `context="cell"` → one-line `Preview` for rich text / markdown / long text (demo `RichTextDisplay` too); no prose margins. |
 | T5 | ✅ | Table region `overflow-auto`; cells `max-w-[40ch]` + truncation. No sticky first column. |
-| T6 | ✅ | Sticky head row (table owns the scroll), `density` compact/comfortable toggle, `h-9` head, ~36px rows. |
-| T7 | ✅ | Visible toolbar: search (wired to `client.search`), status scope, Filter / Columns / Card fields / Map position popovers, density. Tab dialog = rename only. |
+| T6 | ✅ | Sticky head row (table owns the scroll), compact rows by default (`density` prop, no toolbar toggle), `h-9` head, ~36px rows. |
+| T7 | ✅ | Visible toolbar: search (wired to `client.search`), status scope, Filter / Columns / Card fields / Map position popovers. Tab dialog = rename only. |
 | T8 | 🟡 | Row selection + bulk **Delete** (confirm). Bulk publish/export not built. |
 | T9 | ✅ | "Showing N of M" via `?count=1`, page-size picker (25/50/100), Load more. |
 | T10 | ✅ | Caret icons, hover affordance, server-sortable columns only. |

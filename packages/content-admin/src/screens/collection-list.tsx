@@ -8,7 +8,7 @@
 // field(s) that type needs up front. The active view lives in the URL as
 // `?view=<uid>` so a view is shareable by link; its `type` + `config` drive what
 // renders. The visible toolbar (search · status · filters · columns/card fields
-// · map position · density) edits the active view and writes through to the
+// · map position) edits the active view and writes through to the
 // shared view (no separate save step); the tab's context menu keeps rename /
 // default / delete. Rows select for bulk delete. Mounted by the host's fixed
 // `_app.$collection.index.tsx` shim.

@@ -40,9 +40,9 @@ describe("AdminShell", () => {
     expect(screen.getByRole("heading", { name: "Posts list" })).toBeDefined();
     expect(screen.getByRole("button", { name: "New" })).toBeDefined();
     // Inside the shell, the page header carries the sidebar trigger (the rail
-    // is a second, edge-mounted toggle) + the theme toggle.
+    // is a second, edge-mounted toggle). No theme toggle — that's in the user menu.
     expect(screen.getAllByRole("button", { name: "Toggle Sidebar" }).length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Toggle theme" })).toBeDefined();
+    expect(screen.queryByRole("button", { name: "Toggle theme" })).toBeNull();
   });
 
   test("swaps the sidebar to a registered entity section", () => {

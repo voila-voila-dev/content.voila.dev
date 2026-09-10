@@ -1,6 +1,6 @@
 // ListView — the list page for a collection: the single page header (title +
 // actions like "New") over a pinned strip (view tabs + toolbar: search, status
-// scope, filters/columns/density controls the host passes in) and the
+// scope, filters/columns controls the host passes in) and the
 // schema-driven `DataTable` in its own scrolling region (so the head row stays
 // pinned), plus loading / error / empty states, row selection with a bulk
 // action bar, and keyset "Load more" pagination with a result count line. It's
@@ -10,7 +10,6 @@
 // `onRowClick` / `actions` to navigation. Columns and cells still come entirely
 // from the config.
 
-import { RowsIcon, RowsPlusBottomIcon } from "@phosphor-icons/react";
 import type { Collection } from "@voila/content";
 import { Button } from "@voila.dev/ui/button";
 import { Empty } from "@voila.dev/ui/empty";
@@ -97,9 +96,8 @@ export interface ListViewProps {
   readonly onSelectedChange?: (keys: ReadonlySet<string>) => void;
   /** Bulk actions shown in the selection bar (receives the selected keys). */
   readonly bulkActions?: (selected: ReadonlySet<string>) => ReactNode;
-  /** Row density; uncontrolled (with a toolbar toggle) when omitted. */
+  /** Row density. Defaults to `compact`. */
   readonly density?: TableDensity;
-  readonly onDensityChange?: (density: TableDensity) => void;
 }
 
 function Root({
@@ -137,20 +135,12 @@ function Root({
   selected,
   onSelectedChange,
   bulkActions,
-  density,
-  onDensityChange,
+  density = "compact",
 }: ListViewProps): ReactNode {
   const heading = title ?? collection.label ?? humanize(collection.slug);
   const canLoadMore = Boolean(nextCursor) && onLoadMore !== undefined;
   const showSearch = searchEnabled(collection.search) && onSearchChange !== undefined;
   const showStatusFilter = collection.drafts === true && onStatusChange !== undefined;
-  const [internalDensity, setInternalDensity] = useState<TableDensity>("compact");
-  const activeDensity = density ?? internalDensity;
-  function toggleDensity() {
-    const next: TableDensity = activeDensity === "compact" ? "comfortable" : "compact";
-    setInternalDensity(next);
-    onDensityChange?.(next);
-  }
   const [internalSelected, setInternalSelected] = useState<ReadonlySet<string>>(() => new Set());
   const selectedSet = selected ?? internalSelected;
   const selectedCount = selectedSet.size;
@@ -207,7 +197,7 @@ function Root({
       </p>
 
       {/* Pinned strip: the view tabs (aligned to the title gutter) over one
-          toolbar row — search grows on the left, filters/columns/density sit on
+          toolbar row — search grows on the left, filters/columns sit on
           the right. It never scrolls with the table. */}
       <PageLayout.Toolbar>
         {header ? <div className={cn(pageGutter)}>{header}</div> : null}
@@ -229,20 +219,9 @@ function Root({
             {showStatusFilter ? (
               <StatusFilter value={status} onChange={onStatusChange} disabled={loading} />
             ) : null}
-            <div className="ml-auto flex flex-wrap items-center gap-2">
-              {toolbar}
-              <Button
-                type="button"
-                variant="outline"
-                size="icon-sm"
-                aria-label={activeDensity === "compact" ? "Comfortable rows" : "Compact rows"}
-                aria-pressed={activeDensity === "comfortable"}
-                title={activeDensity === "compact" ? "Comfortable rows" : "Compact rows"}
-                onClick={toggleDensity}
-              >
-                {activeDensity === "compact" ? <RowsPlusBottomIcon /> : <RowsIcon />}
-              </Button>
-            </div>
+            {toolbar ? (
+              <div className="ml-auto flex flex-wrap items-center gap-2">{toolbar}</div>
+            ) : null}
           </div>
         }
         {selectable && selectedCount > 0 ? (
@@ -290,7 +269,7 @@ function Root({
           loading={loading}
           emptyMessage={emptyMessage}
           empty={emptyState}
-          density={activeDensity}
+          density={density}
           stickyHeader
           selectable={selectable}
           selected={selectable ? selectedSet : undefined}
