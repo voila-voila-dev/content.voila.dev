@@ -51,18 +51,67 @@ export function useCollectionMutations(slug: string) {
   });
 
   // Bulk soft-delete: one request per id, settled together; partial failures
-  // surface as one toast naming the count.
+  // surface as one toast naming the count. Deletes are SOFT, so the toast
+  // offers Undo — the safety net that makes a destructive bulk action
+  // reasonable to reach for at all.
   const removeMany = useMutation({
     mutationFn: async (ids: ReadonlyArray<string>) => {
       const results = await Promise.allSettled(ids.map((id) => api.delete(id)));
-      const failed = results.filter((r) => r.status === "rejected").length;
-      return { deleted: ids.length - failed, failed };
+      const deleted = ids.filter((_, i) => results[i]?.status === "fulfilled");
+      return { deleted, failed: ids.length - deleted.length };
     },
     onSuccess: ({ deleted, failed }) => {
-      if (failed > 0) toast.error(`Deleted ${deleted}, ${failed} failed.`);
-      else toast.success(`Deleted ${deleted} ${deleted === 1 ? "record" : "records"}`);
+      const n = deleted.length;
+      if (failed > 0) toast.error(`Deleted ${n}, ${failed} failed.`);
+      else {
+        toast.success(`Deleted ${n} ${n === 1 ? "record" : "records"}`, {
+          action: {
+            label: "Undo",
+            onClick: () => restoreMany.mutate(deleted),
+          },
+        });
+      }
       return invalidateList();
     },
+  });
+
+  // The other half of the undo: soft-deleted rows revive through `restore`.
+  const restoreMany = useMutation({
+    mutationFn: async (ids: ReadonlyArray<string>) => {
+      const results = await Promise.allSettled(ids.map((id) => api.restore(id)));
+      const failed = results.filter((r) => r.status === "rejected").length;
+      return { restored: ids.length - failed, failed };
+    },
+    onSuccess: ({ restored, failed }) => {
+      if (failed > 0) toast.error(`Restored ${restored}, ${failed} failed.`);
+      else toast.success(`Restored ${restored} ${restored === 1 ? "record" : "records"}`);
+      return invalidateList();
+    },
+    onError: (error) => toastError(error, "Could not undo the delete."),
+  });
+
+  /**
+   * Set one field to one value across a selection — the bulk "move these to
+   * In review" / "publish these" action. A PATCH per id, settled together, so a
+   * row that fails its own validation doesn't take the rest of the batch down.
+   */
+  const updateMany = useMutation({
+    mutationFn: async (input: {
+      readonly ids: ReadonlyArray<string>;
+      readonly values: Doc;
+      /** What the toast says on success, e.g. "Moved to In review". */
+      readonly label: string;
+    }) => {
+      const results = await Promise.allSettled(input.ids.map((id) => api.update(id, input.values)));
+      const failed = results.filter((r) => r.status === "rejected").length;
+      return { updated: input.ids.length - failed, failed, label: input.label };
+    },
+    onSuccess: ({ updated, failed, label }) => {
+      if (failed > 0) toast.error(`${label}: ${updated} updated, ${failed} failed.`);
+      else toast.success(`${label} · ${updated} ${updated === 1 ? "record" : "records"}`);
+      return invalidateList();
+    },
+    onError: (error) => toastError(error, "Could not apply the change."),
   });
 
   const publish = useMutation({
@@ -98,5 +147,15 @@ export function useCollectionMutations(slug: string) {
     onError: (error) => toastError(error, "Could not restore the revision."),
   });
 
-  return { create, update, remove, removeMany, publish, unpublish, restoreRevision };
+  return {
+    create,
+    update,
+    remove,
+    removeMany,
+    restoreMany,
+    updateMany,
+    publish,
+    unpublish,
+    restoreRevision,
+  };
 }

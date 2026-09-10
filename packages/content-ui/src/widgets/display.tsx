@@ -179,13 +179,17 @@ export function ColorDisplay({ value }: DisplayWidgetProps): ReactNode {
   );
 }
 
-export function NumberDisplay({ value }: DisplayWidgetProps): ReactNode {
+export function NumberDisplay({ value, meta }: DisplayWidgetProps): ReactNode {
   if (value === null || value === undefined) return <Empty />;
   const n = typeof value === "number" ? value : Number(value);
   if (Number.isNaN(n)) return <Empty />;
+  // Grouping is right for quantities and wrong for numeric identifiers — a
+  // year rendered "2,019" reads as a count of two thousand. Fields opt out
+  // with `grouping: false`.
+  const grouping = (meta as { grouping?: boolean }).grouping !== false;
   return (
     <span data-slot="number-display" className="tabular-nums">
-      {n.toLocaleString()}
+      {grouping ? n.toLocaleString() : String(n)}
     </span>
   );
 }

@@ -1,0 +1,39 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cinema-vertigo-voila-dev",
+  // Custom server entry (app/server.ts) so the Cloudflare plugin and the
+  // TanStack Start plugin resolve to the same module (Start auto-detects
+  // `app/server.ts`).
+  "main": "app/server.ts",
+  "compatibility_date": "2026-06-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // This site's OWN content database — the canonical, published Cinéma Vertigo
+  // dataset. It is deliberately not the admin demo's D1: that database only ever
+  // holds auth, because the demo gives each visitor a private Durable Object for
+  // their content. Provision + fill it with:
+  //
+  //   wrangler d1 create cinema-vertigo-voila-dev   # paste the id below
+  //   bun run migrate:remote                        # schema from content.config.ts
+  //   bun run seed:remote                           # the canonical programme
+  //
+  // Local development needs none of that beyond `bun run migrate:local` +
+  // `bun run seed:local`, which use wrangler's local D1 state.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cinema-vertigo-voila-dev",
+      // PLACEHOLDER — replace with the id printed by `wrangler d1 create`.
+      "database_id": "REPLACE_ME_RUN_WRANGLER_D1_CREATE",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // The demo's media bucket, so a poster uploaded through the admin resolves by
+  // URL here. Nothing on this site ever writes to it.
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "demo-content-voila-dev-media" }]
+
+  // Deliberately unrouted: no `routes` / `custom_domain` entry. `wrangler deploy`
+  // publishes it to the workers.dev subdomain; add a route when it gets a home.
+}

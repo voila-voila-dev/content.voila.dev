@@ -7,7 +7,7 @@ import type { Locale } from "./schema/fields/_locale";
 import type { NarrowFields } from "./schema/fields/_localized";
 import type { FieldsMap } from "./schema/fields/_map";
 import type { Singleton } from "./schema/singleton";
-import { record } from "./schema/std";
+import { localizedRecord } from "./schema/std";
 
 export type CollectionMap = Readonly<Record<string, Collection>>;
 export type SingletonMap = Readonly<Record<string, Singleton>>;
@@ -62,15 +62,28 @@ export interface NormalizedConfig<
   readonly map?: MapConfig;
 }
 
-function narrowFieldsRuntime(fields: FieldsMap, locales: ReadonlyArray<Locale>): FieldsMap {
+function narrowFieldsRuntime(
+  fields: FieldsMap,
+  locales: ReadonlyArray<Locale>,
+  defaultLocale: Locale | undefined,
+): FieldsMap {
   if (locales.length === 0) return fields;
+  // `required` on a localized field means "the default locale must be filled",
+  // not "every translation must exist" — a monolingual editor has to be able to
+  // save, and reads fall back down the locale chain anyway. Translators fill the
+  // rest later, and the admin marks which locales are still empty.
+  const requiredLocale = defaultLocale ?? locales[0];
   const out: Record<string, Field> = {};
   for (const [key, field] of Object.entries(fields)) {
     // Localized fields stash their per-locale value validator on `inner`; the
     // wide `Record<string, T>` wrap is rebuilt here keyed to the project's
-    // selected locales (all required). Everything else passes through.
+    // selected locales. Everything else passes through.
     if (field.meta.localized && field.inner) {
-      const narrowed = record(field.inner, locales as ReadonlyArray<string>);
+      const narrowed = localizedRecord(
+        field.inner,
+        locales as ReadonlyArray<string>,
+        field.meta.required === true && requiredLocale !== undefined ? [requiredLocale] : [],
+      );
       out[key] = makeField(narrowed, field.meta, field.inner);
     } else {
       out[key] = field;
@@ -82,10 +95,11 @@ function narrowFieldsRuntime(fields: FieldsMap, locales: ReadonlyArray<Locale>):
 function narrowCollectionsRuntime(
   collections: CollectionMap,
   locales: ReadonlyArray<Locale>,
+  defaultLocale: Locale | undefined,
 ): CollectionMap {
   const out: Record<string, Collection> = {};
   for (const [key, col] of Object.entries(collections)) {
-    out[key] = { ...col, fields: narrowFieldsRuntime(col.fields, locales) };
+    out[key] = { ...col, fields: narrowFieldsRuntime(col.fields, locales, defaultLocale) };
   }
   return out;
 }
@@ -93,10 +107,11 @@ function narrowCollectionsRuntime(
 function narrowSingletonsRuntime(
   singletons: SingletonMap,
   locales: ReadonlyArray<Locale>,
+  defaultLocale: Locale | undefined,
 ): SingletonMap {
   const out: Record<string, Singleton> = {};
   for (const [key, sg] of Object.entries(singletons)) {
-    out[key] = { ...sg, fields: narrowFieldsRuntime(sg.fields, locales) };
+    out[key] = { ...sg, fields: narrowFieldsRuntime(sg.fields, locales, defaultLocale) };
   }
   return out;
 }
@@ -117,17 +132,19 @@ export function defineConfig<
   config: Config<Locales, Collections, Singletons>,
 ): NormalizedConfig<Locales, Collections, Singletons> {
   const locales = config.i18n?.locales ?? [];
+  const defaultLocale = config.i18n?.defaultLocale;
   const rawCollections = config.collections ?? ({} as Collections);
   const rawSingletons = config.singletons ?? ({} as Singletons);
   return {
     branding: config.branding,
     i18n: config.i18n,
     map: config.map,
-    collections: narrowCollectionsRuntime(rawCollections, locales) as NarrowCollections<
-      Collections,
-      Locales[number]
-    >,
-    singletons: narrowSingletonsRuntime(rawSingletons, locales) as NarrowSingletons<
+    collections: narrowCollectionsRuntime(
+      rawCollections,
+      locales,
+      defaultLocale,
+    ) as NarrowCollections<Collections, Locales[number]>,
+    singletons: narrowSingletonsRuntime(rawSingletons, locales, defaultLocale) as NarrowSingletons<
       Singletons,
       Locales[number]
     >,

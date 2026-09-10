@@ -94,22 +94,46 @@ export function validateWrite(
 }
 
 /**
+ * The text a slug derives from. A plain source is its own string; a LOCALIZED
+ * source (the common case — `title` is usually translated) is a per-locale
+ * record, and the slug follows the default locale, falling back to the first
+ * locale that carries text. Without this a `slug({ from: "title" })` on a
+ * localized title silently never derives.
+ */
+function slugSourceText(source: unknown, defaultLocale: string | undefined): string | undefined {
+  if (typeof source === "string") return source;
+  if (typeof source !== "object" || source === null || Array.isArray(source)) return undefined;
+  const record = source as Record<string, unknown>;
+  const preferred = defaultLocale === undefined ? undefined : record[defaultLocale];
+  if (typeof preferred === "string" && preferred !== "") return preferred;
+  for (const value of Object.values(record)) {
+    if (typeof value === "string" && value !== "") return value;
+  }
+  return undefined;
+}
+
+/**
  * Fill missing slug fields on a create from their `from` source (the
  * `slug({ from: "title" })` contract). A slug counts as missing when absent,
- * `null`, or `""`; derivation only kicks in when the source value is a string
- * that slugifies to something non-empty. Localized slugs are left alone —
+ * `null`, or `""`; derivation kicks in when the source resolves to text that
+ * slugifies to something non-empty — including a localized source, which
+ * resolves through `defaultLocale`. Localized slugs are left alone —
  * per-locale derivation isn't supported. Runs before the field-access check so
  * a derived value passes the same gates as one the client typed.
  */
-export function deriveSlugFields(entry: CollectionLike, data: Document): Document {
+export function deriveSlugFields(
+  entry: CollectionLike,
+  data: Document,
+  defaultLocale?: string,
+): Document {
   let out = data;
   for (const [name, field] of Object.entries(entry.fields) as Array<[string, Field]>) {
     const meta = field.meta as { kind: string; localized?: boolean; from?: string };
     if (meta.kind !== "slug" || typeof meta.from !== "string" || meta.localized === true) continue;
     const current = data[name];
     if (current !== undefined && current !== null && current !== "") continue;
-    const source = data[meta.from];
-    if (typeof source !== "string") continue;
+    const source = slugSourceText(data[meta.from], defaultLocale);
+    if (source === undefined) continue;
     const derived = slugify(source);
     if (derived === "") continue;
     if (out === data) out = { ...data };
@@ -160,7 +184,11 @@ export function handleCreate(
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
-    const body = deriveSlugFields(entry, await parseWriteBody(request));
+    const body = deriveSlugFields(
+      entry,
+      await parseWriteBody(request),
+      ctx.config.i18n?.defaultLocale,
+    );
     const access: FieldAccessContext = { principal, operation: "create", collection: entry.slug };
     // Field-level write rules run before schema validation: a denied field is a
     // 403 regardless of whether its value would have validated.
@@ -183,7 +211,11 @@ export function handleSetSingleton(
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireSingleton(ctx.config, slug);
-    const body = deriveSlugFields(entry, await parseWriteBody(request));
+    const body = deriveSlugFields(
+      entry,
+      await parseWriteBody(request),
+      ctx.config.i18n?.defaultLocale,
+    );
     // The document conceptually always exists (set just fills it in), so field
     // rules and the route guard both see an `update` — even on the first write.
     const access: FieldAccessContext = {

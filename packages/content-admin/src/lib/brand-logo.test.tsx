@@ -24,4 +24,21 @@ describe("resolveBrandLogo", () => {
     render(<div>{resolved}</div>);
     expect(screen.getByTestId("custom-logo")).toBeDefined();
   });
+
+  test("falls back to a logo uploaded into content", () => {
+    render(<div>{resolveBrandLogo(undefined, "/uploads/mark.png")}</div>);
+    expect(screen.getByRole("presentation").getAttribute("src")).toBe("/uploads/mark.png");
+  });
+
+  test("a configured logo outranks the one in content", () => {
+    // A site that ships a mark in `defineAdmin` keeps it; the settings singleton
+    // is the fallback for projects that never configured one.
+    render(<div>{resolveBrandLogo("/config.svg", "/uploads/mark.png")}</div>);
+    expect(screen.getByRole("presentation").getAttribute("src")).toBe("/config.svg");
+  });
+
+  test("still returns null when neither is set", () => {
+    // The sidebar and login page draw their initial-letter mark from null.
+    expect(resolveBrandLogo(undefined, undefined)).toBeNull();
+  });
 });

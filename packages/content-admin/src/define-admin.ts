@@ -8,19 +8,41 @@ import type { NormalizedConfig } from "@voila/content";
 import { makeClient, makeMediaClient } from "@voila/content/client";
 import {
   createGeoInput,
+  createRelationDisplay,
+  createRelationInput,
   DEFAULT_MAP_DARK_STYLE_URL,
   DEFAULT_MAP_STYLE_URL,
   mergeDisplayRegistry,
   mergeEditRegistry,
 } from "@voila/content-ui";
 import { makeAuthedFetch } from "./lib/authed-fetch";
-import type { AdminInstance, DefineAdminOptions } from "./types";
+import { makeRelationLoader } from "./lib/relation-source";
+import type { AdminInstance, DefineAdminOptions, ResolvedAdminTheme } from "./types";
 
 // Empty = mounted at the root. Each admin gets its own subdomain
 // (admin.MYDOMAIN.TLD), so the admin IS the whole site: `/` is the dashboard,
 // `/posts` a list, `/login` the sign-in. Set `basePath: "/admin"` to nest it
 // under a path instead.
 const DEFAULT_BASE_PATH = "";
+
+/** Normalize the theme onto the instance. Nothing is defaulted in: an unset
+ *  radius or density emits no CSS declaration, which is what keeps a project
+ *  that configures nothing rendering exactly as it does today. */
+function resolveTheme(theme: DefineAdminOptions["theme"]): ResolvedAdminTheme {
+  const resolved: {
+    accent?: string;
+    accentFrom?: string;
+    logoFrom?: string;
+    radius?: ResolvedAdminTheme["radius"];
+    density?: ResolvedAdminTheme["density"];
+  } = {};
+  if (theme?.accent !== undefined) resolved.accent = theme.accent;
+  if (theme?.accentFrom !== undefined) resolved.accentFrom = theme.accentFrom;
+  if (theme?.logoFrom !== undefined) resolved.logoFrom = theme.logoFrom;
+  if (theme?.radius !== undefined) resolved.radius = theme.radius;
+  if (theme?.density !== undefined) resolved.density = theme.density;
+  return resolved;
+}
 
 /** Build the admin instance from a content config + optional extensions. */
 export function defineAdmin<C extends NormalizedConfig>(
@@ -43,12 +65,16 @@ export function defineAdmin<C extends NormalizedConfig>(
   const fetch = options.fetch ?? makeAuthedFetch({ loginPath });
   const client = makeClient(options.config, { baseUrl: apiPath, fetch });
   const mediaClient = makeMediaClient({ baseUrl: apiPath, fetch });
+  // One memoised loader shared by the relation editor and the relation reader,
+  // so a table of rows resolving the same target hits the API once.
+  const loadRelations = makeRelationLoader(options.config, client);
 
   return {
     config: options.config,
     basePath,
     apiPath,
     branding: options.branding ?? {},
+    theme: resolveTheme(options.theme),
     client,
     mediaClient,
     // Upgrade the plain lat/lng geo input to a map picker bound to this admin's
@@ -56,9 +82,15 @@ export function defineAdmin<C extends NormalizedConfig>(
     // still win (a host that sets `widgets.edit.geo` replaces the picker).
     editWidgets: mergeEditRegistry({
       geo: createGeoInput({ mapStyleUrl, darkStyleUrl: mapDarkStyleUrl }),
+      // Upgrade the id fallback to a real searchable picker over the target
+      // collection — the admin is the layer that knows how to fetch.
+      relation: createRelationInput({ load: loadRelations }),
       ...options.widgets?.edit,
     }),
-    displayWidgets: mergeDisplayRegistry(options.widgets?.display),
+    displayWidgets: mergeDisplayRegistry({
+      relation: createRelationDisplay({ load: loadRelations }),
+      ...options.widgets?.display,
+    }),
     slots: options.slots ?? {},
     screens: options.screens ?? [],
     nav: options.nav,

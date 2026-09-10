@@ -97,6 +97,8 @@ export interface ListViewProps {
   readonly onSelectedChange?: (keys: ReadonlySet<string>) => void;
   /** Bulk actions shown in the selection bar (receives the selected keys). */
   readonly bulkActions?: (selected: ReadonlySet<string>) => ReactNode;
+  /** Per-row actions revealed on hover / focus (see `DataTable.rowActions`). */
+  readonly rowActions?: (row: Doc, index: number) => ReactNode;
   /** Row density; uncontrolled (with a toolbar toggle) when omitted. */
   readonly density?: TableDensity;
   readonly onDensityChange?: (density: TableDensity) => void;
@@ -137,12 +139,21 @@ function Root({
   selected,
   onSelectedChange,
   bulkActions,
+  rowActions,
   density,
   onDensityChange,
 }: ListViewProps): ReactNode {
   const heading = title ?? collection.label ?? humanize(collection.slug);
   const canLoadMore = Boolean(nextCursor) && onLoadMore !== undefined;
-  const showSearch = searchEnabled(collection.search) && onSearchChange !== undefined;
+  // The search box is always offered when the host wires it. A collection
+  // without full-text search still gets a box — the host narrows the loaded
+  // rows by title instead — because "I can see the field but can't type a
+  // title" is the confusing state, not the missing index.
+  const fullText = searchEnabled(collection.search);
+  const showSearch = onSearchChange !== undefined;
+  const searchPlaceholder = fullText
+    ? `Search ${String(heading).toLowerCase()}…`
+    : "Filter by title…";
   const showStatusFilter = collection.drafts === true && onStatusChange !== undefined;
   const [internalDensity, setInternalDensity] = useState<TableDensity>("compact");
   const activeDensity = density ?? internalDensity;
@@ -187,7 +198,9 @@ function Root({
         <Empty.Title>{emptyMessage ?? `No ${String(heading).toLowerCase()} yet`}</Empty.Title>
         <Empty.Description>
           {searchValue
-            ? "Nothing matches this search. Try another term or clear the filters."
+            ? fullText
+              ? "Nothing matches this search. Try another term or clear the filters."
+              : "No loaded record has a matching title. Clear the filter, or load more records."
             : "Records you create will show up here."}
         </Empty.Description>
       </Empty.Header>
@@ -222,6 +235,7 @@ function Root({
                   value={searchValue}
                   onChange={onSearchChange}
                   onSubmit={onSearchSubmit}
+                  placeholder={searchPlaceholder}
                   disabled={loading}
                 />
               </div>
@@ -295,6 +309,7 @@ function Root({
           selectable={selectable}
           selected={selectable ? selectedSet : undefined}
           onSelectedChange={selectable ? changeSelected : undefined}
+          rowActions={rowActions}
         />
       </div>
 

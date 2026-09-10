@@ -120,11 +120,38 @@ describe("defineConfig", () => {
     const _typeProbe: T = { "en-US": "Hi", "fr-FR": "Salut" };
     expect(_typeProbe["fr-FR"]).toBe("Salut");
 
-    // Runtime: an unselected locale is rejected, selected ones are accepted.
+    // Runtime: selected locales are accepted, and a locale outside the project
+    // is dropped from the decoded record rather than stored.
     expect(decodeSync(title, { "en-US": "Hi", "fr-FR": "Salut" })).toEqual({
       "en-US": "Hi",
       "fr-FR": "Salut",
     });
-    expect(() => decodeSync(title, { "de-DE": "Hallo" })).toThrow();
+    expect(decodeSync(title, { "de-DE": "Hallo" })).toEqual({});
+
+    // An untranslated locale is allowed: `title` is optional here, so a record
+    // carrying only the default locale decodes to just that locale.
+    expect(decodeSync(title, { "en-US": "Hi" })).toEqual({ "en-US": "Hi" });
+  });
+
+  it("requires only the default locale on a required localized field", () => {
+    const strict = defineCollection({
+      slug: "strict",
+      fields: { title: fields.string({ localized: true, required: true }) },
+    });
+    const config = defineConfig({
+      branding: { name: "Acme" },
+      i18n: { locales: ["en-US", "fr-FR"], defaultLocale: "en-US" },
+      collections: { strict },
+    });
+    const title = config.collections.strict.fields.title;
+
+    // The default locale alone is enough — translations land later, and reads
+    // fall back down the locale chain.
+    expect(decodeSync(title, { "en-US": "Hi" })).toEqual({ "en-US": "Hi" });
+    expect(decodeSync(title, { "en-US": "Hi", "fr-FR": "" })).toEqual({ "en-US": "Hi" });
+
+    // Missing (or blank) default locale still fails, under that locale's path.
+    expect(() => decodeSync(title, { "fr-FR": "Salut" })).toThrow();
+    expect(() => decodeSync(title, { "en-US": "" })).toThrow();
   });
 });

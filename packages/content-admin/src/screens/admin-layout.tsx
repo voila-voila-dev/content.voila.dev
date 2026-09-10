@@ -35,7 +35,7 @@ export function useCounts(): Readonly<Record<string, number>> | undefined {
 }
 
 export function AdminLayoutScreen(): ReactNode {
-  const { admin, user } = useAdmin();
+  const { admin, user, brand } = useAdmin();
   const currentPath = useRouterState({ select: (state) => state.location.pathname });
   const counts = useCounts();
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -74,7 +74,7 @@ export function AdminLayoutScreen(): ReactNode {
       basePath={admin.basePath}
       currentPath={currentPath}
       renderLink={(item) => <AdminLink href={item.href} />}
-      logo={resolveBrandLogo(admin.branding.logo)}
+      logo={resolveBrandLogo(admin.branding.logo, brand?.logo)}
       brandSubtitle={admin.slots.shell?.brandSubtitle ?? admin.branding.title}
       sidebarFooter={footer}
       extraGroups={extraGroups}

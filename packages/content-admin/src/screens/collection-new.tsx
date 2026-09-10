@@ -2,6 +2,12 @@
 // "New <singular>", with Create in the header action bar; a failed write
 // surfaces per-field errors inline (see `fieldErrors`). Mounted by the host's
 // fixed `_app.$collection.new.tsx` shim.
+//
+// Two things differ from the edit screen on purpose. Groups render STACKED
+// (`groupLayout="all"`): a new record has no group nav to route through, so
+// hiding groups behind one would leave most of a collection's fields
+// unreachable until after the first save. And navigating away with typed but
+// unsaved input asks first (`useUnsavedGuard`) — Cancel used to discard silently.
 
 import { useNavigate, useParams } from "@tanstack/react-router";
 import type { Collection } from "@voila/content";
@@ -10,6 +16,7 @@ import { Button } from "@voila.dev/ui/button";
 import type { ReactNode } from "react";
 import { useAdmin } from "../context";
 import { useCollectionMutations } from "../hooks/use-collection-mutations";
+import { useUnsavedGuard } from "../hooks/use-unsaved-guard";
 import { AdminLink } from "../lib/admin-link";
 import { backToList } from "../lib/back";
 import { errorMessage, fieldErrors } from "../lib/field-errors";
@@ -22,6 +29,9 @@ export function CollectionNewScreen(): ReactNode {
   const collection = admin.config.collections[slug] as Collection | undefined;
 
   const { create } = useCollectionMutations(slug);
+  const guard = useUnsavedGuard({
+    label: collection ? singularLabel(collection).toLowerCase() : undefined,
+  });
 
   if (!collection) return <CustomScreenDispatcher />;
 
@@ -30,36 +40,42 @@ export function CollectionNewScreen(): ReactNode {
   const back = backToList(admin.basePath, slug, label);
 
   return (
-    <CollectionForm
-      collection={collection}
-      registry={admin.editWidgets}
-      locales={admin.config.i18n?.locales}
-      title={`New ${singularLabel(collection).toLowerCase()}`}
-      back={
-        <PageLayout.Back
-          href={back.href}
-          label={back.label}
-          renderLink={(href) => <AdminLink href={href} />}
-        />
-      }
-      actions={
-        <Button
-          variant="ghost"
-          size="sm"
-          nativeButton={false}
-          render={<AdminLink href={back.href} />}
-        >
-          Cancel
-        </Button>
-      }
-      error={!serverErrors ? errorMessage(create.error) : undefined}
-      serverErrors={serverErrors}
-      submitLabel="Create"
-      onSubmit={(values) =>
-        create.mutate(values as Doc, {
-          onSuccess: (doc) => navigate({ href: `${admin.basePath}/${slug}/${doc.id}` }),
-        })
-      }
-    />
+    <>
+      {guard.dialog}
+      <CollectionForm
+        collection={collection}
+        registry={admin.editWidgets}
+        locales={admin.config.i18n?.locales}
+        defaultLocale={admin.config.i18n?.defaultLocale}
+        groupLayout="all"
+        onDirtyChange={guard.setDirty}
+        title={`New ${singularLabel(collection).toLowerCase()}`}
+        back={
+          <PageLayout.Back
+            href={back.href}
+            label={back.label}
+            renderLink={(href) => <AdminLink href={href} />}
+          />
+        }
+        actions={
+          <Button
+            variant="ghost"
+            size="sm"
+            nativeButton={false}
+            render={<AdminLink href={back.href} />}
+          >
+            Cancel
+          </Button>
+        }
+        error={!serverErrors ? errorMessage(create.error) : undefined}
+        serverErrors={serverErrors}
+        submitLabel="Create"
+        onSubmit={(values) =>
+          create.mutate(values as Doc, {
+            onSuccess: (doc) => navigate({ href: `${admin.basePath}/${slug}/${doc.id}` }),
+          })
+        }
+      />
+    </>
   );
 }

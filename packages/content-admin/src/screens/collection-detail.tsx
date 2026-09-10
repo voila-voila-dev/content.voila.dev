@@ -30,12 +30,15 @@ import { DropdownMenu } from "@voila.dev/ui/dropdown-menu";
 import { type ReactNode, useState } from "react";
 import { useAdmin } from "../context";
 import { useCollectionMutations } from "../hooks/use-collection-mutations";
+import { useUnsavedGuard } from "../hooks/use-unsaved-guard";
 import { AdminLink } from "../lib/admin-link";
 import { backToList } from "../lib/back";
 import { collectionClient } from "../lib/client-access";
 import { errorMessage, fieldErrors } from "../lib/field-errors";
 import { CustomScreenDispatcher } from "./custom-dispatcher";
+import { RecordPager } from "./record-pager";
 import { SingletonScreen } from "./singleton";
+import { StatusControl } from "./status-control";
 
 /** The reserved section id for version history (never a field group id). */
 const HISTORY_SECTION = "history";
@@ -79,6 +82,9 @@ function CollectionDocument({
   const [editing, setEditing] = useState(false);
   const label = collection.label ?? slug;
   const singular = singularLabel(collection);
+  // Grouped collections save per field, so a blocked navigation there has no
+  // single Save to offer — only Discard / Keep editing.
+  const guard = useUnsavedGuard({ label: singular.toLowerCase() });
   const listBack = backToList(admin.basePath, slug, label);
   const docBase = `${admin.basePath}/${slug}/${id}`;
 
@@ -156,44 +162,49 @@ function CollectionDocument({
   if (editing && doc.data) {
     const serverErrors = fieldErrors(update.error);
     return (
-      <CollectionForm
-        collection={collection}
-        registry={admin.editWidgets}
-        locales={admin.config.i18n?.locales}
-        defaultValues={doc.data}
-        title={`Edit ${title}`}
-        back={back}
-        // Per-field (grouped) mode has no single Save to exit on, so Done returns
-        // to the read view; a whole-form save returns on its own, so it just
-        // needs Cancel.
-        actions={
-          <Button
-            type="button"
-            variant={grouped ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setEditing(false)}
-          >
-            {grouped ? "Done" : "Cancel"}
-          </Button>
-        }
-        error={!serverErrors ? errorMessage(update.error) : undefined}
-        serverErrors={serverErrors}
-        submitLabel="Save"
-        activeGroup={activeGroup}
-        onGroupChange={changeGroup}
-        // Grouped collections save per field (each field patches itself);
-        // ungrouped ones keep the single whole-form Save. `api.update` is a
-        // PATCH, so a one-field partial is safe.
-        saveMode={grouped ? "field" : "form"}
-        onSubmit={(values) =>
-          update.mutate(
-            { id, values: values as Doc },
-            // Per-field (grouped) edits stay in edit mode so other fields'
-            // unsaved edits aren't discarded; a whole-form save returns to read.
-            { onSuccess: grouped ? undefined : () => setEditing(false) },
-          )
-        }
-      />
+      <>
+        {guard.dialog}
+        <CollectionForm
+          collection={collection}
+          registry={admin.editWidgets}
+          locales={admin.config.i18n?.locales}
+          defaultLocale={admin.config.i18n?.defaultLocale}
+          onDirtyChange={guard.setDirty}
+          defaultValues={doc.data}
+          title={`Edit ${title}`}
+          back={back}
+          // Per-field (grouped) mode has no single Save to exit on, so Done returns
+          // to the read view; a whole-form save returns on its own, so it just
+          // needs Cancel.
+          actions={
+            <Button
+              type="button"
+              variant={grouped ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setEditing(false)}
+            >
+              {grouped ? "Done" : "Cancel"}
+            </Button>
+          }
+          error={!serverErrors ? errorMessage(update.error) : undefined}
+          serverErrors={serverErrors}
+          submitLabel="Save"
+          activeGroup={activeGroup}
+          onGroupChange={changeGroup}
+          // Grouped collections save per field (each field patches itself);
+          // ungrouped ones keep the single whole-form Save. `api.update` is a
+          // PATCH, so a one-field partial is safe.
+          saveMode={grouped ? "field" : "form"}
+          onSubmit={(values) =>
+            update.mutate(
+              { id, values: values as Doc },
+              // Per-field (grouped) edits stay in edit mode so other fields'
+              // unsaved edits aren't discarded; a whole-form save returns to read.
+              { onSuccess: grouped ? undefined : () => setEditing(false) },
+            )
+          }
+        />
+      </>
     );
   }
 
@@ -220,6 +231,18 @@ function CollectionDocument({
       }
       actions={
         <>
+          {/* Move between records without a round trip through the list. */}
+          <RecordPager slug={slug} id={id} keyboard={!editing} />
+          {/* The record's editorial state, changeable in one click — it used to
+              be reachable only through Edit mode and a field group. */}
+          {doc.data && collection.drafts !== true ? (
+            <StatusControl
+              collection={collection}
+              doc={doc.data}
+              disabled={update.isPending}
+              onChange={(values) => update.mutate({ id, values })}
+            />
+          ) : null}
           {admin.slots.collection?.detailActions?.({ slug, id, client: admin.client })}
           <Button type="button" size="sm" onClick={() => setEditing(true)}>
             Edit

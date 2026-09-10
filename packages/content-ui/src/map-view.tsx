@@ -15,6 +15,7 @@ import type { Collection } from "@voila/content";
 import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { documentTitle } from "./detail-view";
+import { accentColor } from "./lib/accent";
 import type { Doc } from "./lib/doc";
 import { getFieldLabel } from "./lib/humanize";
 import { activeMapStyleUrl, followThemeStyle } from "./lib/map-style";
@@ -121,6 +122,7 @@ function Root({
         const maplibre = await import("maplibre-gl");
         if (cancelled || !containerRef.current) return;
         const live = liveRef.current;
+        const pinColor = accentColor();
 
         map = new maplibre.Map({
           container: containerRef.current,
@@ -149,7 +151,9 @@ function Root({
           const popup = new maplibre.Popup({ closeButton: false }).setHTML(
             `<div class="text-sm"><strong>${escapeHtml(title)}</strong>${lines.join("")}</div>`,
           );
-          const marker = new maplibre.Marker()
+          // maplibre paints its default pin its own blue; take the brand accent
+          // when the theme set one so the map reads as part of this admin.
+          const marker = new maplibre.Marker(pinColor ? { color: pinColor } : {})
             .setLngLat([point.lng, point.lat])
             .setPopup(popup)
             .addTo(map);
@@ -188,6 +192,8 @@ function Root({
     <div
       data-slot="map-view"
       className={cn(
+        // A default height for standalone use; hosts that own the layout pass
+        // their own (the admin fills the page panel).
         "h-[60vh] w-full overflow-hidden rounded-lg border",
         "dark:[&_.maplibregl-ctrl]:hue-rotate-180 dark:[&_.maplibregl-ctrl]:invert",
         className,

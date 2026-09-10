@@ -14,7 +14,6 @@ import { cn } from "@voila.dev/ui/utils";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { cloneElement } from "react";
 import { useShell } from "./lib/shell-context";
-import { ThemeToggle } from "./theme-toggle";
 
 // Fills its parent (the shell's body slot) and clips, so the page is a fixed
 // frame and only `Body` scrolls. `min-h-0` lets it shrink inside the shell's
@@ -34,14 +33,18 @@ export interface HeaderProps extends Omit<ComponentProps<"header">, "title"> {
   readonly back?: ReactNode;
   /** Actions on the right (buttons, an overflow menu). */
   readonly actions?: ReactNode;
-  /** Hide the theme toggle (e.g. when a host renders its own). */
+  /**
+   * Kept for source compatibility; the header no longer renders a theme toggle.
+   * Appearance moved into the user menu, where it sits with the other
+   * per-person preferences instead of occupying a slot on every page.
+   */
   readonly hideThemeToggle?: boolean;
 }
 
 // The single pinned header bar. The sidebar trigger only renders inside the
 // shell (it needs the kit's `Sidebar.Provider`), so the same page renders
 // cleanly embedded or under test.
-function Header({ className, back, actions, hideThemeToggle, children, ...props }: HeaderProps) {
+function Header({ className, back, actions, children, ...props }: HeaderProps) {
   const { inShell } = useShell();
   return (
     <header
@@ -56,7 +59,6 @@ function Header({ className, back, actions, hideThemeToggle, children, ...props 
       {back}
       <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
-      {hideThemeToggle ? null : <ThemeToggle />}
     </header>
   );
 }

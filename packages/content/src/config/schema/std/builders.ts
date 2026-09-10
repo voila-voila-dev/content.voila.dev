@@ -10,6 +10,7 @@ import {
   fail,
   type Infer,
   type Issue,
+  issue,
   ok,
   type Result,
   underPath,
@@ -138,6 +139,46 @@ export function record<T>(
     const out: Record<string, T> = {};
     const issues: Issue[] = [];
     for (const key of keys ?? Object.keys(rec)) {
+      const r = validateSync(value, rec[key]);
+      if (r.issues) issues.push(...underPath(r.issues, key));
+      else out[key] = r.value;
+    }
+    return issues.length ? { issues } : ok(out);
+  });
+}
+
+/** Absent for write purposes: an unset key or an empty string. */
+function localeUnset(v: unknown): boolean {
+  return v === undefined || v === null || v === "";
+}
+
+/**
+ * The record behind a localized field. Unlike {@link record}, only the locales
+ * in `required` must carry a value — every other locale may be absent or blank
+ * and is simply omitted from the decoded record. That is what makes a
+ * monolingual editor able to save a `required` localized field: the project's
+ * default locale is the only one that has to be filled, and the read path's
+ * fallback chain covers the rest.
+ *
+ * A blank required locale fails under that locale's own path (`title.en-US`),
+ * so the message lands on the offending input rather than the whole field.
+ */
+export function localizedRecord<T>(
+  value: Validator<T>,
+  locales: ReadonlyArray<string>,
+  required: ReadonlyArray<string> = [],
+): Validator<Record<string, T>> {
+  const requiredSet = new Set(required);
+  return validator((v) => {
+    if (typeof v !== "object" || v === null || Array.isArray(v)) return fail("Expected an object");
+    const rec = v as Record<string, unknown>;
+    const out: Record<string, T> = {};
+    const issues: Issue[] = [];
+    for (const key of locales) {
+      if (localeUnset(rec[key])) {
+        if (requiredSet.has(key)) issues.push(...underPath([issue("Required.")], key));
+        continue;
+      }
       const r = validateSync(value, rec[key]);
       if (r.issues) issues.push(...underPath(r.issues, key));
       else out[key] = r.value;

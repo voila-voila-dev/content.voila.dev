@@ -226,9 +226,17 @@ describe("ListView search box", () => {
     expect(onSearchChange).toHaveBeenCalledWith("fox");
   });
 
-  test("hidden for a non-search collection even when wired", () => {
+  test("still offered on a collection with no index, as a title filter", () => {
+    // Hiding the box on an unindexed collection left editors with no way to
+    // narrow a list at all; the box stays and says what it actually does.
     render(<ListView.Root collection={posts} rows={rows} onSearchChange={() => {}} />);
-    expect(screen.queryByRole("searchbox")).toBeNull();
+    const box = screen.getByRole("searchbox");
+    expect(box.getAttribute("placeholder")).toBe("Filter by title…");
+  });
+
+  test("an indexed collection's box names the collection", () => {
+    render(<ListView.Root collection={searchable} rows={[]} onSearchChange={() => {}} />);
+    expect(screen.getByRole("searchbox").getAttribute("placeholder")).toMatch(/^Search /);
   });
 
   test("hidden when no onSearchChange handler is wired", () => {

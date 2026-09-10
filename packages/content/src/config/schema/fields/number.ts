@@ -14,6 +14,7 @@ export type NumberMeta = FieldMeta<{
   readonly min?: number;
   readonly max?: number;
   readonly step?: number;
+  readonly grouping?: boolean;
 }>;
 
 export interface NumberOpts extends BaseFieldOpts<number> {
@@ -21,6 +22,13 @@ export interface NumberOpts extends BaseFieldOpts<number> {
   readonly max?: number;
   readonly integer?: boolean;
   readonly step?: number;
+  /**
+   * Thousands separators when the value is displayed. Defaults to `true`, which
+   * is right for quantities and money — and wrong for identifiers that happen
+   * to be numeric, where "2,019" reads as a quantity instead of the year 2019.
+   * Set `false` for years, reference numbers, and postcodes.
+   */
+  readonly grouping?: boolean;
 }
 
 export function number<const O extends NumberOpts = NumberOpts>(
@@ -37,6 +45,7 @@ export function number<const O extends NumberOpts = NumberOpts>(
     min: opts?.min,
     max: opts?.max,
     step: opts?.step,
+    grouping: opts?.grouping,
   };
   return applyCommon(checks.length ? refine(num(), ...checks) : num(), opts, meta);
 }

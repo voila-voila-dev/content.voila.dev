@@ -7,6 +7,7 @@
 
 import type { Field } from "@voila/content";
 import { Badge } from "@voila.dev/ui/badge";
+import { cn } from "@voila.dev/ui/utils";
 import type { ReactNode } from "react";
 import type { Doc } from "./lib/doc";
 import { type EditRegistry, resolveEditWidget } from "./registry/edit";
@@ -32,6 +33,37 @@ export interface LocalizedFieldEditorProps {
    */
   readonly errors?: Readonly<Record<string, string>>;
   readonly disabled?: boolean;
+  /**
+   * Render only this locale's editor instead of stacking every locale. This is
+   * what the form's `LocaleSwitcher` drives; omit it and the editor keeps the
+   * stacked layout (still the right shape for a two-locale field rendered on
+   * its own, outside a form).
+   */
+  readonly activeLocale?: string;
+  /**
+   * The locale reads fall back to. When the active locale is empty and this one
+   * has text, the fallback is shown greyed under the input — so a translator can
+   * see what they are translating without leaving the field.
+   */
+  readonly fallbackLocale?: string;
+}
+
+/** Plain-text preview of a fallback value, for the translator hint. */
+function previewText(value: unknown): string | undefined {
+  if (typeof value === "string") return value.trim() === "" ? undefined : value;
+  if (Array.isArray(value)) {
+    const text = value.map(nodeText).join(" ").trim();
+    return text === "" ? undefined : text;
+  }
+  return undefined;
+}
+
+function nodeText(node: unknown): string {
+  if (node === null || typeof node !== "object") return "";
+  const n = node as { text?: unknown; children?: unknown };
+  if (typeof n.text === "string") return n.text;
+  if (Array.isArray(n.children)) return n.children.map(nodeText).join("");
+  return "";
 }
 
 function asRecord(value: unknown): Readonly<Doc> {
@@ -50,23 +82,39 @@ export function LocalizedFieldEditor({
   registry,
   errors,
   disabled,
+  activeLocale,
+  fallbackLocale,
 }: LocalizedFieldEditorProps): ReactNode {
   // The unwrapped per-locale value field; without it (a hand-built field) the
   // outer field is all we have — its widget edits the raw record.
   const inner = field.inner ?? field;
   const Widget = resolveEditWidget(inner.meta, registry);
   const record = asRecord(value);
+  // One locale at a time when the form drives a switcher; otherwise stacked.
+  const shown =
+    activeLocale !== undefined && locales.includes(activeLocale) ? [activeLocale] : locales;
+  const single = shown.length === 1 && activeLocale !== undefined;
 
   return (
     <div className="space-y-2">
-      {locales.map((locale) => {
+      {shown.map((locale) => {
         const localeError = errors?.[locale];
+        // Show what this locale is a translation OF, when it's still empty.
+        const fallback =
+          fallbackLocale !== undefined &&
+          fallbackLocale !== locale &&
+          previewText(record[locale]) === undefined
+            ? previewText(record[fallbackLocale])
+            : undefined;
         return (
           <div key={locale} className="flex items-start gap-2">
+            {/* The switcher already names the locale, so the per-row badge is
+                redundant in single-locale mode — but it still has to exist for
+                `aria-labelledby`, so it goes to screen readers only. */}
             <Badge
               id={`${id}-${locale}-label`}
               variant="outline"
-              className="mt-1.5 shrink-0 font-mono text-xs"
+              className={cn("mt-1.5 shrink-0 font-mono text-xs", single && "sr-only")}
             >
               {locale}
             </Badge>
@@ -90,6 +138,11 @@ export function LocalizedFieldEditor({
                   className="mt-1 text-sm text-destructive"
                 >
                   {localeError}
+                </p>
+              ) : null}
+              {fallback ? (
+                <p className="mt-1 truncate text-muted-foreground text-xs">
+                  <span className="font-mono">{fallbackLocale}</span>: {fallback}
                 </p>
               ) : null}
             </div>

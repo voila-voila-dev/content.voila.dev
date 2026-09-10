@@ -6,6 +6,7 @@
 // every error at once.
 
 import type { Field } from "@voila/content";
+import { isBlank } from "./blank";
 import type { Doc } from "./doc";
 
 export interface FormValidation {
@@ -13,35 +14,6 @@ export interface FormValidation {
   readonly values: Doc;
   /** Field key → first error message, for the fields that failed. */
   readonly errors: Readonly<Record<string, string>>;
-}
-
-/** Treat `undefined`/`null`/`""` as "not provided", like an absent write key. */
-function isEmpty(value: unknown): boolean {
-  return value === null || value === undefined || value === "";
-}
-
-/** Concatenated leaf text of a rich-text node tree (mirrors the display widget). */
-function richTextText(node: unknown): string {
-  if (node === null || typeof node !== "object") return "";
-  const n = node as { text?: unknown; children?: unknown };
-  if (typeof n.text === "string") return n.text;
-  if (Array.isArray(n.children)) return n.children.map(richTextText).join("");
-  return "";
-}
-
-/**
- * Is a single value blank for write purposes? Empty scalars are blank, and so is
- * an *empty rich-text document* — the `[{ type:"p", children:[{ text:"" }] }]`
- * the editor emits when it normalises an untouched field on mount. Without this,
- * opening and saving a record would persist that empty doc instead of leaving an
- * optional field absent.
- */
-function isBlank(field: Field, value: unknown): boolean {
-  if (isEmpty(value)) return true;
-  if (field.meta.kind === "richText") {
-    return !Array.isArray(value) || value.map(richTextText).join("").trim() === "";
-  }
-  return false;
 }
 
 /**
@@ -65,6 +37,35 @@ function isFieldBlank(field: Field, value: unknown): boolean {
 }
 
 /**
+ * Strip the locales a user left empty out of a localized record before it meets
+ * the field's schema. `required` on a localized field means "the default locale
+ * is filled" — the other locales are translations that can land later — so an
+ * empty translation must not be sent as `""` and must not fail validation. This
+ * mirrors the engine's `localizedRecord`, which is what the server enforces.
+ */
+function isLocalizedBlank(pruned: unknown): boolean {
+  if (typeof pruned !== "object" || pruned === null || Array.isArray(pruned)) return true;
+  return Object.keys(pruned as Record<string, unknown>).length === 0;
+}
+
+function pruneEmptyLocales(field: Field, value: unknown): unknown {
+  if (
+    field.meta.localized !== true ||
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value)
+  ) {
+    return value;
+  }
+  const inner = field.inner ?? field;
+  const out: Record<string, unknown> = {};
+  for (const [locale, v] of Object.entries(value as Record<string, unknown>)) {
+    if (!isBlank(inner, v)) out[locale] = v;
+  }
+  return out;
+}
+
+/**
  * Per-locale validation messages for a localized field, keyed by locale. Lets
  * the form show an error under the *specific* locale that failed instead of
  * repeating the field's single message under every locale. Each locale's value
@@ -75,8 +76,11 @@ export function localizedFieldErrors(
   field: Field,
   value: unknown,
   locales: ReadonlyArray<string>,
+  defaultLocale?: string,
 ): Readonly<Record<string, string>> {
   const inner = field.inner ?? field;
+  // Only the default locale carries `required` — see `pruneEmptyLocales`.
+  const requiredLocale = defaultLocale ?? locales[0];
   const record =
     typeof value === "object" && value !== null && !Array.isArray(value)
       ? (value as Record<string, unknown>)
@@ -85,7 +89,7 @@ export function localizedFieldErrors(
   for (const locale of locales) {
     const v = record[locale];
     if (isBlank(inner, v)) {
-      if (field.meta.required === true) out[locale] = "Required.";
+      if (field.meta.required === true && locale === requiredLocale) out[locale] = "Required.";
       continue;
     }
     const result = inner["~standard"].validate(v);
@@ -102,15 +106,31 @@ export function validateFields(
   fields: Readonly<Record<string, Field>>,
   values: Readonly<Doc>,
   keys?: ReadonlyArray<string>,
+  opts?: { readonly locales?: ReadonlyArray<string>; readonly defaultLocale?: string },
 ): FormValidation {
   const out: Doc = {};
   const errors: Record<string, string> = {};
+  const requiredLocale = opts?.defaultLocale ?? opts?.locales?.[0];
   for (const name of keys ?? Object.keys(fields)) {
     const field = fields[name];
     if (!field) continue;
-    const value = values[name];
-    if (isFieldBlank(field, value)) {
+    const localized = field.meta.localized === true;
+    // Untranslated locales are dropped before the schema sees them, so a blank
+    // translation is never persisted as `""` and never fails validation.
+    const value = localized ? pruneEmptyLocales(field, values[name]) : values[name];
+    if (localized ? isLocalizedBlank(value) : isFieldBlank(field, value)) {
       if (field.meta.required === true) errors[name] = "Required.";
+      continue;
+    }
+    // A localized field whose DEFAULT locale is blank fails as "Required." even
+    // when other locales are filled — that locale is the one reads fall back to.
+    if (
+      localized &&
+      field.meta.required === true &&
+      requiredLocale !== undefined &&
+      !(requiredLocale in (value as Record<string, unknown>))
+    ) {
+      errors[name] = "Required.";
       continue;
     }
     const result = field["~standard"].validate(value);

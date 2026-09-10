@@ -14,6 +14,7 @@
 import { Input } from "@voila.dev/ui/input";
 import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { accentColor } from "../lib/accent";
 import { activeMapStyleUrl, followThemeStyle } from "../lib/map-style";
 import { hasWebGL } from "../lib/webgl";
 import { type DisplayWidgetProps, Empty } from "./display";
@@ -191,7 +192,11 @@ function placeMarker(
     markerRef.current.setLngLat([lng, lat]);
     return;
   }
-  const marker = new maplibre.Marker({ draggable: true }).setLngLat([lng, lat]).addTo(map);
+  // Brand-coloured pin (falls back to maplibre's own blue when no accent is set).
+  const color = accentColor();
+  const marker = new maplibre.Marker({ draggable: true, ...(color ? { color } : {}) })
+    .setLngLat([lng, lat])
+    .addTo(map);
   marker.on("dragend", () => {
     if (liveRef.current.disabled) return;
     const p = marker.getLngLat();
