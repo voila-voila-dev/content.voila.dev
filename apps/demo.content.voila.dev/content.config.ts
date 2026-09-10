@@ -19,7 +19,7 @@
 //   localized  the cinema publishes in English and Portuguese
 //   multiSelect print formats (35mm, DCP…) and journal tags
 //
-// The public website in `apps/cinema-vertigo.voila.dev` is rendered from these
+// The public website in `apps/vertigo.content.voila.dev` is rendered from these
 // exact collections through the typed client, so the demo shows both halves:
 // the editor's admin and the site their readers see.
 

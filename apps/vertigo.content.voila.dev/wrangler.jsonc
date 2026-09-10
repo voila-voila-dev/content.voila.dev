@@ -1,10 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "cinema-vertigo-voila-dev",
+  "name": "vertigo-content-voila-dev",
   // Custom server entry (app/server.ts) so the Cloudflare plugin and the
   // TanStack Start plugin resolve to the same module (Start auto-detects
   // `app/server.ts`).
   "main": "app/server.ts",
+  "account_id": "3d9e9632be236005903c677f4e571f62",
   "compatibility_date": "2026-06-23",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
@@ -14,7 +15,7 @@
   // holds auth, because the demo gives each visitor a private Durable Object for
   // their content. Provision + fill it with:
   //
-  //   wrangler d1 create cinema-vertigo-voila-dev   # paste the id below
+  //   wrangler d1 create vertigo-content-voila-dev   # paste the id below
   //   bun run migrate:remote                        # schema from content.config.ts
   //   bun run seed:remote                           # the canonical programme
   //
@@ -23,17 +24,19 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "cinema-vertigo-voila-dev",
-      // PLACEHOLDER — replace with the id printed by `wrangler d1 create`.
-      "database_id": "REPLACE_ME_RUN_WRANGLER_D1_CREATE",
+      "database_name": "vertigo-content-voila-dev",
+      "database_id": "ab65c3f3-7e14-4396-85a0-4e176915be00",
       "migrations_dir": "migrations"
     }
   ],
 
   // The demo's media bucket, so a poster uploaded through the admin resolves by
   // URL here. Nothing on this site ever writes to it.
-  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "demo-content-voila-dev-media" }]
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "demo-content-voila-dev-media" }],
 
-  // Deliberately unrouted: no `routes` / `custom_domain` entry. `wrangler deploy`
-  // publishes it to the workers.dev subdomain; add a route when it gets a home.
+  // Serve the site at vertigo.content.voila.dev. A `custom_domain` route makes
+  // wrangler provision the DNS record + certificate on deploy (the
+  // content.voila.dev zone is on this account) — the same shape the admin demo
+  // uses for demo.content.voila.dev.
+  "routes": [{ "pattern": "vertigo.content.voila.dev", "custom_domain": true }]
 }

@@ -73,7 +73,7 @@ async function safely<T>(what: string, read: () => Promise<T>, fallback: T): Pro
   try {
     return await read();
   } catch (error) {
-    console.error(`[cinema-vertigo] read failed: ${what}`, error);
+    console.error(`[vertigo] read failed: ${what}`, error);
     return fallback;
   }
 }
