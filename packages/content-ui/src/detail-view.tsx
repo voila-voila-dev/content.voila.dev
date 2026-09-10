@@ -1,5 +1,5 @@
 // DetailView — the read view for one document: the single page header (back ·
-// document title · actions) over an identity strip (status, updated-at, id)
+// document title · actions) over an identity strip (status, id)
 // and a definition list that renders every non-hidden field through
 // `FieldRenderer`, so each value is shown by the widget registry the same way
 // `DataTable` cells are. Presentational and router-agnostic — the host fetches
@@ -21,7 +21,6 @@ import { getFieldLabel, humanize } from "./lib/humanize";
 import { type I18nContextValue, resolveLocalized, useI18n } from "./lib/i18n";
 import { PageLayout } from "./page-layout";
 import type { DisplayRegistry } from "./registry/registry";
-import { formatDate, relativeDate } from "./widgets/display";
 import { StatusBadge } from "./widgets/status-badge";
 
 export interface DetailViewProps {
@@ -102,32 +101,17 @@ function resolveRows(collection: Collection, fields?: readonly string[]): Row[] 
   return out;
 }
 
-function toDate(value: unknown): Date | undefined {
-  if (value instanceof Date) return value;
-  if (typeof value === "number" || typeof value === "string") {
-    const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? undefined : d;
-  }
-  return undefined;
-}
-
-/** The identity strip under the header: status · updated-at · copyable id. */
+/** The identity strip under the header: status · copyable id. */
 function EntityMeta({ collection, doc }: { collection: Collection; doc: Doc }): ReactNode {
   const id = typeof doc.id === "string" || typeof doc.id === "number" ? String(doc.id) : undefined;
-  const updated = toDate(doc.updatedAt) ?? toDate(doc.createdAt);
   const showStatus = collection.drafts === true;
-  if (!id && !updated && !showStatus) return null;
+  if (!id && !showStatus) return null;
   return (
     <div
       data-slot="entity-meta"
       className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground text-xs"
     >
       {showStatus ? <StatusBadge doc={doc} /> : null}
-      {updated ? (
-        <span title={formatDate(updated, "datetime")}>
-          Updated {relativeDate(updated) ?? formatDate(updated, "datetime")}
-        </span>
-      ) : null}
       {id ? (
         <CopyableText
           value={id}

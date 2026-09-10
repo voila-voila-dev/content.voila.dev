@@ -155,7 +155,7 @@ Legend: ✅ fixed · 🟡 partial · ⏭ deferred (out of scope for this pass, r
 | T16 | ✅ | Kit `Empty` with icon, title, description, primary action. |
 | T17 | 🟡 | Kit `NativeSelect` in the dialog (a portal Select inside a Base UI dialog renders behind the backdrop); default card fields = short fields. Dialog transition flash not addressed. |
 | D1/D2 | ✅ | Card hugs its rows; read-only rich text flush (`.voila-rich-text-readonly`). |
-| D3 | ✅ | Identity strip: status badge (drafts), "Updated 3 min ago", copyable id. |
+| D3 | ✅ | Identity strip: status badge (drafts) + copyable id (updated-at dropped on request). |
 | D4 | ✅ | "No image" placeholder tile on detail; thumbnail + mime/size when set. |
 | D5 | ✅ | Gone with N2. |
 | D6 | ✅ | Labels `text-xs/sm` muted, values `text-sm`. |
