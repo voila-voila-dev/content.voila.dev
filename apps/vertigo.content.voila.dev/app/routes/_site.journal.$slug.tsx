@@ -9,7 +9,7 @@ import { type Lang, langSearch, strings } from "../lib/i18n";
 import { fetchEntry } from "../lib/queries";
 import { useLang } from "../lib/use-lang";
 
-export const Route = createFileRoute("/journal/$slug")({
+export const Route = createFileRoute("/_site/journal/$slug")({
   loaderDeps: ({ search }) => ({ lang: search.lang ?? ("en-US" as Lang) }),
   loader: async ({ params, deps }) => {
     const payload = await fetchEntry({ data: { lang: deps.lang, slug: params.slug } });

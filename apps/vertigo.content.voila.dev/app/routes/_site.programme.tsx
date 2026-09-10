@@ -16,7 +16,7 @@ interface ProgrammeSearch {
   readonly screen?: string;
 }
 
-export const Route = createFileRoute("/programme")({
+export const Route = createFileRoute("/_site/programme")({
   // Adds to the root route's `?lang`; both are inherited by every link below.
   validateSearch: (search: Record<string, unknown>): ProgrammeSearch =>
     typeof search.screen === "string" && search.screen !== "" ? { screen: search.screen } : {},

@@ -30,13 +30,33 @@
     }
   ],
 
-  // The demo's media bucket, so a poster uploaded through the admin resolves by
-  // URL here. Nothing on this site ever writes to it.
-  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "demo-content-voila-dev-media" }],
+  // The media library. The admin half of this app (`/admin`) uploads posters and
+  // stills here through the `_media` pipeline, and the public pages render the
+  // resulting URLs. Its OWN bucket, not the demo's: this site writes to it, and
+  // an editor here should never be able to touch the sandbox demo's assets.
+  "r2_buckets": [{ "binding": "BUCKET", "bucket_name": "vertigo-content-voila-dev-media" }],
+
+  // Non-secret runtime config for the admin's auth. The origin gives Secure
+  // cookies + correct magic-link verify URLs; the from-address is used by the
+  // Resend mailer (RESEND_API_KEY is a secret, not set here). Under `vite dev`
+  // `app/lib/server.ts` passes `dev: true`, which drops the pinned origin so
+  // magic links point at localhost instead of the live site.
+  "vars": {
+    "VOILA_BASE_URL": "https://vertigo.content.voila.dev",
+    // The sending domain has to be one Resend has verified, which today is the
+    // demo's subdomain; only the display name is this site's. Move it to a
+    // vertigo subdomain once that domain is verified in Resend.
+    "VOILA_AUTH_FROM": "Cinéma Vertigo <noreply@updates.demo.content.voila.dev>"
+  },
 
   // Serve the site at vertigo.content.voila.dev. A `custom_domain` route makes
   // wrangler provision the DNS record + certificate on deploy (the
   // content.voila.dev zone is on this account) — the same shape the admin demo
   // uses for demo.content.voila.dev.
   "routes": [{ "pattern": "vertigo.content.voila.dev", "custom_domain": true }]
+
+  // Secrets are NOT committed. `VOILA_AUTH_SECRET` signs sessions, CSRF tokens
+  // and magic-link tokens; without it the Worker throws at boot:
+  //   wrangler secret put VOILA_AUTH_SECRET
+  //   wrangler secret put RESEND_API_KEY   (real magic-link email; else console)
 }

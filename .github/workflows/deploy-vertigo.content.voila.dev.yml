@@ -1,0 +1,78 @@
+name: Deploy (vertigo.content.voila.dev)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/vertigo.content.voila.dev/**"
+      - ".github/workflows/deploy-vertigo.content.voila.dev.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-vertigo-content-voila-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare Workers
+    runs-on: ubuntu-latest
+    # This site's OWN GitHub Environment. Deliberately not the demo's: the two
+    # Workers must not share VOILA_AUTH_SECRET, because the demo lets anyone
+    # sign in and this one administers the live public site.
+    environment: vertigo.content.voila.dev
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: voila-voila-dev/.github/actions/setup-bun@main
+      - uses: voila-voila-dev/.github/actions/install@main
+
+      - name: Apply D1 migrations (remote)
+        uses: voila-voila-dev/.github/actions/cloudflare-workers-publish@main
+        with:
+          command: d1 migrations apply vertigo-content-voila-dev --remote
+          working-directory: apps/vertigo.content.voila.dev
+          api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Build
+        shell: bash
+        working-directory: apps/vertigo.content.voila.dev
+        run: bun run build
+
+      - name: Deploy to Cloudflare Workers
+        uses: voila-voila-dev/.github/actions/cloudflare-workers-publish@main
+        with:
+          command: deploy
+          working-directory: apps/vertigo.content.voila.dev
+          api-token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # GitHub is the source of truth for the Worker's runtime secrets. Each
+      # deploy re-pushes them so the Worker never drifts from the repo secrets.
+      # Runs after deploy (the Worker must exist for `secret bulk`). Only the
+      # secrets actually configured in GitHub are included — an unset optional
+      # secret (RESEND_API_KEY) is skipped rather than pushed as an empty value,
+      # and without it magic links fall back to the Worker log.
+      - name: Sync Worker secrets from GitHub
+        shell: bash
+        working-directory: apps/vertigo.content.voila.dev
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          VOILA_AUTH_SECRET: ${{ secrets.VOILA_AUTH_SECRET }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          # Build a JSON of only the non-empty secrets (jq --arg keeps values
+          # off the command line / out of the logs), then bulk-upload.
+          jq -n \
+            ${VOILA_AUTH_SECRET:+--arg VOILA_AUTH_SECRET "$VOILA_AUTH_SECRET"} \
+            ${RESEND_API_KEY:+--arg RESEND_API_KEY "$RESEND_API_KEY"} \
+            '$ARGS.named' > "$RUNNER_TEMP/worker-secrets.json"
+          if [ "$(jq 'length' "$RUNNER_TEMP/worker-secrets.json")" -gt 0 ]; then
+            bunx wrangler secret bulk "$RUNNER_TEMP/worker-secrets.json"
+          else
+            echo "No secrets configured in this GitHub Environment; nothing to sync."
+          fi
+          rm -f "$RUNNER_TEMP/worker-secrets.json"

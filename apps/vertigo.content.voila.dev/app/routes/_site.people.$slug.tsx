@@ -11,7 +11,7 @@ import { type Lang, strings } from "../lib/i18n";
 import { fetchPerson } from "../lib/queries";
 import { useLang } from "../lib/use-lang";
 
-export const Route = createFileRoute("/people/$slug")({
+export const Route = createFileRoute("/_site/people/$slug")({
   loaderDeps: ({ search }) => ({ lang: search.lang ?? ("en-US" as Lang) }),
   loader: async ({ params, deps }) => {
     const payload = await fetchPerson({ data: { lang: deps.lang, slug: params.slug } });
