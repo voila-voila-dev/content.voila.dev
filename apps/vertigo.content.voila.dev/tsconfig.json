@@ -9,6 +9,11 @@
     "types": ["vite/client"],
     "skipLibCheck": true,
     "noEmit": true,
+    // `@voila/rich-text-editor` (the admin's editor widget) ships its own TS
+    // sources and imports them with explicit `.ts`/`.tsx` extensions. We never
+    // emit, so allowing those paths costs nothing and keeps `typecheck` about
+    // this app's code rather than a dependency's build style.
+    "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "paths": {
       "~/*": ["./app/*"]

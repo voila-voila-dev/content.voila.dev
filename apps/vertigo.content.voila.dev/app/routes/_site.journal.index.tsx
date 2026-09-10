@@ -7,7 +7,7 @@ import { type Lang, strings } from "../lib/i18n";
 import { fetchJournal } from "../lib/queries";
 import { useLang } from "../lib/use-lang";
 
-export const Route = createFileRoute("/journal/")({
+export const Route = createFileRoute("/_site/journal/")({
   loaderDeps: ({ search }) => ({ lang: search.lang ?? ("en-US" as Lang) }),
   loader: ({ deps }) => fetchJournal({ data: { lang: deps.lang } }),
   component: Journal,

@@ -9,201 +9,450 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VisitRouteImport } from './routes/visit'
-import { Route as ProgrammeRouteImport } from './routes/programme'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as JournalIndexRouteImport } from './routes/journal.index'
-import { Route as FilmsIndexRouteImport } from './routes/films.index'
-import { Route as PeopleSlugRouteImport } from './routes/people.$slug'
-import { Route as JournalSlugRouteImport } from './routes/journal.$slug'
-import { Route as FilmsSlugRouteImport } from './routes/films.$slug'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as SiteRouteImport } from './routes/_site'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as SiteIndexRouteImport } from './routes/_site.index'
+import { Route as AdminLoginRouteImport } from './routes/admin_.login'
+import { Route as AdminSplatRouteImport } from './routes/admin.$'
+import { Route as SiteVisitRouteImport } from './routes/_site.visit'
+import { Route as SiteProgrammeRouteImport } from './routes/_site.programme'
+import { Route as SiteSplatRouteImport } from './routes/_site.$'
+import { Route as AdminCollectionIndexRouteImport } from './routes/admin.$collection.index'
+import { Route as SiteJournalIndexRouteImport } from './routes/_site.journal.index'
+import { Route as SiteFilmsIndexRouteImport } from './routes/_site.films.index'
+import { Route as AdminApiSplatRouteImport } from './routes/admin_.api.$'
+import { Route as AdminCollectionNewRouteImport } from './routes/admin.$collection.new'
+import { Route as AdminCollectionIdRouteImport } from './routes/admin.$collection.$id'
+import { Route as SitePeopleSlugRouteImport } from './routes/_site.people.$slug'
+import { Route as SiteJournalSlugRouteImport } from './routes/_site.journal.$slug'
+import { Route as SiteFilmsSlugRouteImport } from './routes/_site.films.$slug'
+import { Route as AdminCollectionIdGroupRouteImport } from './routes/admin.$collection.$id.$group'
 
-const VisitRoute = VisitRouteImport.update({
-  id: '/visit',
-  path: '/visit',
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProgrammeRoute = ProgrammeRouteImport.update({
-  id: '/programme',
-  path: '/programme',
+const SiteRoute = SiteRouteImport.update({
+  id: '/_site',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
+const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const SiteIndexRoute = SiteIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SiteRoute,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin_/login',
+  path: '/admin/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const JournalIndexRoute = JournalIndexRouteImport.update({
+const AdminSplatRoute = AdminSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => AdminRoute,
+} as any)
+const SiteVisitRoute = SiteVisitRouteImport.update({
+  id: '/visit',
+  path: '/visit',
+  getParentRoute: () => SiteRoute,
+} as any)
+const SiteProgrammeRoute = SiteProgrammeRouteImport.update({
+  id: '/programme',
+  path: '/programme',
+  getParentRoute: () => SiteRoute,
+} as any)
+const SiteSplatRoute = SiteSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => SiteRoute,
+} as any)
+const AdminCollectionIndexRoute = AdminCollectionIndexRouteImport.update({
+  id: '/$collection/',
+  path: '/$collection/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const SiteJournalIndexRoute = SiteJournalIndexRouteImport.update({
   id: '/journal/',
   path: '/journal/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => SiteRoute,
 } as any)
-const FilmsIndexRoute = FilmsIndexRouteImport.update({
+const SiteFilmsIndexRoute = SiteFilmsIndexRouteImport.update({
   id: '/films/',
   path: '/films/',
+  getParentRoute: () => SiteRoute,
+} as any)
+const AdminApiSplatRoute = AdminApiSplatRouteImport.update({
+  id: '/admin_/api/$',
+  path: '/admin/api/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PeopleSlugRoute = PeopleSlugRouteImport.update({
+const AdminCollectionNewRoute = AdminCollectionNewRouteImport.update({
+  id: '/$collection/new',
+  path: '/$collection/new',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCollectionIdRoute = AdminCollectionIdRouteImport.update({
+  id: '/$collection/$id',
+  path: '/$collection/$id',
+  getParentRoute: () => AdminRoute,
+} as any)
+const SitePeopleSlugRoute = SitePeopleSlugRouteImport.update({
   id: '/people/$slug',
   path: '/people/$slug',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => SiteRoute,
 } as any)
-const JournalSlugRoute = JournalSlugRouteImport.update({
+const SiteJournalSlugRoute = SiteJournalSlugRouteImport.update({
   id: '/journal/$slug',
   path: '/journal/$slug',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => SiteRoute,
 } as any)
-const FilmsSlugRoute = FilmsSlugRouteImport.update({
+const SiteFilmsSlugRoute = SiteFilmsSlugRouteImport.update({
   id: '/films/$slug',
   path: '/films/$slug',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => SiteRoute,
+} as any)
+const AdminCollectionIdGroupRoute = AdminCollectionIdGroupRouteImport.update({
+  id: '/$group',
+  path: '/$group',
+  getParentRoute: () => AdminCollectionIdRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/programme': typeof ProgrammeRoute
-  '/visit': typeof VisitRoute
-  '/films/$slug': typeof FilmsSlugRoute
-  '/journal/$slug': typeof JournalSlugRoute
-  '/people/$slug': typeof PeopleSlugRoute
-  '/films/': typeof FilmsIndexRoute
-  '/journal/': typeof JournalIndexRoute
+  '/': typeof SiteIndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/$': typeof SiteSplatRoute
+  '/programme': typeof SiteProgrammeRoute
+  '/visit': typeof SiteVisitRoute
+  '/admin/$': typeof AdminSplatRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/': typeof AdminIndexRoute
+  '/films/$slug': typeof SiteFilmsSlugRoute
+  '/journal/$slug': typeof SiteJournalSlugRoute
+  '/people/$slug': typeof SitePeopleSlugRoute
+  '/admin/$collection/$id': typeof AdminCollectionIdRouteWithChildren
+  '/admin/$collection/new': typeof AdminCollectionNewRoute
+  '/admin/api/$': typeof AdminApiSplatRoute
+  '/films/': typeof SiteFilmsIndexRoute
+  '/journal/': typeof SiteJournalIndexRoute
+  '/admin/$collection/': typeof AdminCollectionIndexRoute
+  '/admin/$collection/$id/$group': typeof AdminCollectionIdGroupRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/programme': typeof ProgrammeRoute
-  '/visit': typeof VisitRoute
-  '/films/$slug': typeof FilmsSlugRoute
-  '/journal/$slug': typeof JournalSlugRoute
-  '/people/$slug': typeof PeopleSlugRoute
-  '/films': typeof FilmsIndexRoute
-  '/journal': typeof JournalIndexRoute
+  '/$': typeof SiteSplatRoute
+  '/programme': typeof SiteProgrammeRoute
+  '/visit': typeof SiteVisitRoute
+  '/admin/$': typeof AdminSplatRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/': typeof SiteIndexRoute
+  '/admin': typeof AdminIndexRoute
+  '/films/$slug': typeof SiteFilmsSlugRoute
+  '/journal/$slug': typeof SiteJournalSlugRoute
+  '/people/$slug': typeof SitePeopleSlugRoute
+  '/admin/$collection/$id': typeof AdminCollectionIdRouteWithChildren
+  '/admin/$collection/new': typeof AdminCollectionNewRoute
+  '/admin/api/$': typeof AdminApiSplatRoute
+  '/films': typeof SiteFilmsIndexRoute
+  '/journal': typeof SiteJournalIndexRoute
+  '/admin/$collection': typeof AdminCollectionIndexRoute
+  '/admin/$collection/$id/$group': typeof AdminCollectionIdGroupRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/programme': typeof ProgrammeRoute
-  '/visit': typeof VisitRoute
-  '/films/$slug': typeof FilmsSlugRoute
-  '/journal/$slug': typeof JournalSlugRoute
-  '/people/$slug': typeof PeopleSlugRoute
-  '/films/': typeof FilmsIndexRoute
-  '/journal/': typeof JournalIndexRoute
+  '/_site': typeof SiteRouteWithChildren
+  '/admin': typeof AdminRouteWithChildren
+  '/_site/$': typeof SiteSplatRoute
+  '/_site/programme': typeof SiteProgrammeRoute
+  '/_site/visit': typeof SiteVisitRoute
+  '/admin/$': typeof AdminSplatRoute
+  '/admin_/login': typeof AdminLoginRoute
+  '/_site/': typeof SiteIndexRoute
+  '/admin/': typeof AdminIndexRoute
+  '/_site/films/$slug': typeof SiteFilmsSlugRoute
+  '/_site/journal/$slug': typeof SiteJournalSlugRoute
+  '/_site/people/$slug': typeof SitePeopleSlugRoute
+  '/admin/$collection/$id': typeof AdminCollectionIdRouteWithChildren
+  '/admin/$collection/new': typeof AdminCollectionNewRoute
+  '/admin_/api/$': typeof AdminApiSplatRoute
+  '/_site/films/': typeof SiteFilmsIndexRoute
+  '/_site/journal/': typeof SiteJournalIndexRoute
+  '/admin/$collection/': typeof AdminCollectionIndexRoute
+  '/admin/$collection/$id/$group': typeof AdminCollectionIdGroupRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
+    | '/$'
     | '/programme'
     | '/visit'
+    | '/admin/$'
+    | '/admin/login'
+    | '/admin/'
     | '/films/$slug'
     | '/journal/$slug'
     | '/people/$slug'
+    | '/admin/$collection/$id'
+    | '/admin/$collection/new'
+    | '/admin/api/$'
     | '/films/'
     | '/journal/'
+    | '/admin/$collection/'
+    | '/admin/$collection/$id/$group'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
+    | '/$'
     | '/programme'
     | '/visit'
+    | '/admin/$'
+    | '/admin/login'
+    | '/'
+    | '/admin'
     | '/films/$slug'
     | '/journal/$slug'
     | '/people/$slug'
+    | '/admin/$collection/$id'
+    | '/admin/$collection/new'
+    | '/admin/api/$'
     | '/films'
     | '/journal'
+    | '/admin/$collection'
+    | '/admin/$collection/$id/$group'
   id:
     | '__root__'
-    | '/'
-    | '/programme'
-    | '/visit'
-    | '/films/$slug'
-    | '/journal/$slug'
-    | '/people/$slug'
-    | '/films/'
-    | '/journal/'
+    | '/_site'
+    | '/admin'
+    | '/_site/$'
+    | '/_site/programme'
+    | '/_site/visit'
+    | '/admin/$'
+    | '/admin_/login'
+    | '/_site/'
+    | '/admin/'
+    | '/_site/films/$slug'
+    | '/_site/journal/$slug'
+    | '/_site/people/$slug'
+    | '/admin/$collection/$id'
+    | '/admin/$collection/new'
+    | '/admin_/api/$'
+    | '/_site/films/'
+    | '/_site/journal/'
+    | '/admin/$collection/'
+    | '/admin/$collection/$id/$group'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  ProgrammeRoute: typeof ProgrammeRoute
-  VisitRoute: typeof VisitRoute
-  FilmsSlugRoute: typeof FilmsSlugRoute
-  JournalSlugRoute: typeof JournalSlugRoute
-  PeopleSlugRoute: typeof PeopleSlugRoute
-  FilmsIndexRoute: typeof FilmsIndexRoute
-  JournalIndexRoute: typeof JournalIndexRoute
+  SiteRoute: typeof SiteRouteWithChildren
+  AdminRoute: typeof AdminRouteWithChildren
+  AdminLoginRoute: typeof AdminLoginRoute
+  AdminApiSplatRoute: typeof AdminApiSplatRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/visit': {
-      id: '/visit'
-      path: '/visit'
-      fullPath: '/visit'
-      preLoaderRoute: typeof VisitRouteImport
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/programme': {
-      id: '/programme'
-      path: '/programme'
-      fullPath: '/programme'
-      preLoaderRoute: typeof ProgrammeRouteImport
+    '/_site': {
+      id: '/_site'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof SiteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/_site/': {
+      id: '/_site/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof SiteIndexRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/admin_/login': {
+      id: '/admin_/login'
+      path: '/admin/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/journal/': {
-      id: '/journal/'
+    '/admin/$': {
+      id: '/admin/$'
+      path: '/$'
+      fullPath: '/admin/$'
+      preLoaderRoute: typeof AdminSplatRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/_site/visit': {
+      id: '/_site/visit'
+      path: '/visit'
+      fullPath: '/visit'
+      preLoaderRoute: typeof SiteVisitRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/programme': {
+      id: '/_site/programme'
+      path: '/programme'
+      fullPath: '/programme'
+      preLoaderRoute: typeof SiteProgrammeRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/_site/$': {
+      id: '/_site/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof SiteSplatRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/admin/$collection/': {
+      id: '/admin/$collection/'
+      path: '/$collection'
+      fullPath: '/admin/$collection/'
+      preLoaderRoute: typeof AdminCollectionIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/_site/journal/': {
+      id: '/_site/journal/'
       path: '/journal'
       fullPath: '/journal/'
-      preLoaderRoute: typeof JournalIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof SiteJournalIndexRouteImport
+      parentRoute: typeof SiteRoute
     }
-    '/films/': {
-      id: '/films/'
+    '/_site/films/': {
+      id: '/_site/films/'
       path: '/films'
       fullPath: '/films/'
-      preLoaderRoute: typeof FilmsIndexRouteImport
+      preLoaderRoute: typeof SiteFilmsIndexRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/admin_/api/$': {
+      id: '/admin_/api/$'
+      path: '/admin/api/$'
+      fullPath: '/admin/api/$'
+      preLoaderRoute: typeof AdminApiSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/people/$slug': {
-      id: '/people/$slug'
+    '/admin/$collection/new': {
+      id: '/admin/$collection/new'
+      path: '/$collection/new'
+      fullPath: '/admin/$collection/new'
+      preLoaderRoute: typeof AdminCollectionNewRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/$collection/$id': {
+      id: '/admin/$collection/$id'
+      path: '/$collection/$id'
+      fullPath: '/admin/$collection/$id'
+      preLoaderRoute: typeof AdminCollectionIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/_site/people/$slug': {
+      id: '/_site/people/$slug'
       path: '/people/$slug'
       fullPath: '/people/$slug'
-      preLoaderRoute: typeof PeopleSlugRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof SitePeopleSlugRouteImport
+      parentRoute: typeof SiteRoute
     }
-    '/journal/$slug': {
-      id: '/journal/$slug'
+    '/_site/journal/$slug': {
+      id: '/_site/journal/$slug'
       path: '/journal/$slug'
       fullPath: '/journal/$slug'
-      preLoaderRoute: typeof JournalSlugRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof SiteJournalSlugRouteImport
+      parentRoute: typeof SiteRoute
     }
-    '/films/$slug': {
-      id: '/films/$slug'
+    '/_site/films/$slug': {
+      id: '/_site/films/$slug'
       path: '/films/$slug'
       fullPath: '/films/$slug'
-      preLoaderRoute: typeof FilmsSlugRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof SiteFilmsSlugRouteImport
+      parentRoute: typeof SiteRoute
+    }
+    '/admin/$collection/$id/$group': {
+      id: '/admin/$collection/$id/$group'
+      path: '/$group'
+      fullPath: '/admin/$collection/$id/$group'
+      preLoaderRoute: typeof AdminCollectionIdGroupRouteImport
+      parentRoute: typeof AdminCollectionIdRoute
     }
   }
 }
 
+interface SiteRouteChildren {
+  SiteSplatRoute: typeof SiteSplatRoute
+  SiteProgrammeRoute: typeof SiteProgrammeRoute
+  SiteVisitRoute: typeof SiteVisitRoute
+  SiteIndexRoute: typeof SiteIndexRoute
+  SiteFilmsSlugRoute: typeof SiteFilmsSlugRoute
+  SiteJournalSlugRoute: typeof SiteJournalSlugRoute
+  SitePeopleSlugRoute: typeof SitePeopleSlugRoute
+  SiteFilmsIndexRoute: typeof SiteFilmsIndexRoute
+  SiteJournalIndexRoute: typeof SiteJournalIndexRoute
+}
+
+const SiteRouteChildren: SiteRouteChildren = {
+  SiteSplatRoute: SiteSplatRoute,
+  SiteProgrammeRoute: SiteProgrammeRoute,
+  SiteVisitRoute: SiteVisitRoute,
+  SiteIndexRoute: SiteIndexRoute,
+  SiteFilmsSlugRoute: SiteFilmsSlugRoute,
+  SiteJournalSlugRoute: SiteJournalSlugRoute,
+  SitePeopleSlugRoute: SitePeopleSlugRoute,
+  SiteFilmsIndexRoute: SiteFilmsIndexRoute,
+  SiteJournalIndexRoute: SiteJournalIndexRoute,
+}
+
+const SiteRouteWithChildren = SiteRoute._addFileChildren(SiteRouteChildren)
+
+interface AdminCollectionIdRouteChildren {
+  AdminCollectionIdGroupRoute: typeof AdminCollectionIdGroupRoute
+}
+
+const AdminCollectionIdRouteChildren: AdminCollectionIdRouteChildren = {
+  AdminCollectionIdGroupRoute: AdminCollectionIdGroupRoute,
+}
+
+const AdminCollectionIdRouteWithChildren =
+  AdminCollectionIdRoute._addFileChildren(AdminCollectionIdRouteChildren)
+
+interface AdminRouteChildren {
+  AdminSplatRoute: typeof AdminSplatRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+  AdminCollectionIdRoute: typeof AdminCollectionIdRouteWithChildren
+  AdminCollectionNewRoute: typeof AdminCollectionNewRoute
+  AdminCollectionIndexRoute: typeof AdminCollectionIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminSplatRoute: AdminSplatRoute,
+  AdminIndexRoute: AdminIndexRoute,
+  AdminCollectionIdRoute: AdminCollectionIdRouteWithChildren,
+  AdminCollectionNewRoute: AdminCollectionNewRoute,
+  AdminCollectionIndexRoute: AdminCollectionIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  ProgrammeRoute: ProgrammeRoute,
-  VisitRoute: VisitRoute,
-  FilmsSlugRoute: FilmsSlugRoute,
-  JournalSlugRoute: JournalSlugRoute,
-  PeopleSlugRoute: PeopleSlugRoute,
-  FilmsIndexRoute: FilmsIndexRoute,
-  JournalIndexRoute: JournalIndexRoute,
+  SiteRoute: SiteRouteWithChildren,
+  AdminRoute: AdminRouteWithChildren,
+  AdminLoginRoute: AdminLoginRoute,
+  AdminApiSplatRoute: AdminApiSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

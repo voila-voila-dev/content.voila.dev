@@ -1,27 +1,28 @@
 // The read layer. Everything the public site renders comes through here.
 //
-// Data flow: D1 binding → `makeD1Driver` → `makeDatabase(config, driver)` →
-// `localizeDocument(fields, doc, localeChain(...))` → a typed, single-locale
-// document. There is no HTTP hop and no REST mount: the site runs in the same
-// Worker as the database binding, so it reads the engine's `Database` service
-// directly (the same service the REST layer and the admin's Durable Object sit
-// on top of). The document shapes are still derived from the one schema —
+// Data flow: the admin runtime's `Database` (D1 binding → `makeD1Driver` →
+// `makeDatabase(config, driver)`) → `localizeDocument(fields, doc,
+// localeChain(...))` → a typed, single-locale document. There is no HTTP hop and
+// no REST mount: the public site runs in the same Worker as its own CMS, so it
+// reads the engine's `Database` service directly — the SAME instance the admin's
+// REST handler writes through. The document shapes are still derived from the
+// one schema —
 // `InferLocalizedDoc<typeof config, "films">` — so this file is type-checked
 // against `content.config.ts` with no codegen.
 //
-// This module is server-only (it imports `cloudflare:workers`); it is reached
-// exclusively from the `createServerFn` handlers in `./queries`.
+// This module is server-only (`./server` reads the Worker's bindings); it is
+// reached exclusively from the `createServerFn` handlers in `./queries`.
 
-import { env } from "cloudflare:workers";
 import {
   type InferLocalizedDoc,
   type InferLocalizedSingleton,
   localeChain,
   localizeDocument,
 } from "@voila/content";
-import { type Database, type Document, makeD1Driver, makeDatabase } from "@voila/content/server";
+import type { Database, Document } from "@voila/content/server";
 import config from "../../content.config";
 import { DEFAULT_LOCALE, type Lang } from "./i18n";
+import { runtime } from "./server";
 
 // ── Document shapes ─────────────────────────────────────────────────────────
 // `InferLocalizedDoc` is the shape of a `?locale=` read: every localized field
@@ -59,15 +60,20 @@ const PUBLIC_JOURNAL_STATUS = "published";
 /** Nothing on this site paginates; one page of 100 covers a season comfortably. */
 const PAGE = 100;
 
+/**
+ * The one `Database` in the app. It is the admin runtime's — the very object the
+ * REST handler writes through — so a title saved in `/admin` is what the next
+ * public request reads. Building a second `makeDatabase(config, makeD1Driver(…))`
+ * here would work today and drift tomorrow.
+ */
 function database(): Database {
-  return makeDatabase(config, makeD1Driver(env.DB));
+  return runtime.database;
 }
 
 /**
  * Every read funnels through here so a cold or unprovisioned database degrades
- * into an empty page instead of a 500. The public site is a read-only consumer
- * of a database it does not own — if the content tables aren't there yet, the
- * cinema simply has nothing to announce.
+ * into an empty page instead of a 500 — if the content tables aren't there yet,
+ * the cinema simply has nothing to announce.
  */
 async function safely<T>(what: string, read: () => Promise<T>, fallback: T): Promise<T> {
   try {

@@ -7,7 +7,7 @@ import { type Lang, strings } from "../lib/i18n";
 import { fetchFilms } from "../lib/queries";
 import { useLang } from "../lib/use-lang";
 
-export const Route = createFileRoute("/films/")({
+export const Route = createFileRoute("/_site/films/")({
   loaderDeps: ({ search }) => ({ lang: search.lang ?? ("en-US" as Lang) }),
   loader: ({ deps }) => fetchFilms({ data: { lang: deps.lang } }),
   component: Films,

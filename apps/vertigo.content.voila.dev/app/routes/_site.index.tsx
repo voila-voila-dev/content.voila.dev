@@ -11,7 +11,7 @@ import { type Lang, langSearch, strings } from "../lib/i18n";
 import { fetchHome } from "../lib/queries";
 import { useLang } from "../lib/use-lang";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_site/")({
   loaderDeps: ({ search }) => ({ lang: search.lang ?? ("en-US" as Lang) }),
   loader: ({ deps }) => fetchHome({ data: { lang: deps.lang } }),
   component: Home,
