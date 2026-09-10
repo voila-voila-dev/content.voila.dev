@@ -16,6 +16,8 @@ import {
   UnsupportedInput,
 } from "../widgets/edit";
 import { GeoInput } from "../widgets/geo";
+import { MultiSelectInput } from "../widgets/multi-select";
+import { RelationIdInput } from "../widgets/relation";
 import { mergeMaps } from "./merge";
 import { resolveWidget } from "./resolve";
 
@@ -37,6 +39,10 @@ export const defaultEditRegistry: EditRegistry = {
   time: DateInput,
   select: SelectInput,
   enum: SelectInput,
+  multiSelect: MultiSelectInput,
+  // A relation can only show ids until something resolves them to titles; the
+  // admin layer swaps in the real picker via `createRelationInput`.
+  relation: RelationIdInput,
   // The dependency-free lat/lng pair. The admin layer upgrades this to a map
   // picker (`createGeoInput`) using its configured `mapStyleUrl`.
   geo: GeoInput,

@@ -6,6 +6,13 @@
 
 export type Theme = "light" | "dark";
 
+/**
+ * What the user picked, as opposed to what is on screen. "system" is a real,
+ * persisted choice — someone who has ever clicked Light must be able to get
+ * back to following the OS, and an absent key can't express that intent.
+ */
+export type ThemeChoice = Theme | "system";
+
 /** localStorage key holding an explicit theme choice. */
 export const THEME_STORAGE_KEY = "voila-theme";
 
@@ -34,6 +41,36 @@ export function applyTheme(theme: Theme): void {
 export function setTheme(theme: Theme): void {
   window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   applyTheme(theme);
+}
+
+/**
+ * The stored choice as the picker shows it: a light/dark pick, else "system".
+ * A stored `"system"` and a missing key mean the same thing at read time — the
+ * value is written so the OS default survives a later light/dark pick, and
+ * `themeInitScript` treats any non-`light`/`dark` value as "follow the OS".
+ */
+export function themeChoice(): ThemeChoice {
+  return storedTheme() ?? "system";
+}
+
+/** Persist a three-way choice and apply whichever theme it resolves to. */
+export function setThemeChoice(choice: ThemeChoice): void {
+  window.localStorage.setItem(THEME_STORAGE_KEY, choice);
+  applyTheme(choice === "system" ? systemTheme() : choice);
+}
+
+/**
+ * Follow OS changes while the choice is "system". Returns an unsubscribe. A
+ * page left open across a scheduled light→dark switch should follow it, which
+ * the one-shot `themeInitScript` can't do on its own.
+ */
+export function watchSystemTheme(): () => void {
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  const listener = () => {
+    if (themeChoice() === "system") applyTheme(systemTheme());
+  };
+  media.addEventListener?.("change", listener);
+  return () => media.removeEventListener?.("change", listener);
 }
 
 /**

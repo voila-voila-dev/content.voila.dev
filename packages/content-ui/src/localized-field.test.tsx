@@ -113,38 +113,57 @@ describe("LocalizedFieldEditor", () => {
 });
 
 describe("CollectionForm + locales", () => {
-  test("routes localized fields through the per-locale editor", () => {
+  /** Click the switcher segment for a locale. */
+  function switchTo(locale: string): void {
+    fireEvent.click(screen.getByRole("radio", { name: new RegExp(locale) }));
+  }
+
+  test("shows one locale at a time, driven by the switcher", () => {
     const { container } = render(
       <CollectionForm
         collection={config.collections.posts}
         locales={LOCALES}
+        defaultLocale="en-US"
         onSubmit={mock()}
         defaultValues={{ title: { "en-US": "Hello" } }}
       />,
     );
-    // Two locale inputs for `title`, one plain input for `slug`.
+    // The default locale's input is mounted; the other translation is not.
     expect(container.querySelector("#posts-title-en-US")).not.toBeNull();
-    expect(container.querySelector("#posts-title-fr-FR")).not.toBeNull();
+    expect(container.querySelector("#posts-title-fr-FR")).toBeNull();
     expect(container.querySelector("#posts-slug")).not.toBeNull();
-    // The label points at the first locale's control.
     expect(container.querySelector('label[for="posts-title-en-US"]')?.textContent).toContain(
       "Title",
     );
+
+    switchTo("fr-FR");
+    expect(container.querySelector("#posts-title-fr-FR")).not.toBeNull();
+    expect(container.querySelector("#posts-title-en-US")).toBeNull();
+    // A non-localized field is unaffected by the switch.
+    expect(container.querySelector("#posts-slug")).not.toBeNull();
   });
 
-  test("submits the merged per-locale record", async () => {
+  test("keeps every locale's edits when switching between them", async () => {
     const onSubmit = mock();
     const { container } = render(
       <CollectionForm
         collection={config.collections.posts}
         locales={LOCALES}
+        defaultLocale="en-US"
         onSubmit={onSubmit}
         defaultValues={{ title: { "en-US": "Hello" }, slug: "hello" }}
       />,
     );
+    switchTo("fr-FR");
     fireEvent.change(container.querySelector("#posts-title-fr-FR") as HTMLInputElement, {
       target: { value: "Bonjour" },
     });
+    // Switching away and back must not drop the translation just typed.
+    switchTo("en-US");
+    switchTo("fr-FR");
+    expect((container.querySelector("#posts-title-fr-FR") as HTMLInputElement).value).toBe(
+      "Bonjour",
+    );
     fireEvent.submit(container.querySelector("form") as HTMLFormElement);
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit.mock.calls[0]?.[0]).toEqual({
@@ -153,41 +172,126 @@ describe("CollectionForm + locales", () => {
     });
   });
 
-  test("shows a validation error only under the locale that failed", async () => {
-    const required = defineCollection({
+  test("shows the default locale's text under an empty translation", () => {
+    const { container } = render(
+      <CollectionForm
+        collection={config.collections.posts}
+        locales={LOCALES}
+        defaultLocale="en-US"
+        onSubmit={mock()}
+        defaultValues={{ title: { "en-US": "Hello" } }}
+      />,
+    );
+    switchTo("fr-FR");
+    // The translator can see what they are translating without leaving the field.
+    expect(container.textContent).toContain("Hello");
+  });
+
+  test("a single-locale project gets no switcher", () => {
+    const { container } = render(
+      <CollectionForm
+        collection={config.collections.posts}
+        locales={["en-US"]}
+        defaultLocale="en-US"
+        onSubmit={mock()}
+        defaultValues={{ title: { "en-US": "Hello" } }}
+      />,
+    );
+    expect(container.querySelector("[data-slot=locale-switcher]")).toBeNull();
+    expect(container.querySelector("#posts-title-en-US")).not.toBeNull();
+  });
+
+  // `required` on a localized field means the DEFAULT locale is filled, not that
+  // every translation exists — otherwise a monolingual editor could never save.
+  function requiredTitleConfig(opts?: { readonly min?: number }) {
+    const docs = defineCollection({
       slug: "docs",
-      fields: { title: fields.string({ localized: true, required: true }) },
+      fields: { title: fields.string({ localized: true, required: true, min: opts?.min }) },
     });
-    const cfg = defineConfig({
+    return defineConfig({
       branding: { name: "Test" },
       i18n: { locales: ["en-US", "fr-FR"], defaultLocale: "en-US" },
-      collections: { docs: required },
+      collections: { docs },
     });
+  }
+
+  test("an untranslated locale does not block submit on a required field", async () => {
+    const cfg = requiredTitleConfig();
     const onSubmit = mock();
     const { container } = render(
       <CollectionForm
         collection={cfg.collections.docs}
         locales={LOCALES}
+        defaultLocale="en-US"
         onSubmit={onSubmit}
         defaultValues={{ title: { "en-US": "Hello" } }}
       />,
     );
     fireEvent.submit(container.querySelector("form") as HTMLFormElement);
-    // fr-FR is blank+required → its input is flagged; en-US (filled) is not.
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    // The blank translation is dropped rather than saved as an empty string.
+    expect(onSubmit.mock.calls[0]?.[0]).toEqual({ title: { "en-US": "Hello" } });
+    switchTo("fr-FR");
+    expect(
+      (container.querySelector("#docs-title-fr-FR") as HTMLInputElement).getAttribute(
+        "aria-invalid",
+      ),
+    ).toBeNull();
+  });
+
+  test("flags the DEFAULT locale when that is the blank one", async () => {
+    const cfg = requiredTitleConfig();
+    const onSubmit = mock();
+    const { container } = render(
+      <CollectionForm
+        collection={cfg.collections.docs}
+        locales={LOCALES}
+        defaultLocale="en-US"
+        onSubmit={onSubmit}
+        defaultValues={{ title: { "fr-FR": "Salut" } }}
+      />,
+    );
+    fireEvent.submit(container.querySelector("form") as HTMLFormElement);
     await waitFor(() => {
       expect(
-        (container.querySelector("#docs-title-fr-FR") as HTMLInputElement).getAttribute(
+        (container.querySelector("#docs-title-en-US") as HTMLInputElement).getAttribute(
           "aria-invalid",
         ),
       ).toBe("true");
     });
+    expect(container.querySelector("#docs-title-en-US-error")?.textContent).toBe("Required.");
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  test("shows a validation error only under the locale that failed", async () => {
+    // A translation that IS filled still has to satisfy the field's schema, and
+    // the message lands under that locale alone.
+    const cfg = requiredTitleConfig({ min: 3 });
+    const onSubmit = mock();
+    const { container } = render(
+      <CollectionForm
+        collection={cfg.collections.docs}
+        locales={LOCALES}
+        defaultLocale="en-US"
+        onSubmit={onSubmit}
+        defaultValues={{ title: { "en-US": "Hello", "fr-FR": "no" } }}
+      />,
+    );
+    fireEvent.submit(container.querySelector("form") as HTMLFormElement);
+    // The default locale is clean; the failing translation is flagged once the
+    // switcher brings it on screen.
+    await waitFor(() => expect(onSubmit).not.toHaveBeenCalled());
     expect(
       (container.querySelector("#docs-title-en-US") as HTMLInputElement).getAttribute(
         "aria-invalid",
       ),
     ).toBeNull();
-    expect(container.querySelector("#docs-title-fr-FR-error")?.textContent).toBe("Required.");
-    expect(onSubmit).not.toHaveBeenCalled();
+    switchTo("fr-FR");
+    expect(
+      (container.querySelector("#docs-title-fr-FR") as HTMLInputElement).getAttribute(
+        "aria-invalid",
+      ),
+    ).toBe("true");
   });
 
   test("falls back to the plain widget without a locales prop", () => {
@@ -196,5 +300,79 @@ describe("CollectionForm + locales", () => {
     );
     expect(container.querySelector("#posts-title")).not.toBeNull();
     expect(container.querySelector("#posts-title-en-US")).toBeNull();
+  });
+});
+
+describe("slug derivation from a localized title", () => {
+  const stories = defineCollection({
+    slug: "stories",
+    fields: {
+      title: fields.string({ localized: true, required: true }),
+      slug: fields.slug({ from: "title" }),
+    },
+  });
+  const cfg = defineConfig({
+    branding: { name: "Test" },
+    i18n: { locales: ["en-US", "fr-FR"], defaultLocale: "en-US" },
+    collections: { stories },
+  });
+
+  test("typing the default locale's title fills the slug", () => {
+    // The source is a per-locale record, not a string — the case that used to
+    // leave the slug empty on every project that translates its titles.
+    const { container } = render(
+      <CollectionForm
+        collection={cfg.collections.stories}
+        locales={LOCALES}
+        defaultLocale="en-US"
+        onSubmit={mock()}
+      />,
+    );
+    fireEvent.change(container.querySelector("#stories-title-en-US") as HTMLInputElement, {
+      target: { value: "The Colour of Pomegranates" },
+    });
+    expect((container.querySelector("#stories-slug") as HTMLInputElement).value).toBe(
+      "the-colour-of-pomegranates",
+    );
+  });
+
+  test("a translation does not overwrite a slug the default locale set", () => {
+    const { container } = render(
+      <CollectionForm
+        collection={cfg.collections.stories}
+        locales={LOCALES}
+        defaultLocale="en-US"
+        onSubmit={mock()}
+      />,
+    );
+    fireEvent.change(container.querySelector("#stories-title-en-US") as HTMLInputElement, {
+      target: { value: "Hello World" },
+    });
+    fireEvent.click(screen.getByRole("radio", { name: /fr-FR/ }));
+    fireEvent.change(container.querySelector("#stories-title-fr-FR") as HTMLInputElement, {
+      target: { value: "Bonjour Monde" },
+    });
+    // The default locale still drives the slug, so a French edit doesn't
+    // silently change the URL the English page was published at.
+    expect((container.querySelector("#stories-slug") as HTMLInputElement).value).toBe(
+      "hello-world",
+    );
+  });
+
+  test("a hand-edited slug is never overwritten by a later title edit", () => {
+    const { container } = render(
+      <CollectionForm
+        collection={cfg.collections.stories}
+        locales={LOCALES}
+        defaultLocale="en-US"
+        onSubmit={mock()}
+      />,
+    );
+    const slug = container.querySelector("#stories-slug") as HTMLInputElement;
+    fireEvent.change(slug, { target: { value: "custom-path" } });
+    fireEvent.change(container.querySelector("#stories-title-en-US") as HTMLInputElement, {
+      target: { value: "Something Else" },
+    });
+    expect(slug.value).toBe("custom-path");
   });
 });

@@ -5,7 +5,12 @@
 // `createApiHandler`.
 
 export { createApiHandler } from "./api-handler";
-export { countDocuments, resolveSession, type SessionUser } from "./loaders";
+export {
+  countDocuments,
+  resolveBrandSource,
+  resolveSession,
+  type SessionUser,
+} from "./loaders";
 export {
   type AdminAuthBridge,
   type AdminRuntime,

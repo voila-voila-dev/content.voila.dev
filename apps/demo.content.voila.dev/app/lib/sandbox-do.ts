@@ -118,7 +118,7 @@ export class SandboxDO extends DurableObject<SandboxEnv> {
       const driver = this.driver();
       const fresh =
         this.ctx.storage.sql
-          .exec("SELECT name FROM sqlite_master WHERE type='table' AND name='posts'")
+          .exec("SELECT name FROM sqlite_master WHERE type='table' AND name='films'")
           .toArray().length === 0;
       if (fresh) {
         for (const stmt of statements(generateDDL(deriveSchema(config), "sqlite"))) {

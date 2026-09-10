@@ -63,6 +63,13 @@ export interface DataTableProps {
   /** Number of placeholder rows to show while `loading` with no rows yet. */
   readonly skeletonRows?: number;
   readonly caption?: string;
+  /**
+   * Per-row actions, revealed on hover / keyboard focus in a trailing column.
+   * Opening a record to duplicate or delete it is a round trip an editor makes
+   * constantly; this puts those one click from the row. The column only exists
+   * when this is set, so tables that don't want it are unchanged.
+   */
+  readonly rowActions?: (row: Doc, index: number) => ReactNode;
 }
 
 interface Column {
@@ -170,11 +177,12 @@ function Root({
   empty,
   loadingMessage = "Loading…",
   skeletonRows = 5,
+  rowActions,
   caption,
 }: DataTableProps): ReactNode {
   const i18n = useI18n();
   const cols = resolveColumns(collection, columns);
-  const colCount = (cols.length || 1) + (selectable ? 1 : 0);
+  const colCount = (cols.length || 1) + (selectable ? 1 : 0) + (rowActions ? 1 : 0);
   const clickable = onRowClick !== undefined || rowHref !== undefined;
   const cell = CELL_DENSITY[density];
   const head = HEAD_DENSITY[density];
@@ -262,6 +270,11 @@ function Root({
               </Table.Head>
             );
           })}
+          {rowActions ? (
+            <Table.Head className={cn(head, "w-0")}>
+              <span className="sr-only">Actions</span>
+            </Table.Head>
+          ) : null}
         </Table.Row>
       </Table.Header>
       <Table.Body role="rowgroup">
@@ -310,6 +323,7 @@ function Root({
                 data-state={isSelected ? "selected" : undefined}
                 aria-selected={selectable ? isSelected : undefined}
                 className={cn(
+                  "group/row",
                   clickable && "cursor-pointer focus-within:bg-muted/50",
                   isSelected && "bg-muted/50",
                 )}
@@ -386,6 +400,25 @@ function Root({
                     </Table.Cell>
                   );
                 })}
+                {rowActions ? (
+                  // Revealed on hover, and on keyboard focus anywhere in the row
+                  // (`focus-within`) so the actions are reachable without a mouse
+                  // rather than being a pointer-only affordance.
+                  <Table.Cell
+                    role="cell"
+                    className={cn(cell, "w-0 whitespace-nowrap pl-2 text-right")}
+                  >
+                    <span
+                      data-slot="row-actions"
+                      className={cn(
+                        "inline-flex items-center gap-0.5 opacity-0 transition-opacity",
+                        "group-hover/row:opacity-100 focus-within:opacity-100",
+                      )}
+                    >
+                      {rowActions(row, index)}
+                    </span>
+                  </Table.Cell>
+                ) : null}
               </Table.Row>
             );
           })

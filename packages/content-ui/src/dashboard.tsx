@@ -10,6 +10,7 @@ import { PlusIcon } from "@phosphor-icons/react";
 import type { NormalizedConfig } from "@voila/content";
 import { buttonVariants } from "@voila.dev/ui/button";
 import { Card } from "@voila.dev/ui/card";
+import { Skeleton } from "@voila.dev/ui/skeleton";
 import { cn } from "@voila.dev/ui/utils";
 import { cloneElement, type ReactElement, type ReactNode } from "react";
 import { NamedIcon } from "./lib/icons";
@@ -41,6 +42,33 @@ export interface DashboardProps {
   /** Recently edited documents across collections, newest first. */
   readonly recent?: readonly RecentItem[];
   readonly recentLoading?: boolean;
+}
+
+/** How many placeholder rows the feed shows while it loads. */
+const RECENT_SKELETON_ROWS = 5;
+
+/**
+ * The loading state for the feed. Matches `DataTable`'s skeleton rows rather
+ * than printing the word "Loading…" — the whole admin should hint at the shape
+ * of what is arriving, and one surface spelling it out in prose while another
+ * shows placeholder rows reads as two different products.
+ */
+function RecentSkeleton(): ReactNode {
+  return (
+    <ul
+      data-slot="dashboard-recent-skeleton"
+      aria-hidden="true"
+      className="divide-y rounded-lg border"
+    >
+      {Array.from({ length: RECENT_SKELETON_ROWS }).map((_, row) => (
+        <li key={`recent-skeleton-${row}`} className="flex items-center gap-3 px-4 py-2.5">
+          <Skeleton className="h-4 min-w-0 flex-1 bg-muted-foreground/15" />
+          <Skeleton className="h-3 w-16 shrink-0 bg-muted-foreground/15" />
+          <Skeleton className="h-3 w-20 shrink-0 bg-muted-foreground/15" />
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function formatCount(counts: DashboardProps["counts"], slug: string): ReactNode {
@@ -155,7 +183,7 @@ function Root({
           <section data-slot="dashboard-recent" className="space-y-3">
             <h2 className="font-medium text-muted-foreground text-sm">Recently edited</h2>
             {recentLoading && (recent === undefined || recent.length === 0) ? (
-              <p className="text-muted-foreground text-sm">Loading…</p>
+              <RecentSkeleton />
             ) : recent === undefined || recent.length === 0 ? (
               <p className="text-muted-foreground text-sm">Nothing edited yet.</p>
             ) : (

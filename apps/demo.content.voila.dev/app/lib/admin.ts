@@ -18,13 +18,25 @@ import { fetchCounts } from "./counts";
 export const admin = defineAdmin({
   config,
   branding: { title: "Demo", logo: logoUrl, favicon: logoUrl },
+  // The admin themes itself from the cinema's own settings: whatever colour an
+  // editor picks in Settings → Branding becomes the admin's accent (buttons,
+  // active nav item, focus rings, map pins) on the very next load, in both
+  // light and dark. `logoFrom` is the fallback for the sidebar mark and the
+  // favicon — here `branding.logo` above already wins, so the demo shows the
+  // colour half. Both are read server-side by `fetchBrand`.
+  theme: { accentFrom: "settings.primaryColor", logoFrom: "settings.logo" },
   // Per-collection counts for the sidebar badges + dashboard tiles (a server fn).
   counts: () => fetchCounts(),
   widgets: {
     edit: {
       richText: RichTextInput,
       markdown: RichTextInput,
-      media: createMediaInput({ upload: (file, opts) => mediaClient.upload(file, opts) }),
+      // `list` is what turns on "Choose existing": the same asset can back a
+      // dozen documents instead of being uploaded once per document.
+      media: createMediaInput({
+        upload: (file, opts) => mediaClient.upload(file, opts),
+        list: (params) => mediaClient.list(params),
+      }),
     },
     display: { richText: RichTextDisplay },
   },

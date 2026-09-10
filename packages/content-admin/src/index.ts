@@ -7,21 +7,28 @@
 export { AdminProvider, type AdminProviderProps, useAdmin } from "./context";
 export { defineAdmin } from "./define-admin";
 export { type AuthedFetchOptions, makeAuthedFetch } from "./lib/authed-fetch";
+export { resolveBrandLogo } from "./lib/brand-logo";
+export { brandSingletons, readBrandSource } from "./lib/brand-source";
 export {
   type BrandingHeadOptions,
   brandingHead,
   type HeadLink,
   type HeadMeta,
+  type HeadStyle,
 } from "./lib/branding-head";
 export { matchScreen, type ScreenMatch } from "./lib/match";
 export { buildExtraGroups, type NavGroup } from "./nav";
 export type {
   AdminBranding,
+  AdminBrandSource,
   AdminInstance,
   AdminSlots,
+  AdminTheme,
   AdminUser,
   CustomScreen,
   CustomScreenProps,
   DefineAdminOptions,
   NavExtension,
+  ResolvedAdminTheme,
+  SingletonFieldPath,
 } from "./types";

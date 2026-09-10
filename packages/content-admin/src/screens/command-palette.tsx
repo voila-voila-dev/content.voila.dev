@@ -1,28 +1,44 @@
 // CommandPalette — the ⌘K entry point: jump to any collection / singleton /
-// custom screen, start a "New …" in one keystroke, and search the documents of
-// every search-enabled collection (server-side `client.<slug>.search`) as you
-// type. Opened from the sidebar's search row or the ⌘K shortcut; owned by the
-// shell layout so it's available on every screen.
+// custom screen, start a "New …" in one keystroke, run an admin action, and
+// find RECORDS as you type. Opened from the sidebar's search row or the ⌘K
+// shortcut; owned by the shell layout so it's available on every screen.
+//
+// Record lookup works on every collection, not just indexed ones. A collection
+// with `search` enabled is queried server-side (`client.<slug>.search`); one
+// without is matched against its most recently updated rows by title. That
+// second path is the important one — without it, a project that never opted
+// into full-text search had a ⌘K that could not find a single record, which is
+// the one thing people reach for ⌘K to do.
 
-import { MagnifyingGlassIcon, PlusIcon } from "@phosphor-icons/react";
+import { MagnifyingGlassIcon, MoonIcon, PlusIcon, SunIcon } from "@phosphor-icons/react";
 import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { Collection } from "@voila/content";
+import type { Doc } from "@voila/content-ui";
 import {
   buildNav,
   DEFAULT_NAV_ICONS,
   documentTitle,
   homeHref,
   NamedIcon,
+  resolvedTheme,
   searchEnabled,
+  setTheme,
   singularLabel,
   useI18n,
 } from "@voila/content-ui";
 import { Command } from "@voila.dev/ui/command";
 import { type ReactNode, useEffect, useState } from "react";
 import { useAdmin } from "../context";
-import { collectionClient } from "../lib/client-access";
+import { type AnyListParams, collectionClient } from "../lib/client-access";
 import { buildExtraGroups } from "../nav";
+
+/** Rows shown per collection in the palette. */
+const PALETTE_RESULTS = 5;
+/** Recent rows scanned for a title match on a collection without an index. */
+const RECENT_SCAN = 50;
+/** Characters before record lookup starts, so one keystroke doesn't query. */
+const MIN_TERM = 2;
 
 export interface CommandPaletteProps {
   readonly open: boolean;
@@ -53,18 +69,45 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
     basePath: admin.basePath,
   });
 
-  // Only search-enabled collections are queried, and only once there's a term.
-  const searchable = (Object.values(admin.config.collections) as Collection[]).filter((c) =>
-    searchEnabled(c.search),
-  );
+  const collections = Object.values(admin.config.collections) as Collection[];
+  // Indexed collections search server-side per term; the rest are matched
+  // against one cached page of recent rows, so ⌘K finds records either way.
   const results = useQueries({
-    queries: searchable.map((collection) => ({
-      queryKey: ["palette", collection.slug, term],
-      queryFn: () => collectionClient(admin.client, collection.slug).search(term, { limit: 5 }),
-      enabled: open && term.length >= 2,
-      staleTime: 10_000,
-    })),
+    queries: collections.map((collection) => {
+      const indexed = searchEnabled(collection.search);
+      const api = collectionClient(admin.client, collection.slug);
+      return indexed
+        ? {
+            queryKey: ["palette", collection.slug, term],
+            queryFn: () => api.search(term, { limit: PALETTE_RESULTS }),
+            enabled: open && term.length >= MIN_TERM,
+            staleTime: 10_000,
+          }
+        : {
+            queryKey: ["palette", collection.slug, "recent"],
+            queryFn: () =>
+              api.list({
+                limit: RECENT_SCAN,
+                orderBy: "updatedAt",
+                order: "desc",
+              } as AnyListParams),
+            enabled: open,
+            staleTime: 30_000,
+          };
+    }),
   });
+
+  /** The rows to show under a collection, already narrowed to the term. */
+  function matchesFor(collection: Collection, index: number): ReadonlyArray<Doc> {
+    const page = results[index]?.data;
+    if (!page) return [];
+    if (term.length < MIN_TERM) return [];
+    if (searchEnabled(collection.search)) return page.data;
+    const needle = term.toLowerCase();
+    return page.data
+      .filter((row) => (documentTitle(collection, row, i18n) ?? "").toLowerCase().includes(needle))
+      .slice(0, PALETTE_RESULTS);
+  }
 
   function go(href: string) {
     onOpenChange(false);
@@ -95,16 +138,16 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
         <Command.List>
           <Command.Empty>No results.</Command.Empty>
 
-          {searchable.length > 0 && term.length >= 2
-            ? searchable.map((collection, index) => {
-                const page = results[index]?.data;
-                if (!page || page.data.length === 0) return null;
+          {term.length >= MIN_TERM
+            ? collections.map((collection, index) => {
+                const matches = matchesFor(collection, index);
+                if (matches.length === 0) return null;
                 return (
                   <Command.Group
                     key={`search-${collection.slug}`}
                     heading={collection.label ?? collection.slug}
                   >
-                    {page.data.map((row) => {
+                    {matches.map((row) => {
                       const id = String(row.id);
                       return (
                         <Command.Item
@@ -154,6 +197,20 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
                 </Command.Item>
               )),
             )}
+          </Command.Group>
+
+          <Command.Group heading="Actions">
+            <Command.Item
+              value="theme dark light appearance toggle"
+              onSelect={() => {
+                setTheme(resolvedTheme() === "dark" ? "light" : "dark");
+                onOpenChange(false);
+              }}
+            >
+              <SunIcon aria-hidden className="dark:hidden" />
+              <MoonIcon aria-hidden className="hidden dark:block" />
+              Toggle theme
+            </Command.Item>
           </Command.Group>
 
           {nav.collections.length > 0 ? (

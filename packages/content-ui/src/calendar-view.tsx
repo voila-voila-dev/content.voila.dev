@@ -60,6 +60,58 @@ function rowId(row: Doc): string | undefined {
   return typeof id === "string" ? id : typeof id === "number" ? String(id) : undefined;
 }
 
+/**
+ * A stable colour per distinct value, so a calendar coloured by "screen" or
+ * "kind" reads as a legend rather than a wall of identical grey blocks. The
+ * palette is fixed and index-assigned by first appearance, which keeps a value's
+ * colour stable across a render without needing the host to configure one.
+ */
+const EVENT_PALETTE = [
+  "#2563eb",
+  "#16a34a",
+  "#d97706",
+  "#dc2626",
+  "#7c3aed",
+  "#0891b2",
+  "#db2777",
+  "#65a30d",
+] as const;
+
+/**
+ * Resolve an event's colour. A `color` field is used verbatim (the editor picked
+ * it); any other field is bucketed onto the palette by its value.
+ */
+export function eventColors(
+  collection: Collection,
+  rows: readonly Doc[],
+  colorField: string | undefined,
+): Map<string, string> {
+  const out = new Map<string, string>();
+  if (colorField === undefined) return out;
+  const field = collection.fields[colorField];
+  if (field === undefined) return out;
+  const literal = field.meta.kind === "color";
+  const assigned = new Map<string, string>();
+  for (const row of rows) {
+    const id = rowId(row);
+    if (id === undefined) continue;
+    const raw = row[colorField];
+    if (raw === undefined || raw === null || raw === "") continue;
+    if (literal) {
+      if (typeof raw === "string") out.set(id, raw);
+      continue;
+    }
+    const key = String(raw);
+    let color = assigned.get(key);
+    if (color === undefined) {
+      color = EVENT_PALETTE[assigned.size % EVENT_PALETTE.length] as string;
+      assigned.set(key, color);
+    }
+    out.set(id, color);
+  }
+  return out;
+}
+
 /** Map a collection's rows to calendar events, keyed back to their row by id. */
 /** "Label: value" lines for the configured card fields, shown under the title. */
 function cardMeta(
@@ -94,6 +146,7 @@ export function rowsToEvents(
   endField: string | undefined,
   cardFields?: readonly string[],
   i18n?: I18nContextValue,
+  colors?: Map<string, string>,
 ): { events: CalendarEvent[]; byId: Map<string, Doc> } {
   const byId = new Map<string, Doc>();
   const events: CalendarEvent[] = [];
@@ -116,6 +169,7 @@ export function rowsToEvents(
       start: start.date,
       end: endDate,
       allDay: start.dateOnly,
+      color: colors?.get(id),
       meta: cardMeta(collection, row, cardFields, i18n),
     });
   }
@@ -131,6 +185,12 @@ export interface CalendarViewProps {
   readonly endField?: string;
   /** Extra fields shown under each event's title. */
   readonly cardFields?: readonly string[];
+  /**
+   * Field whose value colours each event. A `color` field is used as-is; a
+   * select/enum buckets onto a fixed palette, turning the month grid into a
+   * legend for that dimension.
+   */
+  readonly colorField?: string;
   /** Active granularity; controlled when paired with `onViewChange`. */
   readonly view?: CalendarViewMode;
   readonly defaultView?: CalendarViewMode;
@@ -147,6 +207,7 @@ function Root({
   startField,
   endField,
   cardFields,
+  colorField,
   view,
   defaultView = "month",
   onViewChange,
@@ -155,7 +216,16 @@ function Root({
   emptyMessage = "No records.",
 }: CalendarViewProps): ReactNode {
   const i18n = useI18n();
-  const { events, byId } = rowsToEvents(collection, rows, startField, endField, cardFields, i18n);
+  const colors = eventColors(collection, rows, colorField);
+  const { events, byId } = rowsToEvents(
+    collection,
+    rows,
+    startField,
+    endField,
+    cardFields,
+    i18n,
+    colors,
+  );
 
   if (events.length === 0) {
     return (

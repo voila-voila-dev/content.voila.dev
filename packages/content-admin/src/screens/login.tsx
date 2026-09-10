@@ -12,11 +12,11 @@ import { Input } from "@voila.dev/ui/input";
 import { Label } from "@voila.dev/ui/label";
 import { type FormEvent, type ReactNode, useId, useState } from "react";
 import { useAdmin } from "../context";
-import { useSignIn } from "../hooks/use-auth-mutations";
+import { SignInError, useSignIn } from "../hooks/use-auth-mutations";
 import { resolveBrandLogo } from "../lib/brand-logo";
 
 export function LoginScreen(): ReactNode {
-  const { admin } = useAdmin();
+  const { admin, brand } = useAdmin();
   const [email, setEmail] = useState("");
   const signIn = useSignIn();
   const emailId = useId();
@@ -24,8 +24,11 @@ export function LoginScreen(): ReactNode {
   const sent = signIn.isSuccess;
   const pending = signIn.isPending;
   const error = signIn.error instanceof Error ? signIn.error.message : undefined;
+  // A non-retryable failure (this address can't sign in) shouldn't leave an
+  // enabled Send button implying another try will help.
+  const retryable = signIn.error instanceof SignInError ? signIn.error.retryable : true;
   const name = admin.config.branding.name;
-  const logo = resolveBrandLogo(admin.branding.logo);
+  const logo = resolveBrandLogo(admin.branding.logo, brand?.logo);
 
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -117,7 +120,11 @@ export function LoginScreen(): ReactNode {
                     {error}
                   </p>
                 ) : null}
-                <Button type="submit" className="w-full" disabled={pending || email.trim() === ""}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={pending || email.trim() === "" || !retryable}
+                >
                   {pending ? "Sending…" : "Send magic link"}
                 </Button>
               </form>

@@ -100,3 +100,35 @@ describe("Dashboard", () => {
     expect(screen.queryByRole("link")).toBeNull();
   });
 });
+
+describe("Dashboard loading state", () => {
+  test("shows skeleton rows, not the word Loading", () => {
+    const { container } = render(
+      <Dashboard.Root config={config} recentLoading recent={[]} basePath="" />,
+    );
+    expect(container.querySelector("[data-slot=dashboard-recent-skeleton]")).not.toBeNull();
+    expect(container.textContent).not.toContain("Loading");
+  });
+
+  test("the placeholder is hidden from assistive tech", () => {
+    const { container } = render(
+      <Dashboard.Root config={config} recentLoading recent={[]} basePath="" />,
+    );
+    expect(
+      container.querySelector("[data-slot=dashboard-recent-skeleton]")?.getAttribute("aria-hidden"),
+    ).toBe("true");
+  });
+
+  test("real rows replace the placeholder once they arrive", () => {
+    const { container } = render(
+      <Dashboard.Root
+        config={config}
+        recentLoading={false}
+        recent={[{ id: "1", title: "Vertigo", collection: "Films", href: "/films/1" }]}
+        basePath=""
+      />,
+    );
+    expect(container.querySelector("[data-slot=dashboard-recent-skeleton]")).toBeNull();
+    expect(container.textContent).toContain("Vertigo");
+  });
+});

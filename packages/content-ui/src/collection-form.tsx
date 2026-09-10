@@ -19,13 +19,15 @@ import { type Collection, type InferFields, slugify } from "@voila/content";
 import { Button } from "@voila.dev/ui/button";
 import { Label } from "@voila.dev/ui/label";
 import { cn } from "@voila.dev/ui/utils";
-import { type FormEvent, type ReactNode, useEffect, useId, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { FieldCard } from "./field-card";
 import { FieldGroupNav } from "./field-group-nav";
+import { dirtyFieldKeys } from "./lib/dirty";
 import type { Doc } from "./lib/doc";
 import { resolveFieldGroups } from "./lib/groups";
 import { getFieldLabel, humanize } from "./lib/humanize";
 import { localizedFieldErrors, validateFields } from "./lib/validate";
+import { type LocaleProgress, LocaleSwitcher } from "./locale-switcher";
 import { LocalizedFieldEditor } from "./localized-field";
 import { type BodyWidth, PageLayout } from "./page-layout";
 import { defaultEditRegistry, type EditRegistry, resolveEditWidget } from "./registry/edit";
@@ -96,6 +98,28 @@ export interface CollectionFormProps<C extends Collection = Collection> {
   /** Called with a group id when the user picks one in the mobile strip. */
   readonly onGroupChange?: (id: string) => void;
   /**
+   * How grouped collections lay out:
+   * - `"section"` (default) — one group at a time, driven by `activeGroup`.
+   *   Right for editing, where the sidebar names the section you are in.
+   * - `"all"` — every group stacked, each in its own titled card. Right for
+   *   CREATE, where hiding groups behind a nav the new record doesn't have yet
+   *   would make most of the collection's fields unreachable.
+   * Ignored when the collection declares no groups.
+   */
+  readonly groupLayout?: "section" | "all";
+  /**
+   * The project's default locale (`config.i18n.defaultLocale`). `required` on a
+   * localized field means "this locale is filled" — the others are translations
+   * that can land later. Defaults to the first entry in `locales`.
+   */
+  readonly defaultLocale?: string;
+  /**
+   * Notified whenever the form gains or loses unsaved edits. `CollectionForm`
+   * guards full-page navigation itself (`beforeunload`), but in-app router
+   * navigation is the host's to block — this is the signal it needs to do it.
+   */
+  readonly onDirtyChange?: (dirty: boolean) => void;
+  /**
    * How the form saves:
    * - `"form"` (default) — one Save (in the header) validates and submits every
    *   rendered field at once.
@@ -136,6 +160,27 @@ function slugDerivations(collection: Collection, keys: ReadonlyArray<string>): S
   return { bySource, derivable };
 }
 
+/**
+ * The text a slug derives from. A plain source is its own string; a LOCALIZED
+ * source — the common case, since a title is usually translated — is a
+ * per-locale record, and the slug follows the default locale, falling back to
+ * the first locale carrying text. Without this a `slug({ from: "title" })` on a
+ * localized title silently never derives, which is exactly what it used to do.
+ * Mirrors the engine's own `deriveSlugFields`, so the browser and the server
+ * agree on what the slug should be.
+ */
+function slugSourceText(value: unknown, defaultLocale: string | undefined): string | undefined {
+  if (typeof value === "string") return value;
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const preferred = defaultLocale === undefined ? undefined : record[defaultLocale];
+  if (typeof preferred === "string" && preferred !== "") return preferred;
+  for (const text of Object.values(record)) {
+    if (typeof text === "string" && text !== "") return text;
+  }
+  return undefined;
+}
+
 /** `n / max` for a bounded string, when the field declares a `max`. */
 function charCount(value: unknown, meta: { max?: number }): string | undefined {
   if (typeof meta.max !== "number" || typeof value !== "string") return undefined;
@@ -162,6 +207,9 @@ export function CollectionForm<C extends Collection = Collection>({
   serverErrors,
   activeGroup,
   onGroupChange,
+  groupLayout = "section",
+  defaultLocale,
+  onDirtyChange,
   saveMode = "form",
 }: CollectionFormProps<C>): ReactNode {
   const perField = saveMode === "field";
@@ -180,8 +228,11 @@ export function CollectionForm<C extends Collection = Collection>({
   // Per-field save (`saveMode="field"`): which field is mid-save, which fields
   // have unsaved edits, and which just saved (for the brief confirmation).
   const [savingField, setSavingField] = useState<string | null>(null);
-  const [dirtyFields, setDirtyFields] = useState<ReadonlySet<string>>(() => new Set());
   const [savedField, setSavedField] = useState<string | null>(null);
+  // Dirtiness is DERIVED from a baseline, never accumulated — see `lib/dirty`.
+  // A widget that normalises its value on mount (the rich-text editor does)
+  // would otherwise mark an untouched form as edited.
+  const [baseline, setBaseline] = useState<Doc>(() => ({ ...defaults }));
   useEffect(() => {
     if (savedField === null) return;
     const timer = setTimeout(() => setSavedField(null), SAVED_FLASH_MS);
@@ -193,8 +244,19 @@ export function CollectionForm<C extends Collection = Collection>({
   // is the host's to block — `@voila/content-ui` stays router-agnostic — but
   // this covers the cases the component can see on its own. Cleared on a
   // successful submit (the values are persisted; leaving is now intended).
-  const [dirty, setDirty] = useState(false);
-  const hasUnsavedChanges = perField ? dirtyFields.size > 0 : dirty;
+  const dirtyFields = dirtyFieldKeys(collection.fields, keys, baseline, values);
+  const hasUnsavedChanges = dirtyFields.size > 0;
+  // Mirror the flag out to the host so it can block in-app router navigation
+  // (this component can't — it stays router-agnostic).
+  const onDirtyChangeRef = useRef(onDirtyChange);
+  onDirtyChangeRef.current = onDirtyChange;
+  useEffect(() => {
+    onDirtyChangeRef.current?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges]);
+  // Leaving the form for good should not keep the host blocked.
+  useEffect(() => {
+    return () => onDirtyChangeRef.current?.(false);
+  }, []);
   useEffect(() => {
     if (!hasUnsavedChanges) return;
     function onBeforeUnload(event: BeforeUnloadEvent) {
@@ -231,7 +293,20 @@ export function CollectionForm<C extends Collection = Collection>({
   // submit still cover every field (and slug derivation works across groups).
   // The active group is internal state so a focus-driven switch (below) takes
   // effect immediately; the controlled `activeGroup` prop is synced into it.
+  // Which translation the form is editing. One locale at a time keeps the form
+  // the same height whether the project has two languages or ten.
+  const [activeLocale, setActiveLocale] = useState<string | undefined>(
+    () => defaultLocale ?? locales?.[0],
+  );
+  const multiLocale = (locales?.length ?? 0) > 1;
+  const editingLocale =
+    multiLocale && activeLocale !== undefined && locales?.includes(activeLocale)
+      ? activeLocale
+      : (defaultLocale ?? locales?.[0]);
+
   const grouped = (collection.groups?.length ?? 0) > 0;
+  // Create shows every group at once — see `groupLayout`.
+  const stacked = grouped && groupLayout === "all";
   const resolvedGroups = grouped ? resolveFieldGroups(collection, { fields }) : [];
   const firstGroupId = resolvedGroups[0]?.id;
   const [internalGroup, setInternalGroup] = useState<string | undefined>(
@@ -266,7 +341,7 @@ export function CollectionForm<C extends Collection = Collection>({
   // message is visible — the form-level mirror covers it regardless, but this
   // brings the user to the field.
   useEffect(() => {
-    if (!grouped || serverErrors === undefined) return;
+    if (!grouped || stacked || serverErrors === undefined) return;
     const firstKey = keys.find((key) => serverErrors[key] !== undefined);
     if (firstKey === undefined) return;
     const target = resolvedGroups.find((group) => group.fieldKeys.includes(firstKey));
@@ -275,18 +350,7 @@ export function CollectionForm<C extends Collection = Collection>({
   }, [serverErrors]);
 
   function handleChange(name: string, value: unknown) {
-    setDirty(true);
     const derivedKeys = (bySource[name] ?? []).filter((k) => !latchedSlugs.has(k));
-    // Track the edited field (+ any slug just re-derived from it) as unsaved, so
-    // each field's inline Save knows whether to show.
-    if (perField) {
-      setDirtyFields((prev) => {
-        const next = new Set(prev);
-        next.add(name);
-        for (const k of derivedKeys) next.add(k);
-        return next;
-      });
-    }
     setValues((prev) => {
       // A localized widget passes a functional updater so its per-locale edits
       // merge against the latest record, not the (possibly stale) value it was
@@ -295,7 +359,8 @@ export function CollectionForm<C extends Collection = Collection>({
       const resolved =
         typeof value === "function" ? (value as (p: unknown) => unknown)(prev[name]) : value;
       const next = { ...prev, [name]: resolved };
-      if (typeof resolved === "string") for (const k of derivedKeys) next[k] = slugify(resolved);
+      const source = slugSourceText(resolved, defaultLocale ?? locales?.[0]);
+      if (source !== undefined) for (const k of derivedKeys) next[k] = slugify(source);
       return next;
     });
     if (derivable.has(name)) {
@@ -331,7 +396,8 @@ export function CollectionForm<C extends Collection = Collection>({
     const localized = collection.fields[firstKey]?.meta.localized === true && locales !== undefined;
     const id = `${collection.slug}-${firstKey}`;
     const targetId = localized ? `${id}-${locales?.[0]}` : id;
-    if (grouped) {
+    // Stacked layout mounts every group, so there is never a group to switch to.
+    if (grouped && !stacked) {
       const target = resolvedGroups.find((g) => g.fieldKeys.includes(firstKey));
       if (target && target.id !== activeGroupId) {
         selectGroup(target.id);
@@ -344,7 +410,7 @@ export function CollectionForm<C extends Collection = Collection>({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const result = validateFields(collection.fields, values, keys);
+    const result = validateFields(collection.fields, values, keys, { locales, defaultLocale });
     if (Object.keys(result.errors).length > 0) {
       setErrors(result.errors);
       focusFirstError(result.errors);
@@ -358,7 +424,8 @@ export function CollectionForm<C extends Collection = Collection>({
       await onSubmit(result.values as FormValues<C>);
       // Only on success: a thrown `onSubmit` (e.g. a server conflict) leaves the
       // form mounted with the user's still-unsaved edits, so keep guarding it.
-      setDirty(false);
+      // The submitted values become the clean baseline.
+      setBaseline(values);
     } finally {
       setSubmitting(false);
     }
@@ -368,7 +435,7 @@ export function CollectionForm<C extends Collection = Collection>({
   // failed field surfaces its error inline and takes focus; a clean save clears
   // the field's unsaved flag and flashes "Saved".
   async function submitField(key: string) {
-    const result = validateFields(collection.fields, values, [key]);
+    const result = validateFields(collection.fields, values, [key], { locales, defaultLocale });
     if (result.errors[key] !== undefined) {
       setErrors((prev) => ({ ...prev, [key]: result.errors[key] as string }));
       const localized = collection.fields[key]?.meta.localized === true && locales !== undefined;
@@ -388,12 +455,8 @@ export function CollectionForm<C extends Collection = Collection>({
       // null so the PATCH actually clears it (an absent key is a no-op server-side).
       const value = key in result.values ? result.values[key] : null;
       await onSubmit({ [key]: value } as FormValues<C>);
-      setDirtyFields((prev) => {
-        if (!prev.has(key)) return prev;
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
+      // Only this field is clean now; the rest keep their unsaved state.
+      setBaseline((prev) => ({ ...prev, [key]: values[key] }));
       setSavedField(key);
     } finally {
       setSavingField(null);
@@ -417,19 +480,23 @@ export function CollectionForm<C extends Collection = Collection>({
     // that actually failed so the error doesn't repeat under every locale.
     const localeErrors =
       localized && fieldError !== undefined
-        ? localizedFieldErrors(field, values[key], locales ?? [])
+        ? localizedFieldErrors(field, values[key], locales ?? [], defaultLocale)
         : undefined;
     const hasLocaleErrors = localeErrors !== undefined && Object.keys(localeErrors).length > 0;
     const help = field.meta.description;
     const count = localized ? undefined : charCount(values[key], field.meta as { max?: number });
-    const isDirty = perField && dirtyFields.has(key);
+    // `data-dirty` marks any changed field (a hook for tests and for anyone
+    // debugging a form that thinks it has edits); only per-field mode grows the
+    // inline Save row from it.
+    const changed = dirtyFields.has(key);
+    const isDirty = perField && changed;
     const saving = savingField === key;
     const justSaved = savedField === key;
     return (
       <div
         key={key}
         data-slot="form-field"
-        data-dirty={isDirty || undefined}
+        data-dirty={changed || undefined}
         className="space-y-1.5"
       >
         <div className="flex items-baseline justify-between gap-2">
@@ -458,6 +525,8 @@ export function CollectionForm<C extends Collection = Collection>({
             registry={registry}
             errors={localeErrors}
             disabled={fieldDisabled}
+            activeLocale={multiLocale ? editingLocale : undefined}
+            fallbackLocale={defaultLocale ?? locales?.[0]}
           />
         ) : Widget ? (
           <Widget
@@ -512,7 +581,7 @@ export function CollectionForm<C extends Collection = Collection>({
   // layout, but only the ACTIVE group's fields when grouped. An error keyed to
   // an unmounted field (a hidden field, or — when grouped — a field in another
   // group) renders nowhere inline, so it must surface form-level.
-  const renderedKeys = grouped && activeResolved ? activeResolved.fieldKeys : keys;
+  const renderedKeys = grouped && activeResolved && !stacked ? activeResolved.fieldKeys : keys;
   const formLevelErrors = Object.entries(errors)
     .filter(([key]) => !renderedKeys.includes(key))
     .map(([key, message]) => (
@@ -552,8 +621,41 @@ export function CollectionForm<C extends Collection = Collection>({
     </PageLayout.Header>
   ) : null;
 
+  // Per-locale completion across the localized fields the form renders — the
+  // dots on the switcher, so an editor can see at a glance which language is
+  // still missing work without clicking through every tab.
+  const localeProgress = ((): Readonly<Record<string, LocaleProgress>> | undefined => {
+    if (!multiLocale || locales === undefined) return undefined;
+    const localizedKeys = keys.filter((key) => collection.fields[key]?.meta.localized === true);
+    if (localizedKeys.length === 0) return undefined;
+    const out: Record<string, LocaleProgress> = {};
+    for (const locale of locales) {
+      let filled = 0;
+      for (const key of localizedKeys) {
+        const record = values[key];
+        if (typeof record !== "object" || record === null || Array.isArray(record)) continue;
+        const value = (record as Record<string, unknown>)[locale];
+        if (value !== undefined && value !== null && value !== "") filled += 1;
+      }
+      out[locale] = { locale, filled, total: localizedKeys.length };
+    }
+    return out;
+  })();
+
+  const localeSwitcher =
+    multiLocale && locales !== undefined && editingLocale !== undefined && localeProgress ? (
+      <LocaleSwitcher
+        locales={locales}
+        value={editingLocale}
+        onChange={setActiveLocale}
+        defaultLocale={defaultLocale ?? locales[0]}
+        progress={localeProgress}
+        disabled={submitting}
+      />
+    ) : null;
+
   const strip =
-    grouped && activeResolved ? (
+    grouped && activeResolved && !stacked ? (
       <FieldGroupNav
         groups={resolvedGroups}
         activeGroup={activeResolved.id}
@@ -563,8 +665,42 @@ export function CollectionForm<C extends Collection = Collection>({
 
   // The body card: the active group's fields (or every field, flat) in ONE
   // closed card, with the group description on top and any errors at the foot.
-  const bodyKeys = grouped && activeResolved ? activeResolved.fieldKeys : keys;
-  const card = (
+  const bodyKeys = grouped && activeResolved && !stacked ? activeResolved.fieldKeys : keys;
+  const trailer = (
+    <>
+      {formLevelErrors}
+      {formError}
+      {/* Without a header there's no header button, so the bare form keeps a
+          submit of its own. */}
+      {!perField && !hasHeader ? (
+        <Button type="submit" disabled={submitting}>
+          {submitLabel}
+        </Button>
+      ) : null}
+    </>
+  );
+  // Stacked: every group is its own titled card, so a new record's fields are
+  // all reachable without a nav that only exists once the record does.
+  const card = stacked ? (
+    <div data-slot="form-sections" className="space-y-6">
+      {resolvedGroups.map((group) => (
+        <FieldCard.Root key={group.id} id={`${collection.slug}-group-${group.id}`}>
+          <FieldCard.Card className="space-y-5 p-5 sm:p-6">
+            <div>
+              <FieldCard.Title className="text-base">{group.label}</FieldCard.Title>
+              {group.description ? (
+                <FieldCard.Description className="mt-1 mb-0">
+                  {group.description}
+                </FieldCard.Description>
+              ) : null}
+            </div>
+            {group.fieldKeys.map(renderField)}
+          </FieldCard.Card>
+        </FieldCard.Root>
+      ))}
+      {trailer}
+    </div>
+  ) : (
     <FieldCard.Root>
       <FieldCard.Card className="space-y-5 p-5 sm:p-6">
         {activeResolved?.description ? (
@@ -573,26 +709,25 @@ export function CollectionForm<C extends Collection = Collection>({
           </FieldCard.Description>
         ) : null}
         {bodyKeys.map(renderField)}
-        {formLevelErrors}
-        {formError}
-        {/* Without a header there's no header button, so the bare form keeps a
-            submit of its own. */}
-        {!perField && !hasHeader ? (
-          <Button type="submit" disabled={submitting}>
-            {submitLabel}
-          </Button>
-        ) : null}
+        {trailer}
       </FieldCard.Card>
     </FieldCard.Root>
+  );
+
+  const body = (
+    <PageLayout.Body width={width}>
+      {localeSwitcher}
+      {card}
+    </PageLayout.Body>
   );
 
   // Per-field mode: no wrapping `<form>` — every field saves independently.
   if (perField) {
     return (
-      <PageLayout.Root data-slot="collection-form">
+      <PageLayout.Root data-slot="collection-form" data-dirty={hasUnsavedChanges || undefined}>
         {header}
         {strip}
-        <PageLayout.Body width={width}>{card}</PageLayout.Body>
+        {body}
       </PageLayout.Root>
     );
   }
@@ -600,11 +735,11 @@ export function CollectionForm<C extends Collection = Collection>({
   // Form mode: the `<form>` uses `display:contents` so it doesn't break the page
   // frame's flex column; the header submit targets it by id.
   return (
-    <PageLayout.Root data-slot="collection-form">
+    <PageLayout.Root data-slot="collection-form" data-dirty={hasUnsavedChanges || undefined}>
       {header}
       {strip}
       <form id={formId} onSubmit={handleSubmit} noValidate className={cn("contents")}>
-        <PageLayout.Body width={width}>{card}</PageLayout.Body>
+        {body}
       </form>
     </PageLayout.Root>
   );

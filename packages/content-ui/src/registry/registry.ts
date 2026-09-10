@@ -19,6 +19,7 @@ import {
 } from "../widgets/display";
 import { GeoDisplay } from "../widgets/geo";
 import { MediaDisplay } from "../widgets/media";
+import { MultiSelectDisplay } from "../widgets/multi-select";
 import { mergeMaps } from "./merge";
 import { resolveWidget } from "./resolve";
 
@@ -26,7 +27,8 @@ export type DisplayRegistry = Readonly<Record<string, DisplayWidget>>;
 
 /**
  * Built-in display widgets keyed by field `kind`. Kinds with no dedicated entry
- * (array, object, relation, json, …) fall through to `JsonDisplay`.
+ * (array, object, json, …) fall through to `JsonDisplay`. `relation` resolves
+ * to ids only until the admin injects `createRelationDisplay`.
  */
 export const defaultDisplayRegistry: DisplayRegistry = {
   string: TextDisplay,
@@ -38,6 +40,7 @@ export const defaultDisplayRegistry: DisplayRegistry = {
   richText: RichTextValueDisplay,
   enum: EnumDisplay,
   select: EnumDisplay,
+  multiSelect: MultiSelectDisplay,
   duration: TextDisplay,
   position: NumberDisplay,
   number: NumberDisplay,

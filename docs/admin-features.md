@@ -120,6 +120,62 @@ export const admin = defineAdmin({
 The map picker is injected automatically for `geo` fields; a `widgets.edit.geo`
 override still wins.
 
+## Theming the admin from your own content
+
+The admin can take its accent colour and its logo from the project it manages —
+so the editor who picks a brand colour in Settings is the person who restyles the
+admin, with no deploy.
+
+```ts
+export const admin = defineAdmin({
+  config,
+  theme: {
+    accentFrom: "settings.primaryColor", // a `fields.color()` in a singleton
+    logoFrom: "settings.logo",           // a `fields.media()` in a singleton
+    radius: "round",                     // "sharp" | "soft" (default) | "round"
+    density: "comfortable",              // "compact" (default) | "comfortable"
+  },
+});
+```
+
+`accent: "#c0392b"` sets a fixed colour instead (and outranks `accentFrom`).
+
+The stored hex is converted to OKLCH — the space the `@voila.dev/ui` tokens are
+written in — and drives `--primary`, `--ring` and their sidebar counterparts, so
+buttons, the active nav item, focus rings and the map's pins all follow it.
+`--primary-foreground` is picked from the accent's relative luminance (black on a
+yellow brand, white on a navy one), and the dark theme gets the same brand lifted
+into a lightness its near-black ground can actually show.
+
+Wire it up in the root route, which must resolve the brand **server-side** — the
+tokens have to be in the first byte of HTML or the admin paints unbranded and
+then flips:
+
+```ts
+// app/lib/brand.ts — a server fn over your Database
+export const fetchBrand = createServerFn({ method: "GET" }).handler(() =>
+  resolveBrandSource(admin.theme, runtime.database),
+);
+
+// app/routes/__root.tsx
+export const Route = createRootRoute({
+  loader: () => fetchBrand(),
+  head: ({ loaderData }) => {
+    const brand = brandingHead(admin.branding, {
+      defaultFavicon,
+      theme: admin.theme,
+      brand: loaderData,
+    });
+    return { meta: [...brand.meta], links: [...brand.links], styles: [...brand.styles] };
+  },
+  component: RootComponent,
+});
+```
+
+Pass the same `loaderData` to `<AdminProvider brand={…}>` so the sidebar mark and
+the login page use the logo too; nested providers inherit it. A project that
+configures no `theme` emits no style block at all and renders exactly as before.
+
 ## Self-contained local-dev auth
 
 Pass `dev: import.meta.env.DEV` to `createWorkerAdmin` so magic-link sign-in works

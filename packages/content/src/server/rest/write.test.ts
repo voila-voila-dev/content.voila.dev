@@ -391,6 +391,38 @@ describe("create — slug derivation from `from`", () => {
       expect(deriveSlugFields(articles, unusable)).toBe(unusable);
     });
 
+    it("derives from a LOCALIZED source through the default locale", () => {
+      const localizedTitle = defineCollection({
+        slug: "stories",
+        fields: {
+          title: fields.string({ localized: true }),
+          slug: fields.slug({ from: "title" }),
+        },
+      });
+      expect(
+        deriveSlugFields(
+          localizedTitle,
+          { title: { "en-US": "Hello World", "fr-FR": "Bonjour Monde" } },
+          "en-US",
+        ),
+      ).toMatchObject({ slug: "hello-world" });
+      // A different default locale drives the slug instead.
+      expect(
+        deriveSlugFields(
+          localizedTitle,
+          { title: { "en-US": "Hello World", "fr-FR": "Bonjour Monde" } },
+          "fr-FR",
+        ),
+      ).toMatchObject({ slug: "bonjour-monde" });
+      // Default locale untranslated: fall back to the first locale with text.
+      expect(
+        deriveSlugFields(localizedTitle, { title: { "en-US": "", "fr-FR": "Bonjour" } }, "en-US"),
+      ).toMatchObject({ slug: "bonjour" });
+      // Nothing anywhere: leave the payload untouched.
+      const empty = { title: { "en-US": "" } };
+      expect(deriveSlugFields(localizedTitle, empty, "en-US")).toBe(empty);
+    });
+
     it("skips localized slugs", () => {
       const localized = defineCollection({
         slug: "pages",

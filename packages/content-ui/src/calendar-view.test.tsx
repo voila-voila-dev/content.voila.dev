@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { defineCollection, fields } from "@voila/content";
-import { CalendarView, readInstant, rowsToEvents } from "./calendar-view";
+import { CalendarView, eventColors, readInstant, rowsToEvents } from "./calendar-view";
 
 afterEach(cleanup);
 
@@ -154,5 +154,49 @@ describe("CalendarView", () => {
     expect(baseElement.querySelector('[data-slot="calendar-view"]')).not.toBeNull();
     rerender(<CalendarView.Root collection={events} rows={[]} startField="startsAt" />);
     expect(baseElement.querySelector('[data-slot="calendar-view"]')).not.toBeNull();
+  });
+});
+
+describe("eventColors", () => {
+  const screenings = defineCollection({
+    slug: "screenings",
+    titleField: "label",
+    fields: {
+      label: fields.string(),
+      startsAt: fields.datetime(),
+      screen: fields.select({ options: ["Sala Grande", "Sala Azul"] }),
+      accent: fields.color({ format: "hex" }),
+    },
+  });
+
+  test("gives no colours when no field is named", () => {
+    expect(eventColors(screenings, [{ id: "1", screen: "Sala Azul" }], undefined).size).toBe(0);
+  });
+
+  test("uses a color field's value verbatim — the editor already chose it", () => {
+    const map = eventColors(screenings, [{ id: "1", accent: "#8e1b1b" }], "accent");
+    expect(map.get("1")).toBe("#8e1b1b");
+  });
+
+  test("buckets a categorical field so each value reads as its own colour", () => {
+    const rows = [
+      { id: "1", screen: "Sala Grande" },
+      { id: "2", screen: "Sala Azul" },
+      { id: "3", screen: "Sala Grande" },
+    ];
+    const map = eventColors(screenings, rows, "screen");
+    // Same value, same colour; different value, different colour.
+    expect(map.get("1")).toBe(map.get("3") as string);
+    expect(map.get("1")).not.toBe(map.get("2") as string);
+  });
+
+  test("leaves a row with no value uncoloured rather than picking one", () => {
+    const map = eventColors(screenings, [{ id: "1" }, { id: "2", screen: "Sala Azul" }], "screen");
+    expect(map.has("1")).toBe(false);
+    expect(map.has("2")).toBe(true);
+  });
+
+  test("ignores a field the collection does not have", () => {
+    expect(eventColors(screenings, [{ id: "1" }], "nope").size).toBe(0);
   });
 });

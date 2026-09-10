@@ -24,6 +24,22 @@ export { FieldGroupNav, type FieldGroupNavProps, resolveGroupIcon } from "./fiel
 export { FieldRenderer, type FieldRendererProps } from "./field-renderer";
 export { FilterBuilder, type FilterBuilderProps, FilterEditor } from "./filter-builder";
 export { KanbanView, type KanbanViewProps } from "./kanban-view";
+export {
+  accentColor,
+  adjustForTheme,
+  contrastForeground,
+  formatOklch,
+  hexToOklch,
+  type Oklch,
+  oklchLuminance,
+  oklchToHex,
+  parseHex,
+  parseOklch,
+  type ThemeDensity,
+  type ThemeRadius,
+  type ThemeTokensOptions,
+  themeTokensCss,
+} from "./lib/accent";
 export { defaultCardFields } from "./lib/card-fields";
 export type { Doc } from "./lib/doc";
 export {
@@ -76,14 +92,23 @@ export {
   applyTheme,
   resolvedTheme,
   setTheme,
+  setThemeChoice,
   storedTheme,
   systemTheme,
   THEME_STORAGE_KEY,
   type Theme,
+  type ThemeChoice,
+  themeChoice,
   themeInitScript,
+  watchSystemTheme,
 } from "./lib/theme";
 export { type FormValidation, validateFields } from "./lib/validate";
 export { ListView, type ListViewProps, PAGE_SIZES, searchEnabled } from "./list-view";
+export {
+  type LocaleProgress,
+  LocaleSwitcher,
+  type LocaleSwitcherProps,
+} from "./locale-switcher";
 export { LocalizedFieldEditor, type LocalizedFieldEditorProps } from "./localized-field";
 export { MapView, type MapViewProps } from "./map-view";
 export { type BodyWidth, PageLayout, pageGutter } from "./page-layout";
@@ -109,7 +134,13 @@ export {
 export { SearchInput, type SearchInputProps } from "./search-input";
 export { StatusFilter, type StatusFilterProps, type StatusFilterValue } from "./status-filter";
 export { ThemeToggle } from "./theme-toggle";
-export { UserMenu, type UserMenuProps, userInitials } from "./user-menu";
+export {
+  DEFAULT_SHORTCUTS,
+  type ShortcutHint,
+  UserMenu,
+  type UserMenuProps,
+  userInitials,
+} from "./user-menu";
 export {
   type FieldChoice,
   type ViewFieldChoices,
@@ -162,8 +193,28 @@ export {
 export {
   type CreateMediaInputOptions,
   createMediaInput,
+  formatBytes,
   MediaDisplay,
+  type MediaLister,
   type MediaUploader,
+  mediaFilename,
+  tooLargeMessage,
+  uploadErrorMessage,
 } from "./widgets/media";
+export {
+  MultiSelectDisplay,
+  MultiSelectInput,
+  multiSelectValues,
+} from "./widgets/multi-select";
+export {
+  createRelationDisplay,
+  createRelationInput,
+  RelationIdInput,
+  type RelationLoader,
+  type RelationOption,
+  type RelationWidgetOptions,
+  relationIds,
+  shortId,
+} from "./widgets/relation";
 export { StatCard, type StatCardProps } from "./widgets/stat-card";
 export { StatusBadge, type StatusBadgeProps } from "./widgets/status-badge";

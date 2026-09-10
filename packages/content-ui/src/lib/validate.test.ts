@@ -64,7 +64,9 @@ describe("validateFields", () => {
     expect("summary" in values).toBe(false);
   });
 
-  test("keeps a localized field when any locale has content", () => {
+  test("keeps a localized field when any locale has content, dropping the blanks", () => {
+    // The untranslated locale is omitted rather than persisted as an empty
+    // document — reads fall back down the locale chain to fill the gap.
     const localized = { summary: fields.richText({ localized: true }) };
     const empty = [{ id: "1", type: "paragraph", children: [{ text: "" }] }];
     const filled = [{ id: "2", type: "paragraph", children: [{ text: "Hi" }] }];
@@ -72,7 +74,30 @@ describe("validateFields", () => {
       summary: { "en-US": filled, "fr-FR": empty },
     });
     expect(errors).toEqual({});
-    expect(values.summary).toEqual({ "en-US": filled, "fr-FR": empty });
+    expect(values.summary).toEqual({ "en-US": filled });
+  });
+
+  test("a required localized field needs only the default locale", () => {
+    const localized = { title: fields.string({ localized: true, required: true }) };
+    const { values, errors } = validateFields(
+      localized,
+      { title: { "en-US": "Hello", "fr-FR": "" } },
+      undefined,
+      { locales: LOCALES, defaultLocale: "en-US" },
+    );
+    expect(errors).toEqual({});
+    expect(values.title).toEqual({ "en-US": "Hello" });
+  });
+
+  test("a required localized field still fails when the DEFAULT locale is blank", () => {
+    const localized = { title: fields.string({ localized: true, required: true }) };
+    const { errors } = validateFields(
+      localized,
+      { title: { "en-US": "", "fr-FR": "Salut" } },
+      undefined,
+      { locales: LOCALES, defaultLocale: "en-US" },
+    );
+    expect(errors.title).toBe("Required.");
   });
 
   test("flags a required localized field blank in every locale", () => {
@@ -103,11 +128,24 @@ describe("localizedFieldErrors", () => {
     expect(out["fr-FR"]).toBeDefined();
   });
 
-  test("marks a blank required locale Required, leaves a filled one clean", () => {
+  test("only the DEFAULT locale is Required — a missing translation is clean", () => {
     const field = fields.string({ localized: true, required: true });
-    const out = localizedFieldErrors(field, { "en-US": "Hello" }, LOCALES);
-    expect(out["fr-FR"]).toBe("Required.");
-    expect("en-US" in out).toBe(false);
+    const out = localizedFieldErrors(field, { "en-US": "Hello" }, LOCALES, "en-US");
+    expect(out).toEqual({});
+  });
+
+  test("marks the default locale Required when it is the blank one", () => {
+    const field = fields.string({ localized: true, required: true });
+    const out = localizedFieldErrors(field, { "fr-FR": "Salut" }, LOCALES, "en-US");
+    expect(out["en-US"]).toBe("Required.");
+    expect("fr-FR" in out).toBe(false);
+  });
+
+  test("defaults the required locale to the first one when none is named", () => {
+    const field = fields.string({ localized: true, required: true });
+    const out = localizedFieldErrors(field, {}, LOCALES);
+    expect(out["en-US"]).toBe("Required.");
+    expect("fr-FR" in out).toBe(false);
   });
 
   test("does not flag a blank optional locale", () => {
@@ -116,11 +154,11 @@ describe("localizedFieldErrors", () => {
     expect(out).toEqual({});
   });
 
-  test("treats a non-record value as empty", () => {
+  test("treats a non-record value as empty in the default locale", () => {
     const field = fields.string({ localized: true, required: true });
-    const out = localizedFieldErrors(field, "garbage", LOCALES);
+    const out = localizedFieldErrors(field, "garbage", LOCALES, "en-US");
     expect(out["en-US"]).toBe("Required.");
-    expect(out["fr-FR"]).toBe("Required.");
+    expect("fr-FR" in out).toBe(false);
   });
 
   test("surfaces a locale whose inner schema validates asynchronously", () => {

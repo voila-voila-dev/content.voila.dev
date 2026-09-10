@@ -143,7 +143,7 @@ describe("writes stay full-record", () => {
     expect(body.data.title).toEqual({ "en-US": "Hi", "fr-FR": "Salut", "de-DE": "Hallo" });
   });
 
-  it("rejects a partial per-locale record (narrowed validator wants every locale)", async () => {
+  it("accepts a partial per-locale record — only the default locale is required", async () => {
     const res = await handle(
       new Request("https://x/admin/api/posts", {
         method: "POST",
@@ -151,6 +151,9 @@ describe("writes stay full-record", () => {
         body: JSON.stringify({ data: { title: { "en-US": "Hi" }, slug: "partial" } }),
       }),
     );
-    expect(res?.status).toBe(422);
+    expect(res?.status).toBe(201);
+    const body = (await res?.json()) as { data: Document };
+    // The untranslated locale is simply absent, not stored as an empty string.
+    expect(body.data.title).toEqual({ "en-US": "Hi" });
   });
 });

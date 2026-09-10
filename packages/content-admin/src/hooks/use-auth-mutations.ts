@@ -1,19 +1,43 @@
 // Auth mutations for the admin. `useSignIn` posts to the magic-link sign-in
 // endpoint; the login screen reads `isPending` / `isSuccess` / `error` off it.
+// A failure is translated to human copy (`signInFailure`) before it reaches the
+// screen — the person who can't sign in should be told what to do, not shown a
+// status code. The code still goes to the console for whoever is debugging.
 
 import { useMutation } from "@tanstack/react-query";
 import { useAdmin } from "../context";
+import { SIGN_IN_NETWORK_FAILURE, signInFailure } from "../lib/sign-in-error";
+
+/** Carries the human message plus whether retrying the same address can help. */
+export class SignInError extends Error {
+  readonly retryable: boolean;
+  constructor(message: string, retryable: boolean) {
+    super(message);
+    this.name = "SignInError";
+    this.retryable = retryable;
+  }
+}
 
 export function useSignIn() {
   const { admin } = useAdmin();
   return useMutation({
     mutationFn: async (email: string) => {
-      const res = await fetch(`${admin.apiPath}/auth/sign-in/magic-link`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, callbackURL: admin.basePath || "/" }),
-      });
-      if (!res.ok) throw new Error(`Could not send the sign-in link (${res.status}).`);
+      let res: Response;
+      try {
+        res = await fetch(`${admin.apiPath}/auth/sign-in/magic-link`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email, callbackURL: admin.basePath || "/" }),
+        });
+      } catch {
+        throw new SignInError(SIGN_IN_NETWORK_FAILURE.message, SIGN_IN_NETWORK_FAILURE.retryable);
+      }
+      if (!res.ok) {
+        const failure = signInFailure(res.status);
+        // The status belongs in the console, not in the person's way.
+        console.warn(`[voila/auth] sign-in failed with ${res.status}`);
+        throw new SignInError(failure.message, failure.retryable);
+      }
     },
   });
 }

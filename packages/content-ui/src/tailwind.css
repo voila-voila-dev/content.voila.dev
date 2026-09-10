@@ -14,3 +14,34 @@
 
 /* Resolved relative to this file → works from workspace or node_modules. */
 @source ".";
+
+/*
+ * Dark-mode elevation.
+ *
+ * The kit's dark palette separates surfaces almost entirely by fill
+ * (background 0.145 → card 0.205) and draws every edge at 10% white. On the
+ * admin's stacked surfaces — a bordered inset panel holding bordered cards
+ * holding bordered inputs — those edges disappear, and a page reads as text
+ * floating in black instead of as a shell with structure in it.
+ *
+ * These overrides only touch the dark theme, and only the two tokens that carry
+ * separation: a stronger border, and an input outline strong enough to find. The
+ * light theme is untouched, and every component keeps reading its colour from
+ * the same tokens.
+ */
+@layer base {
+  .dark {
+    --border: oklch(1 0 0 / 16%);
+    --input: oklch(1 0 0 / 20%);
+    --sidebar-border: oklch(1 0 0 / 14%);
+  }
+
+  /*
+   * The inset panel is the admin's "page". Sitting it a step above the app
+   * ground gives the shell an edge that survives on an OLED screen, where a
+   * 10%-white hairline on near-black is effectively invisible.
+   */
+  .dark [data-slot="sidebar-inset"] {
+    background-color: oklch(0.185 0 0);
+  }
+}

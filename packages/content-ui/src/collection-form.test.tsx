@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { defineCollection, fields } from "@voila/content";
+import { type ReactNode, useEffect, useRef } from "react";
 import { CollectionForm } from "./collection-form";
+import { defaultEditRegistry } from "./registry/edit";
+import type { EditWidgetProps } from "./widgets/edit";
 
 afterEach(cleanup);
 
@@ -508,5 +511,81 @@ describe('CollectionForm — per-field save (saveMode="field")', () => {
       ) as HTMLButtonElement,
     );
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+});
+
+describe("unsaved-changes reporting", () => {
+  // The bug this guards: a widget that normalises its value on mount made the
+  // form report unsaved edits before the user had typed anything, which armed
+  // the host's navigation guard and trapped the editor on a blank form.
+  const withRichText = defineCollection({
+    slug: "notes",
+    fields: { title: fields.string(), body: fields.richText() },
+  });
+
+  /**
+   * Stands in for the rich-text editor: emits a normalised empty doc ONCE on
+   * mount. The `onChange` prop is a fresh closure each render, so the emit is
+   * pinned to mount through a ref — exactly as a real editor does, and without
+   * it the effect would re-fire forever.
+   */
+  function NormalisingWidget({ onChange }: EditWidgetProps): ReactNode {
+    const emit = useRef(onChange);
+    emit.current = onChange;
+    useEffect(() => {
+      emit.current([{ id: "1", type: "paragraph", children: [{ text: "" }] }]);
+    }, []);
+    return <div data-testid="normalising" />;
+  }
+
+  function isDirty(container: HTMLElement): boolean {
+    return (
+      container.querySelector("[data-slot=collection-form]")?.hasAttribute("data-dirty") === true
+    );
+  }
+
+  test("a freshly opened form reports no unsaved changes", async () => {
+    const onDirtyChange = mock();
+    const { container } = render(
+      <CollectionForm
+        collection={withRichText}
+        registry={{ ...defaultEditRegistry, richText: NormalisingWidget }}
+        onSubmit={mock()}
+        onDirtyChange={onDirtyChange}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId("normalising")).toBeDefined());
+    expect(isDirty(container)).toBe(false);
+    // It may be called with `false`, but never with `true`.
+    expect(onDirtyChange.mock.calls.every(([dirty]) => dirty === false)).toBe(true);
+  });
+
+  test("typing reports unsaved changes", async () => {
+    const onDirtyChange = mock();
+    const { container } = render(
+      <CollectionForm collection={withRichText} onSubmit={mock()} onDirtyChange={onDirtyChange} />,
+    );
+    fireEvent.change(container.querySelector("#notes-title") as HTMLInputElement, {
+      target: { value: "Hello" },
+    });
+    await waitFor(() => expect(isDirty(container)).toBe(true));
+    expect(onDirtyChange).toHaveBeenCalledWith(true);
+  });
+
+  test("typing and then undoing it reports clean again", async () => {
+    const { container } = render(<CollectionForm collection={withRichText} onSubmit={mock()} />);
+    const input = container.querySelector("#notes-title") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "Hello" } });
+    fireEvent.change(input, { target: { value: "" } });
+    await waitFor(() => expect(isDirty(container)).toBe(false));
+  });
+
+  test("a successful submit clears the unsaved flag", async () => {
+    const { container } = render(<CollectionForm collection={withRichText} onSubmit={mock()} />);
+    fireEvent.change(container.querySelector("#notes-title") as HTMLInputElement, {
+      target: { value: "Hello" },
+    });
+    fireEvent.submit(container.querySelector("form") as HTMLFormElement);
+    await waitFor(() => expect(isDirty(container)).toBe(false));
   });
 });

@@ -4,7 +4,13 @@
 
 import type { Collection, NormalizedConfig } from "@voila/content";
 import type { ContentClient, Fetch, MediaClient } from "@voila/content/client";
-import type { DisplayRegistry, EditRegistry, NavItem } from "@voila/content-ui";
+import type {
+  DisplayRegistry,
+  EditRegistry,
+  NavItem,
+  ThemeDensity,
+  ThemeRadius,
+} from "@voila/content-ui";
 import type { ComponentType, ReactNode } from "react";
 
 /** The signed-in user as the admin chrome needs it. */
@@ -29,6 +35,68 @@ export interface AdminBranding {
    * document `<head>` with {@link import("./lib/branding-head").brandingHead}.
    */
   readonly favicon?: string;
+}
+
+/**
+ * A `"<singleton>.<field>"` path into the project's own content — the way the
+ * admin is told "the brand lives *there*, ask the editors". Typed against the
+ * config so a renamed singleton is a compile error rather than a silently
+ * unbranded admin.
+ */
+export type SingletonFieldPath<C extends NormalizedConfig = NormalizedConfig> =
+  `${keyof C["singletons"] & string}.${string}`;
+
+/**
+ * Presentation options: where the admin's own look comes from. All optional,
+ * and an admin that sets none renders exactly as it does today.
+ */
+export interface AdminTheme<C extends NormalizedConfig = NormalizedConfig> {
+  /** A fixed brand colour as hex (`"#c0392b"`). Wins over {@link accentFrom}. */
+  readonly accent?: string;
+  /**
+   * Read the brand colour out of content instead, e.g. `"settings.primaryColor"`
+   * — so the editors who pick the colour are the ones who change the admin.
+   * Resolved per request server-side; see `resolveBrandSource`.
+   */
+  readonly accentFrom?: SingletonFieldPath<C>;
+  /** Read the logo out of a singleton `media` field, e.g. `"settings.logo"`.
+   *  Used for the sidebar mark, the login page and the favicon when
+   *  `branding.logo` / `branding.favicon` don't say otherwise. */
+  readonly logoFrom?: SingletonFieldPath<C>;
+  /** Corner radius preset. Default `"soft"` — the kit's shipped `--radius`. */
+  readonly radius?: ThemeRadius;
+  /** Spacing preset. Default `"compact"` — today's admin. */
+  readonly density?: ThemeDensity;
+}
+
+/**
+ * {@link AdminTheme} as carried on the instance: the same shape with the
+ * config-generic path types widened, so screens and the server loader can take
+ * it without threading `C`.
+ *
+ * The presets stay optional on purpose. "Unset" is not the same as "set to the
+ * default": an unset preset emits no declaration at all, so a project that
+ * configures nothing ships exactly the stylesheet it ships today.
+ */
+export interface ResolvedAdminTheme {
+  readonly accent?: string;
+  readonly accentFrom?: string;
+  readonly logoFrom?: string;
+  readonly radius?: ThemeRadius;
+  readonly density?: ThemeDensity;
+}
+
+/**
+ * The brand values read out of a project's content for one request — the
+ * editors' half of the theme. Produced by `resolveBrandSource` (server) or
+ * `readBrandSource` (from already-loaded documents), then handed to
+ * `brandingHead` and `AdminProvider`.
+ */
+export interface AdminBrandSource {
+  /** Hex colour from the configured `accentFrom` field. */
+  readonly accent?: string;
+  /** Image `src` from the configured `logoFrom` media field. */
+  readonly logo?: string;
 }
 
 /** Props a custom screen's component receives. `data` is its loader's result. */
@@ -104,6 +172,8 @@ export interface DefineAdminOptions<C extends NormalizedConfig = NormalizedConfi
   /** Where the REST + auth routes live. Default `${basePath}/api`. */
   readonly apiPath?: string;
   readonly branding?: AdminBranding;
+  /** Accent colour, corner radius and density — see {@link AdminTheme}. */
+  readonly theme?: AdminTheme<C>;
   /** Field widget overrides, merged over the content-ui defaults. */
   readonly widgets?: { readonly edit?: EditRegistry; readonly display?: DisplayRegistry };
   readonly slots?: AdminSlots<C>;
@@ -131,6 +201,8 @@ export interface AdminInstance<C extends NormalizedConfig = NormalizedConfig> {
   readonly basePath: string;
   readonly apiPath: string;
   readonly branding: AdminBranding;
+  /** Presentation options with the presets resolved. */
+  readonly theme: ResolvedAdminTheme;
   readonly client: ContentClient<C>;
   readonly mediaClient: MediaClient;
   readonly editWidgets: EditRegistry;

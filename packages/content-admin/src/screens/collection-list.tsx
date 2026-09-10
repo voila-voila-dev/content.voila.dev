@@ -13,7 +13,14 @@
 // default / delete. Rows select for bulk delete. Mounted by the host's fixed
 // `_app.$collection.index.tsx` shim.
 
-import { FunnelIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import {
+  CopyIcon,
+  DotsThreeIcon,
+  DownloadSimpleIcon,
+  FunnelIcon,
+  PlusIcon,
+  TrashIcon,
+} from "@phosphor-icons/react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { Collection } from "@voila/content";
@@ -23,6 +30,7 @@ import {
   CalendarView,
   ColumnEditor,
   defaultCardFields,
+  documentTitle,
   FilterEditor,
   getFieldLabel,
   KanbanView,
@@ -32,10 +40,12 @@ import {
   pageGutter,
   searchEnabled,
   singularLabel,
+  useI18n,
   ViewTabs,
 } from "@voila/content-ui";
 import { AlertDialog } from "@voila.dev/ui/alert-dialog";
 import { Button, buttonVariants } from "@voila.dev/ui/button";
+import { DropdownMenu } from "@voila.dev/ui/dropdown-menu";
 import { Input } from "@voila.dev/ui/input";
 import { Popover } from "@voila.dev/ui/popover";
 import { cn } from "@voila.dev/ui/utils";
@@ -46,6 +56,7 @@ import { useViewMutations } from "../hooks/use-view-mutations";
 import { AdminLink } from "../lib/admin-link";
 import { backToHome } from "../lib/back";
 import { type AnyListParams, collectionClient } from "../lib/client-access";
+import { buildCsv, csvFilename, downloadCsv } from "../lib/export-csv";
 import { CustomScreenDispatcher } from "./custom-dispatcher";
 import { SingletonScreen } from "./singleton";
 
@@ -57,8 +68,38 @@ const BOARD_PAGE_CAP = 5;
 const DEFAULT_PAGE_SIZE = 25;
 
 /** The collection's non-hidden field keys — the default visible columns. */
+/**
+ * Field kinds that make a poor default column. Long-form and binary values turn
+ * a table into a wall of truncated text — a row of "Lisbon rewards walkers who
+ * don't mind h…" tells an editor nothing they can scan. They stay one click
+ * away in the column picker, and any saved view that names them still shows them.
+ */
+const NOISY_COLUMN_KINDS = new Set(["richText", "markdown", "code", "json", "media", "object"]);
+
+/** How many columns a table opens with before the picker takes over. */
+const DEFAULT_COLUMN_BUDGET = 8;
+
+/**
+ * The columns a collection's table opens with. Previously this was "every
+ * non-hidden field", which put a truncated rich-text body and a column of
+ * em-dashes in front of the title. Now it leads with the title, drops the kinds
+ * that can't be read at a glance, and stops at a budget so the first screen is
+ * scannable without horizontal scrolling.
+ */
 function defaultColumns(collection: Collection): string[] {
-  return Object.keys(collection.fields).filter((k) => !collection.fields[k]?.meta.hidden);
+  const keys = Object.keys(collection.fields).filter((k) => !collection.fields[k]?.meta.hidden);
+  const title = collection.titleField;
+  const scannable = keys.filter((k) => {
+    const kind = collection.fields[k]?.meta.kind;
+    return kind === undefined || !NOISY_COLUMN_KINDS.has(kind);
+  });
+  // The title always leads, whether or not it survived the kind filter.
+  const ordered =
+    title !== undefined && keys.includes(title)
+      ? [title, ...scannable.filter((k) => k !== title)]
+      : scannable;
+  // A collection made entirely of long-form fields still needs columns.
+  return (ordered.length > 0 ? ordered : keys).slice(0, DEFAULT_COLUMN_BUDGET);
 }
 
 /** Fields a kanban board can group by (a fixed, small set of values). */
@@ -72,6 +113,20 @@ function kanbanFields(collection: Collection): string[] {
 /** Geo fields a map view can plot. */
 function geoFields(collection: Collection): string[] {
   return Object.keys(collection.fields).filter((k) => collection.fields[k]?.meta.kind === "geo");
+}
+
+/**
+ * The field a calendar colours its events by, chosen without configuration: an
+ * editor-picked `color` field first, else the same select/enum a board would
+ * group by. Colouring by SOMETHING beats a month of identical grey blocks, and
+ * the choice is the one dimension the collection already treats as categorical.
+ */
+function calendarColorField(collection: Collection): string | undefined {
+  const color = Object.keys(collection.fields).find(
+    (k) => collection.fields[k]?.meta.kind === "color",
+  );
+  if (color !== undefined) return color;
+  return kanbanFields(collection)[0];
 }
 
 /** Date/datetime fields a calendar view can lay events out by. */
@@ -131,6 +186,11 @@ export function CollectionListScreen(): ReactNode {
   const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
   const searching =
     collection !== undefined && searchEnabled(collection.search) && searchValue.trim() !== "";
+  // The same box drives a client-side title filter when there is no index.
+  const titleFilter =
+    collection !== undefined && !searchEnabled(collection.search)
+      ? searchValue.trim().toLowerCase()
+      : "";
 
   // The fields a board/map/calendar card shows — the view's own pick, else the
   // shared defaults — so the list query fetches exactly what the cards render.
@@ -239,7 +299,37 @@ export function CollectionListScreen(): ReactNode {
     }
   }, [isBoardView, query.hasNextPage, query.isFetchingNextPage, loadedPages, query.fetchNextPage]);
 
-  const { update: updateRow, removeMany } = useCollectionMutations(slug);
+  const { create, update: updateRow, removeMany, updateMany } = useCollectionMutations(slug);
+  const i18n = useI18n();
+
+  /**
+   * Copy a record into a new draft. Server-owned columns are stripped (a new id
+   * is minted, timestamps are the server's), and the title/slug are suffixed so
+   * the copy is distinguishable in the list and doesn't collide on a unique
+   * slug. Lands the editor in the new record so the duplicate is immediately
+   * editable rather than silently appearing somewhere in the list.
+   */
+  function duplicateRow(row: Doc): void {
+    const collection = admin.config.collections[slug] as Collection | undefined;
+    if (!collection) return;
+    const copy: Doc = {};
+    for (const key of Object.keys(collection.fields)) {
+      if (!(key in row)) continue;
+      const field = collection.fields[key];
+      const value = row[key];
+      if (value === undefined || value === null) continue;
+      if (key === collection.titleField) {
+        copy[key] = suffixTitle(value, " (copy)");
+      } else if (field?.meta.kind === "slug" && typeof value === "string") {
+        copy[key] = `${value}-copy`;
+      } else {
+        copy[key] = value;
+      }
+    }
+    create.mutate(copy, {
+      onSuccess: (doc) => navigate({ href: `${admin.basePath}/${slug}/${String(doc.id)}` }),
+    });
+  }
 
   function selectView(id: string) {
     navigate({ to: ".", search: (prev: Record<string, unknown>) => ({ ...prev, view: id }) });
@@ -260,10 +350,24 @@ export function CollectionListScreen(): ReactNode {
   // route; hand off to the dispatcher (which 404s if unregistered).
   if (!collection) return <CustomScreenDispatcher />;
 
-  const rows = searching
+  const loadedRows = searching
     ? (searchQuery.data?.data ?? [])
     : (query.data?.pages.flatMap((page) => page.data) ?? []);
-  const total = searching ? searchQuery.data?.data.length : query.data?.pages[0]?.total;
+  // Collections without a full-text index still get a working search box: the
+  // term narrows the rows already loaded by title. It is honestly scoped —
+  // the empty state says "no LOADED record matches" — and it beats offering
+  // nothing at all on a collection an editor is trying to find something in.
+  const rows =
+    !searching && titleFilter !== ""
+      ? loadedRows.filter((row) =>
+          (documentTitle(collection, row, i18n) ?? "").toLowerCase().includes(titleFilter),
+        )
+      : loadedRows;
+  const total = searching
+    ? searchQuery.data?.data.length
+    : titleFilter !== ""
+      ? rows.length
+      : query.data?.pages[0]?.total;
   const visibleColumns =
     working.columns && working.columns.length > 0 ? working.columns : defaultColumns(collection);
   const label = collection.label ?? slug;
@@ -471,6 +575,11 @@ export function CollectionListScreen(): ReactNode {
               defaultCenter={working.mapCenter}
               defaultZoom={working.mapZoom}
               onRowClick={openRow}
+              // Fill the page panel instead of the standalone 60vh strip, which
+              // left the bottom half of a desktop screen empty. The subtraction
+              // is the shell chrome above it (header + view tabs + toolbar);
+              // `min-h` keeps it usable on a short window.
+              className="h-[calc(100svh-14rem)] min-h-96"
             />
           ) : viewType === "calendar" && calendarField ? (
             <CalendarView.Root
@@ -479,6 +588,7 @@ export function CollectionListScreen(): ReactNode {
               startField={calendarField}
               endField={calendarEndField}
               cardFields={cardFields}
+              colorField={calendarColorField(collection)}
               view={calendarView}
               onViewChange={changeCalendarView}
               onRowClick={openRow}
@@ -522,15 +632,180 @@ export function CollectionListScreen(): ReactNode {
       selectable
       selected={selected}
       onSelectedChange={setSelected}
+      rowActions={(row) => (
+        <RowActions
+          singular={singular.toLowerCase()}
+          onDuplicate={() => duplicateRow(row)}
+          onDelete={() => removeMany.mutate([String((row as { id?: unknown }).id)])}
+        />
+      )}
       bulkActions={(ids) => (
-        <BulkDelete
-          count={ids.size}
-          pending={removeMany.isPending}
-          onConfirm={() => removeMany.mutate([...ids], { onSuccess: () => setSelected(new Set()) })}
+        <BulkActions
+          ids={ids}
+          collection={collection}
+          rows={rows}
+          defaultLocale={admin.config.i18n?.defaultLocale}
+          slug={slug}
+          deleting={removeMany.isPending}
+          applying={updateMany.isPending}
+          onSetField={(values, label) =>
+            updateMany.mutate(
+              { ids: [...ids], values, label },
+              { onSuccess: () => setSelected(new Set()) },
+            )
+          }
+          onDelete={() => removeMany.mutate([...ids], { onSuccess: () => setSelected(new Set()) })}
         />
       )}
     />
   );
+}
+
+/** Append a suffix to a title, whether it is plain or a per-locale record. */
+function suffixTitle(value: unknown, suffix: string): unknown {
+  if (typeof value === "string") return `${value}${suffix}`;
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    const out: Record<string, unknown> = {};
+    for (const [locale, text] of Object.entries(value as Record<string, unknown>)) {
+      out[locale] = typeof text === "string" ? `${text}${suffix}` : text;
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * The per-row overflow menu, revealed on hover. Duplicate and Delete are the
+ * two things an editor wants from a list row without opening the record; Open
+ * is already the row itself.
+ */
+function RowActions({
+  singular,
+  onDuplicate,
+  onDelete,
+}: {
+  readonly singular: string;
+  readonly onDuplicate: () => void;
+  readonly onDelete: () => void;
+}): ReactNode {
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Actions for this ${singular}`}
+            // The row is a click target; this menu is not a way into it.
+            onClick={(event) => event.stopPropagation()}
+          />
+        }
+      >
+        <DotsThreeIcon weight="bold" aria-hidden />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content align="end">
+        <DropdownMenu.Item onClick={onDuplicate}>
+          <CopyIcon aria-hidden />
+          Duplicate
+        </DropdownMenu.Item>
+        <DropdownMenu.Item variant="destructive" onClick={onDelete}>
+          <TrashIcon aria-hidden />
+          Delete
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
+  );
+}
+
+/**
+ * Everything the selection bar can do to the checked rows. Checking rows used
+ * to offer only Delete, which made selection nearly pointless — the reasons an
+ * editor selects several records at once are almost always "move these to the
+ * same status" or "get these into a spreadsheet".
+ *
+ * The status menu is derived, not hard-coded: any `enum` field on the
+ * collection becomes a "Set <field>" submenu, so a collection with
+ * `status: Draft/On sale/Cancelled` gets exactly those actions with no config.
+ */
+function BulkActions({
+  ids,
+  collection,
+  rows,
+  defaultLocale,
+  slug,
+  deleting,
+  applying,
+  onSetField,
+  onDelete,
+}: {
+  readonly ids: ReadonlySet<string>;
+  readonly collection: Collection;
+  readonly rows: ReadonlyArray<Doc>;
+  readonly defaultLocale?: string;
+  readonly slug: string;
+  readonly deleting: boolean;
+  readonly applying: boolean;
+  readonly onSetField: (values: Doc, label: string) => void;
+  readonly onDelete: () => void;
+}): ReactNode {
+  const count = ids.size;
+  // Enum fields are the ones with a closed, human-labelled value set, which is
+  // exactly what a bulk "move to…" needs.
+  const enumFields = Object.entries(collection.fields).filter(
+    ([, field]) => field.meta.kind === "enum",
+  );
+
+  function exportSelected() {
+    const selectedRows = rows.filter((row) => ids.has(String((row as { id?: unknown }).id)));
+    const csv = buildCsv(selectedRows as ReadonlyArray<Record<string, unknown>>, {
+      collection,
+      defaultLocale,
+    });
+    downloadCsv(csv, csvFilename(slug));
+  }
+
+  return (
+    <>
+      {enumFields.map(([name, field]) => {
+        const values = (field.meta as { values?: Record<string, string | number> }).values ?? {};
+        const entries = Object.entries(values);
+        if (entries.length === 0) return null;
+        return (
+          <DropdownMenu.Root key={name}>
+            <DropdownMenu.Trigger
+              disabled={applying}
+              className={cn(buttonVariants({ variant: "outline", size: "xs" }))}
+            >
+              Set {humanizeFieldName(name)}
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content align="end">
+              {entries.map(([label, raw]) => (
+                <DropdownMenu.Item
+                  key={label}
+                  onClick={() =>
+                    onSetField({ [name]: raw } as Doc, `Set ${humanizeFieldName(name)} to ${label}`)
+                  }
+                >
+                  {label}
+                </DropdownMenu.Item>
+              ))}
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
+        );
+      })}
+      <Button variant="outline" size="xs" onClick={exportSelected}>
+        <DownloadSimpleIcon aria-hidden />
+        Export CSV
+      </Button>
+      <BulkDelete count={count} pending={deleting} onConfirm={onDelete} />
+    </>
+  );
+}
+
+/** `publishedAt` → "Published at" — the same shape the field labels use. */
+function humanizeFieldName(name: string): string {
+  const spaced = name.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ");
+  return (spaced.charAt(0).toUpperCase() + spaced.slice(1)).toLowerCase();
 }
 
 /** The selection bar's Delete, behind a confirm dialog. */
@@ -558,7 +833,8 @@ function BulkDelete({
             Delete {count} {count === 1 ? "record" : "records"}?
           </AlertDialog.Title>
           <AlertDialog.Description>
-            It's a soft delete — the records are hidden but recoverable through the API.
+            It's a soft delete. You'll get an Undo in the confirmation toast, and the records stay
+            recoverable through the API after that.
           </AlertDialog.Description>
         </AlertDialog.Header>
         <AlertDialog.Footer>

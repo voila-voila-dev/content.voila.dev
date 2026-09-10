@@ -39,6 +39,8 @@ export interface AnyViewsClient {
   create(view: NewView): Promise<SavedView>;
   update(id: string, patch: ViewPatch): Promise<SavedView>;
   delete(id: string): Promise<void>;
+  /** Revives a soft-deleted row — the other half of an undoable delete. */
+  restore(id: string): Promise<Doc>;
   reorder(ids: ReadonlyArray<string>): Promise<void>;
 }
 
@@ -56,6 +58,8 @@ export interface AnyCollectionClient {
   create(data: Doc): Promise<Doc>;
   update(id: string, data: Doc): Promise<Doc>;
   delete(id: string): Promise<void>;
+  /** Revives a soft-deleted row — the other half of an undoable delete. */
+  restore(id: string): Promise<Doc>;
   publish(id: string, opts?: { at?: number }): Promise<Doc>;
   unpublish(id: string): Promise<Doc>;
   revisions(

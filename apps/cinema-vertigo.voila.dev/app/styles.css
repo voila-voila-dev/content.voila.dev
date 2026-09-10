@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+/* ── Cinéma Vertigo ─────────────────────────────────────────────────────────
+ * A printed-programme identity executed in a dark auditorium palette: warm
+ * near-black ground, bone ink, hairline rules instead of cards, and one accent
+ * the cinema controls from the CMS (`settings.primaryColor`, applied as the
+ * `--accent` custom property on the site shell; a film page overrides it with
+ * that film's `accentColor`).
+ *
+ * Type: Bodoni Moda — a high-contrast didone — for titles and numerals, the way
+ * a repertory house sets its posters; Inter for running text and the uppercase,
+ * wide-tracked metadata lines. Both are linked in `app/routes/__root.tsx`.
+ *
+ * NOTE (Tailwind v4): a bare `[--var]` arbitrary value is broken; the custom
+ * property syntax is `text-(--accent)` / `bg-(--accent)` / `border-(--accent)`.
+ */
+
+@theme {
+  --font-display: "Bodoni Moda", "Didot", "Bodoni MT", "Times New Roman", serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* The auditorium: warm blacks, never a flat #000. */
+  --color-ground: #0b0a09;
+  --color-raised: #131110;
+  --color-rule: #2c2724;
+  --color-rule-strong: #45403a;
+  /* Ink: bone paper white, then two steps down for supporting copy. */
+  --color-bone: #f4efe5;
+  --color-dim: #a9a094;
+  --color-faint: #746b60;
+}
+
+:root {
+  /* Overridden inline from `settings.primaryColor`; this is the house colour. */
+  --accent: #d64933;
+  color-scheme: dark;
+}
+
+html {
+  background-color: var(--color-ground);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-ground);
+  color: var(--color-bone);
+  font-family: var(--font-sans);
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background-color: var(--accent);
+  color: #0b0a09;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Optical fix: Bodoni's default figures sit small against the sans metadata. */
+.font-display {
+  font-optical-sizing: auto;
+  letter-spacing: -0.015em;
+}
+
+/* Long-form editorial copy (programme notes, journal bodies, the about text).
+ * Set once here so the rich-text renderer stays structural. */
+.prose-vertigo {
+  font-size: 1.0625rem;
+  line-height: 1.72;
+  color: var(--color-bone);
+}
+.prose-vertigo > * + * {
+  margin-top: 1.15em;
+}
+.prose-vertigo p {
+  max-width: 68ch;
+}
+.prose-vertigo h2,
+.prose-vertigo h3,
+.prose-vertigo h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  margin-top: 2em;
+}
+.prose-vertigo h2 {
+  font-size: 1.85rem;
+}
+.prose-vertigo h3 {
+  font-size: 1.4rem;
+}
+.prose-vertigo h4 {
+  font-size: 1.15rem;
+}
+.prose-vertigo a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+}
+.prose-vertigo blockquote {
+  border-left: 2px solid var(--accent);
+  padding-left: 1.25rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  line-height: 1.4;
+  font-style: italic;
+  color: var(--color-bone);
+}
+.prose-vertigo ul,
+.prose-vertigo ol {
+  padding-left: 1.35rem;
+  max-width: 68ch;
+}
+.prose-vertigo ul {
+  list-style: disc;
+}
+.prose-vertigo ol {
+  list-style: decimal;
+}
+.prose-vertigo li + li {
+  margin-top: 0.4em;
+}
+.prose-vertigo li::marker {
+  color: var(--color-faint);
+}
+.prose-vertigo hr {
+  border: 0;
+  border-top: 1px solid var(--color-rule);
+  margin-block: 2.5em;
+}
+.prose-vertigo code {
+  font-size: 0.9em;
+  background: var(--color-raised);
+  border: 1px solid var(--color-rule);
+  padding: 0.1em 0.35em;
+}
+.prose-vertigo pre {
+  background: var(--color-raised);
+  border: 1px solid var(--color-rule);
+  padding: 1rem;
+  overflow-x: auto;
+  font-size: 0.9rem;
+}
+.prose-vertigo figure figcaption {
+  margin-top: 0.6rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-faint);
+}
+
+/* The grain of a screen, at almost nothing — keeps the flat black from reading
+ * as a default dark theme. Purely decorative, so it never intercepts pointers. */
+.film-grain::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
