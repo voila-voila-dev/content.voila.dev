@@ -51,7 +51,7 @@ describe("ViewTabs", () => {
 
   test("creates a calendar view with the chosen start/end fields", () => {
     const props = setup();
-    fireEvent.click(screen.getByRole("button", { name: "+ Add view" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add view" }));
     fireEvent.change(screen.getByLabelText("View name"), { target: { value: "Schedule" } });
     fireEvent.change(screen.getByLabelText("View type"), { target: { value: "calendar" } });
     // The calendar pickers appear; choose an end field.
@@ -68,7 +68,7 @@ describe("ViewTabs", () => {
 
   test("only offers types the collection's fields support", () => {
     setup({ fields: { kanban: [], geo: [], date: [] } });
-    fireEvent.click(screen.getByRole("button", { name: "+ Add view" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add view" }));
     const options = Array.from(screen.getByLabelText("View type").querySelectorAll("option")).map(
       (o) => o.textContent,
     );

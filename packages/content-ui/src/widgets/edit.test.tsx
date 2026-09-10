@@ -197,34 +197,38 @@ describe("BooleanInput", () => {
 });
 
 describe("SelectInput", () => {
-  test("renders options from a select field and emits the chosen value", () => {
-    const onChange = mock();
+  test("renders the kit Select trigger showing the current option's label", () => {
     const field = fields.select({ options: ["draft", "published"] });
     const { container } = render(
-      <SelectInput value="draft" onChange={onChange} field={field} id="s" />,
+      <SelectInput value="draft" onChange={mock()} field={field} id="s" />,
     );
-    const select = container.querySelector("select") as HTMLSelectElement;
-    // required defaults to false → a leading placeholder option is present.
-    expect(select.querySelectorAll("option").length).toBe(3);
-    fireEvent.change(select, { target: { value: "published" } });
-    expect(onChange).toHaveBeenCalledWith("published");
+    const trigger = container.querySelector('[data-slot="select-input"]') as HTMLElement;
+    expect(trigger).not.toBeNull();
+    expect(trigger.id).toBe("s");
+    expect(trigger.textContent).toContain("draft");
   });
 
-  test("maps an enum's numeric value back to its original type", () => {
-    const onChange = mock();
-    const field = fields.enum({ values: { Low: 1, High: 2 } });
+  test("shows an enum value by its label and wires aria for required + error", () => {
+    const field = fields.enum({ values: { Low: 1, High: 2 }, required: true });
     const { container } = render(
-      <SelectInput value={1} onChange={onChange} field={field} id="e" />,
+      <SelectInput value={1} onChange={mock()} field={field} id="e" error="Pick one" />,
     );
-    const select = container.querySelector("select") as HTMLSelectElement;
-    fireEvent.change(select, { target: { value: "2" } });
-    expect(onChange).toHaveBeenCalledWith(2); // number, not "2"
+    const trigger = container.querySelector('[data-slot="select-input"]') as HTMLElement;
+    expect(trigger.textContent).toContain("Low");
+    expect(trigger.getAttribute("aria-required")).toBe("true");
+    expect(trigger.getAttribute("aria-invalid")).toBe("true");
+    expect(trigger.getAttribute("aria-describedby")).toBe("e-error");
   });
 
-  test("omits the placeholder option when required", () => {
-    const field = fields.select({ options: ["a"], required: true });
-    const { container } = render(<SelectInput value="a" onChange={mock()} field={field} id="s" />);
-    expect(container.querySelectorAll("option").length).toBe(1);
+  test("selectOptions keeps an enum's original (numeric) raw value", () => {
+    const options = selectOptions(fields.enum({ values: { Low: 1, High: 2 } }).meta);
+    expect(options).toEqual([
+      { value: "1", label: "Low", raw: 1 },
+      { value: "2", label: "High", raw: 2 },
+    ]);
+    expect(selectOptions(fields.select({ options: ["a"] }).meta)).toEqual([
+      { value: "a", label: "a", raw: "a" },
+    ]);
   });
 });
 

@@ -125,12 +125,14 @@ describe("BooleanDisplay", () => {
     ).toBe("—");
   });
 
-  test("uses muted badge variants, never the solid primary", () => {
+  test("renders a check / dash glyph with a text label for assistive tech", () => {
     const yes = render(<BooleanDisplay value={true} meta={meta("boolean")} />).container;
     const no = render(<BooleanDisplay value={false} meta={meta("boolean")} />).container;
-    expect(yes.querySelector(".bg-secondary")).not.toBeNull();
-    expect(yes.querySelector(".bg-primary")).toBeNull();
-    expect(no.querySelector(".bg-primary")).toBeNull();
+    expect(yes.querySelector('[data-value="true"]')).not.toBeNull();
+    expect(yes.textContent).toBe("Yes");
+    expect(no.querySelector('[data-value="false"]')).not.toBeNull();
+    expect(no.textContent).toBe("No");
+    expect(yes.querySelector("svg")).not.toBeNull();
   });
 });
 
@@ -142,10 +144,22 @@ describe("DateDisplay", () => {
     expect(time?.getAttribute("dateTime")).toBe(d.toISOString());
   });
 
-  test("uses date-only formatting for the date kind", () => {
+  test("uses a medium date, no time, for the date kind", () => {
     const d = new Date("2026-06-08T10:30:00.000Z");
     const { container } = render(<DateDisplay value={d} meta={meta("date")} />);
-    expect(container.querySelector("time")?.textContent).toBe(d.toLocaleDateString());
+    expect(container.querySelector("time")?.textContent).toBe(
+      new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(d),
+    );
+  });
+
+  test("datetime drops seconds and carries a relative title", () => {
+    const d = new Date("2026-06-08T10:30:00.000Z");
+    const { container } = render(<DateDisplay value={d} meta={meta("datetime")} />);
+    const time = container.querySelector("time");
+    expect(time?.textContent).toBe(
+      new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(d),
+    );
+    expect(time?.getAttribute("title")).toBeTruthy();
   });
 
   test("accepts epoch milliseconds and ISO strings", () => {

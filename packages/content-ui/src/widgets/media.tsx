@@ -8,13 +8,14 @@
 // the upload/replace/remove flow and the alt-text input; on success it emits the
 // stored `MediaValue` so the form re-validates it against the field's schema.
 
+import { ImageIcon, UploadSimpleIcon } from "@phosphor-icons/react";
 import type { MediaValue } from "@voila/content";
 import { Button } from "@voila.dev/ui/button";
 import { Input } from "@voila.dev/ui/input";
 import { cn } from "@voila.dev/ui/utils";
-import { type ReactNode, useRef, useState } from "react";
+import { type DragEvent, type ReactNode, useRef, useState } from "react";
 import type { DisplayWidgetProps } from "./display";
-import { Empty } from "./display";
+import { Empty, isCompact } from "./display";
 import type { EditWidget, EditWidgetProps } from "./edit";
 
 /** The `media` field's `meta` carries the uploader's accept globs and size cap. */
@@ -55,31 +56,54 @@ function formatBytes(bytes: unknown): string | null {
  * thumbnail/label links through to the asset (new tab) so the value is more than
  * a dead preview. Registered for the `media` kind in the default display registry.
  */
-export function MediaDisplay({ value }: DisplayWidgetProps): ReactNode {
+export function MediaDisplay({ value, context }: DisplayWidgetProps): ReactNode {
   const media = asMedia(value);
-  if (media === null) return <Empty />;
+  const compact = isCompact(context);
+  if (media === null) {
+    // A cell keeps the shared em-dash; the detail page gets a small placeholder
+    // tile so an unset image reads as "no image", not as missing data.
+    if (compact) return <Empty />;
+    return (
+      <span
+        data-slot="media-display"
+        data-empty
+        className="inline-flex h-16 w-24 items-center justify-center gap-1 rounded-md border border-dashed text-muted-foreground text-xs"
+      >
+        <ImageIcon aria-hidden />
+        No image
+      </span>
+    );
+  }
   const size = formatBytes(media.size);
   return (
-    <span data-slot="media-display" className="inline-flex items-center gap-2 align-middle">
+    <span
+      data-slot="media-display"
+      className="inline-flex max-w-full items-center gap-2 align-middle"
+    >
       <a
         href={media.url}
         target="_blank"
         rel="noreferrer"
-        className="inline-flex rounded outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex shrink-0 rounded outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {isImage(media) ? (
           <img
             src={media.url}
             alt={media.alt ?? ""}
-            className="h-10 w-10 shrink-0 rounded border object-cover"
+            className={cn("shrink-0 rounded border object-cover", compact ? "size-6" : "size-16")}
           />
         ) : (
-          <span className="rounded border bg-muted px-1.5 py-0.5 text-xs text-muted-foreground underline-offset-2 hover:underline">
+          <span className="rounded border bg-muted px-1.5 py-0.5 text-muted-foreground text-xs underline-offset-2 hover:underline">
             {media.mime || "file"}
           </span>
         )}
       </a>
-      {size ? <span className="text-xs text-muted-foreground">{size}</span> : null}
+      {compact ? null : (
+        <span className="grid min-w-0 text-xs leading-tight">
+          <span className="truncate text-muted-foreground">{media.mime || "file"}</span>
+          {size ? <span className="text-muted-foreground">{size}</span> : null}
+        </span>
+      )}
     </span>
   );
 }
@@ -109,6 +133,7 @@ export function createMediaInput(options: CreateMediaInputOptions): EditWidget {
     const inputRef = useRef<HTMLInputElement>(null);
     const [busy, setBusy] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
+    const [dragging, setDragging] = useState(false);
 
     const accept =
       meta.accept !== undefined && meta.accept.length > 0 ? meta.accept.join(",") : undefined;
@@ -134,6 +159,14 @@ export function createMediaInput(options: CreateMediaInputOptions): EditWidget {
       } finally {
         setBusy(false);
       }
+    }
+
+    function onDrop(event: DragEvent<HTMLElement>): void {
+      event.preventDefault();
+      setDragging(false);
+      if (disabled || busy) return;
+      const file = event.dataTransfer.files?.[0];
+      if (file) void onFile(file);
     }
 
     return (
@@ -185,15 +218,32 @@ export function createMediaInput(options: CreateMediaInputOptions): EditWidget {
             </div>
           </div>
         ) : (
-          <Button
+          // The dropzone: click or drop a file. A `<button>` so it's a real
+          // control for keyboard/AT; the drag handlers give pointer users the
+          // drop affordance.
+          <button
             type="button"
-            variant="outline"
-            size="sm"
+            data-slot="media-dropzone"
+            data-dragging={dragging || undefined}
             disabled={disabled || busy}
             onClick={() => inputRef.current?.click()}
+            onDragOver={(event) => {
+              event.preventDefault();
+              if (!dragging) setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+            className={cn(
+              "flex w-full flex-col items-center justify-center gap-1.5 rounded-md border border-dashed px-4 py-6 text-muted-foreground text-sm transition-colors",
+              "hover:border-ring hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              dragging && "border-ring bg-muted/60",
+              (disabled || busy) && "cursor-not-allowed opacity-60",
+            )}
           >
-            {busy ? "Uploading…" : "Upload"}
-          </Button>
+            <UploadSimpleIcon className="size-5" aria-hidden />
+            <span>{busy ? "Uploading…" : "Drop a file here, or click to upload"}</span>
+            {accept ? <span className="text-xs">{accept}</span> : null}
+          </button>
         )}
 
         {/* The real control the label points at; visually hidden, opened by the

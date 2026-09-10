@@ -16,6 +16,8 @@ import type { Doc } from "@voila/content-ui";
 export interface ListPageLike {
   readonly data: ReadonlyArray<Doc>;
   readonly nextCursor?: string | null;
+  /** Total rows in scope; present only when `count` was requested. */
+  readonly total?: number;
 }
 
 /** The list params the generic screens pass (sort + server-side filters + cursor). */
@@ -26,6 +28,9 @@ export interface AnyListParams {
   readonly order?: "asc" | "desc";
   readonly status?: string;
   readonly filters?: ReadonlyArray<ListFilter>;
+  readonly fields?: ReadonlyArray<string>;
+  /** Also fetch the total row count for the scope (`total` on the page). */
+  readonly count?: boolean;
 }
 
 /** The saved-views sub-API, erased of per-collection typing. */
@@ -37,6 +42,13 @@ export interface AnyViewsClient {
   reorder(ids: ReadonlyArray<string>): Promise<void>;
 }
 
+/** One revision snapshot, erased of typing. */
+export interface RevisionLike {
+  readonly rev: number;
+  readonly createdAt: number;
+  readonly doc: Doc;
+}
+
 /** The CRUD surface the generic screens use, erased of per-collection typing. */
 export interface AnyCollectionClient {
   list(params?: AnyListParams): Promise<ListPageLike>;
@@ -44,6 +56,14 @@ export interface AnyCollectionClient {
   create(data: Doc): Promise<Doc>;
   update(id: string, data: Doc): Promise<Doc>;
   delete(id: string): Promise<void>;
+  publish(id: string, opts?: { at?: number }): Promise<Doc>;
+  unpublish(id: string): Promise<Doc>;
+  revisions(
+    id: string,
+    params?: { limit?: number; cursor?: string },
+  ): Promise<{ data: ReadonlyArray<RevisionLike>; nextCursor: string | null }>;
+  restoreRevision(id: string, rev: number): Promise<Doc>;
+  search(query: string, params?: { limit?: number; status?: string }): Promise<ListPageLike>;
   readonly views: AnyViewsClient;
 }
 

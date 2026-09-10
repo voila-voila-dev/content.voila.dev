@@ -84,13 +84,13 @@ describe("AppSidebar", () => {
 
   test("links the brand header to the dashboard (home)", () => {
     renderSidebar();
-    const home = screen.getByRole("link", { name: "Acme CMS — dashboard" });
+    const home = screen.getByRole("link", { name: "Acme CMS — Overview" });
     expect(home.getAttribute("href")).toBe("/admin");
   });
 
   test("brand header links to / for a root-mounted admin", () => {
     renderSidebar({ basePath: "" });
-    expect(screen.getByRole("link", { name: "Acme CMS — dashboard" }).getAttribute("href")).toBe(
+    expect(screen.getByRole("link", { name: "Acme CMS — Overview" }).getAttribute("href")).toBe(
       "/",
     );
   });

@@ -17,6 +17,7 @@ import { Route as AppSplatRouteImport } from './routes/_app.$'
 import { Route as AppCollectionIndexRouteImport } from './routes/_app.$collection.index'
 import { Route as AppCollectionNewRouteImport } from './routes/_app.$collection.new'
 import { Route as AppCollectionIdRouteImport } from './routes/_app.$collection.$id'
+import { Route as AppCollectionIdGroupRouteImport } from './routes/_app.$collection.$id.$group'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -57,24 +58,31 @@ const AppCollectionIdRoute = AppCollectionIdRouteImport.update({
   path: '/$collection/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCollectionIdGroupRoute = AppCollectionIdGroupRouteImport.update({
+  id: '/$group',
+  path: '/$group',
+  getParentRoute: () => AppCollectionIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/$': typeof AppSplatRoute
   '/api/$': typeof ApiSplatRoute
-  '/$collection/$id': typeof AppCollectionIdRoute
+  '/$collection/$id': typeof AppCollectionIdRouteWithChildren
   '/$collection/new': typeof AppCollectionNewRoute
   '/$collection/': typeof AppCollectionIndexRoute
+  '/$collection/$id/$group': typeof AppCollectionIdGroupRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/$': typeof AppSplatRoute
   '/api/$': typeof ApiSplatRoute
   '/': typeof AppIndexRoute
-  '/$collection/$id': typeof AppCollectionIdRoute
+  '/$collection/$id': typeof AppCollectionIdRouteWithChildren
   '/$collection/new': typeof AppCollectionNewRoute
   '/$collection': typeof AppCollectionIndexRoute
+  '/$collection/$id/$group': typeof AppCollectionIdGroupRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -83,9 +91,10 @@ export interface FileRoutesById {
   '/_app/$': typeof AppSplatRoute
   '/api/$': typeof ApiSplatRoute
   '/_app/': typeof AppIndexRoute
-  '/_app/$collection/$id': typeof AppCollectionIdRoute
+  '/_app/$collection/$id': typeof AppCollectionIdRouteWithChildren
   '/_app/$collection/new': typeof AppCollectionNewRoute
   '/_app/$collection/': typeof AppCollectionIndexRoute
+  '/_app/$collection/$id/$group': typeof AppCollectionIdGroupRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/$collection/$id'
     | '/$collection/new'
     | '/$collection/'
+    | '/$collection/$id/$group'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/$collection/$id'
     | '/$collection/new'
     | '/$collection'
+    | '/$collection/$id/$group'
   id:
     | '__root__'
     | '/_app'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/_app/$collection/$id'
     | '/_app/$collection/new'
     | '/_app/$collection/'
+    | '/_app/$collection/$id/$group'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -182,13 +194,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCollectionIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/$collection/$id/$group': {
+      id: '/_app/$collection/$id/$group'
+      path: '/$group'
+      fullPath: '/$collection/$id/$group'
+      preLoaderRoute: typeof AppCollectionIdGroupRouteImport
+      parentRoute: typeof AppCollectionIdRoute
+    }
   }
 }
+
+interface AppCollectionIdRouteChildren {
+  AppCollectionIdGroupRoute: typeof AppCollectionIdGroupRoute
+}
+
+const AppCollectionIdRouteChildren: AppCollectionIdRouteChildren = {
+  AppCollectionIdGroupRoute: AppCollectionIdGroupRoute,
+}
+
+const AppCollectionIdRouteWithChildren = AppCollectionIdRoute._addFileChildren(
+  AppCollectionIdRouteChildren,
+)
 
 interface AppRouteChildren {
   AppSplatRoute: typeof AppSplatRoute
   AppIndexRoute: typeof AppIndexRoute
-  AppCollectionIdRoute: typeof AppCollectionIdRoute
+  AppCollectionIdRoute: typeof AppCollectionIdRouteWithChildren
   AppCollectionNewRoute: typeof AppCollectionNewRoute
   AppCollectionIndexRoute: typeof AppCollectionIndexRoute
 }
@@ -196,7 +227,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppSplatRoute: AppSplatRoute,
   AppIndexRoute: AppIndexRoute,
-  AppCollectionIdRoute: AppCollectionIdRoute,
+  AppCollectionIdRoute: AppCollectionIdRouteWithChildren,
   AppCollectionNewRoute: AppCollectionNewRoute,
   AppCollectionIndexRoute: AppCollectionIndexRoute,
 }

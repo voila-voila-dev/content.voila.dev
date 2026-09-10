@@ -17,6 +17,11 @@ const config = defineConfig({
   },
 });
 
+/** The collection tile a title link belongs to. */
+function tileOf(link: HTMLElement): HTMLElement {
+  return link.closest('[data-slot="collection-tile"]') as HTMLElement;
+}
+
 describe("Dashboard", () => {
   test("exposes the dashboard slot on its root", () => {
     const { baseElement } = render(<Dashboard.Root config={config} />);
@@ -25,18 +30,27 @@ describe("Dashboard", () => {
 
   test("renders one card per collection, linking to its list", () => {
     render(<Dashboard.Root config={config} counts={{ posts: 12, authors: 3 }} />);
-    const posts = screen.getByRole("link", { name: /Blog Posts/ });
+    const posts = screen.getByRole("link", { name: "Blog Posts" });
     expect(posts.getAttribute("href")).toBe("/admin/posts");
-    expect(within(posts).getByText("12")).toBeDefined();
-    const authors = screen.getByRole("link", { name: /Authors/ });
+    expect(within(tileOf(posts)).getByText("12")).toBeDefined();
+    const authors = screen.getByRole("link", { name: "Authors" });
     expect(authors.getAttribute("href")).toBe("/admin/authors");
-    expect(within(authors).getByText("3")).toBeDefined();
+    expect(within(tileOf(authors)).getByText("3")).toBeDefined();
+  });
+
+  test("each tile carries a quick New link to the collection's create page", () => {
+    render(<Dashboard.Root config={config} />);
+    const news = screen.getAllByRole("link", { name: "New" });
+    expect(news.map((a) => a.getAttribute("href"))).toEqual([
+      "/admin/posts/new",
+      "/admin/authors/new",
+    ]);
   });
 
   test("shows an em-dash for a collection with no count", () => {
     render(<Dashboard.Root config={config} counts={{ posts: 12 }} />);
-    const authors = screen.getByRole("link", { name: /Authors/ });
-    expect(within(authors).getByText("—")).toBeDefined();
+    const authors = screen.getByRole("link", { name: "Authors" });
+    expect(within(tileOf(authors)).getByText("—")).toBeDefined();
   });
 
   test("renders an em-dash for every card when no counts are given", () => {
@@ -53,7 +67,7 @@ describe("Dashboard", () => {
 
   test("threads basePath into the card hrefs", () => {
     render(<Dashboard.Root config={config} basePath="/cms" />);
-    expect(screen.getByRole("link", { name: /Blog Posts/ }).getAttribute("href")).toBe(
+    expect(screen.getByRole("link", { name: "Blog Posts" }).getAttribute("href")).toBe(
       "/cms/posts",
     );
   });
@@ -74,7 +88,7 @@ describe("Dashboard", () => {
         )}
       />,
     );
-    expect(screen.getByRole("link", { name: /Blog Posts/ }).getAttribute("data-variant")).toBe(
+    expect(screen.getByRole("link", { name: "Blog Posts" }).getAttribute("data-variant")).toBe(
       "router",
     );
   });

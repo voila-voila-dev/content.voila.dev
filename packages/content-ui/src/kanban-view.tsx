@@ -12,9 +12,11 @@ import { cn } from "@voila.dev/ui/utils";
 import type { ReactNode } from "react";
 import { documentTitle } from "./detail-view";
 import { FieldRenderer } from "./field-renderer";
+import { defaultCardFields } from "./lib/card-fields";
 import type { Doc } from "./lib/doc";
 import { type DeclaredColumn, groupBy } from "./lib/group-by";
 import { getFieldLabel } from "./lib/humanize";
+import { useI18n } from "./lib/i18n";
 import type { DisplayRegistry } from "./registry/registry";
 import { selectOptions } from "./widgets/edit";
 
@@ -50,16 +52,6 @@ function declaredColumns(collection: Collection, groupField: string): DeclaredCo
   }));
 }
 
-/** Default card fields: the first few non-hidden fields, minus the group field
- *  and the title field (already shown as the card heading). */
-function defaultCardFields(collection: Collection, groupField: string): string[] {
-  return Object.keys(collection.fields)
-    .filter(
-      (k) => k !== groupField && k !== collection.titleField && !collection.fields[k]?.meta.hidden,
-    )
-    .slice(0, 3);
-}
-
 function rowId(row: Doc): string | undefined {
   const id = row.id;
   return typeof id === "string" ? id : typeof id === "number" ? String(id) : undefined;
@@ -75,8 +67,10 @@ function Root({
   onRowClick,
   emptyMessage = "No records.",
 }: KanbanViewProps): ReactNode {
+  const i18n = useI18n();
   const columns = groupBy(rows, groupField, { columns: declaredColumns(collection, groupField) });
-  const fields = cardFields ?? defaultCardFields(collection, groupField);
+  const fields =
+    cardFields && cardFields.length > 0 ? cardFields : defaultCardFields(collection, [groupField]);
 
   if (rows.length === 0) {
     return (
@@ -125,9 +119,7 @@ function Root({
                   onRowClick ? "hover:bg-accent" : undefined,
                 )}
               >
-                <p className="font-medium">
-                  {documentTitle(collection, row) ?? `Row ${index + 1}`}
-                </p>
+                <p className="font-medium">{documentTitle(collection, row, i18n) ?? "Untitled"}</p>
                 <dl className="mt-1 space-y-0.5">
                   {fields.map((key) => {
                     const field = collection.fields[key];
@@ -136,7 +128,12 @@ function Root({
                       <div key={key} className="flex gap-2 text-xs">
                         <dt className="text-muted-foreground">{getFieldLabel(key, field)}</dt>
                         <dd className="min-w-0 truncate">
-                          <FieldRenderer field={field} value={row[key]} registry={registry} />
+                          <FieldRenderer
+                            field={field}
+                            value={row[key]}
+                            registry={registry}
+                            context="card"
+                          />
                         </dd>
                       </div>
                     );

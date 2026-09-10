@@ -7,6 +7,10 @@ export interface SingletonDef<Slug extends string, Fields extends FieldsMap> {
   readonly kind: "singleton";
   readonly slug: Slug;
   readonly label?: string;
+  /** Phosphor icon name shown beside the singleton in the admin sidebar. */
+  readonly icon?: string;
+  /** Sidebar group label; omit for the default "Content" group. */
+  readonly group?: string;
   /**
    * Optional field groups for the admin edit page (see `CollectionDef.groups`).
    * Held with the wide `GroupDef`; `defineSingleton` checks the field keys at
@@ -24,6 +28,8 @@ export type Singleton<
 export function defineSingleton<const Slug extends string, const Fields extends FieldsMap>(def: {
   readonly slug: Slug;
   readonly label?: string;
+  readonly icon?: string;
+  readonly group?: string;
   readonly groups?: ReadonlyArray<GroupDef<keyof Fields & string>>;
   readonly fields: Fields;
 }): Singleton<Slug, Fields> {
@@ -31,6 +37,8 @@ export function defineSingleton<const Slug extends string, const Fields extends 
     kind: "singleton",
     slug: def.slug,
     label: def.label,
+    icon: def.icon,
+    group: def.group,
     groups: def.groups,
     fields: def.fields,
   };

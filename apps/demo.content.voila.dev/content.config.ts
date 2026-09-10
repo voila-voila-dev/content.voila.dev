@@ -20,6 +20,9 @@ const EVENT_KINDS = ["Workshop", "Meetup", "Conference", "Tour"] as const;
 const posts = defineCollection({
   slug: "posts",
   label: "Posts",
+  labelSingular: "Post",
+  // Sidebar icon (any Phosphor icon name).
+  icon: "Article",
   titleField: "title",
   // Snapshot every write so the detail page's version history can diff + restore.
   revisions: true,
@@ -83,6 +86,8 @@ const posts = defineCollection({
 const authors = defineCollection({
   slug: "authors",
   label: "Authors",
+  labelSingular: "Author",
+  icon: "Users",
   titleField: "name",
   fields: {
     name: fields.string({ required: true, max: 80 }),
@@ -110,6 +115,8 @@ const authors = defineCollection({
 const events = defineCollection({
   slug: "events",
   label: "Events",
+  labelSingular: "Event",
+  icon: "CalendarDots",
   titleField: "title",
   fields: {
     title: fields.string({ required: true, max: 140, localized: true }),
@@ -140,6 +147,7 @@ const events = defineCollection({
 const settings = defineSingleton({
   slug: "settings",
   label: "Settings",
+  icon: "GearSix",
   fields: {
     siteName: fields.string({ required: true, localized: true }),
     tagline: fields.string({ localized: true }),

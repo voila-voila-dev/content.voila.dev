@@ -65,8 +65,9 @@ export function nextGeo(
   latRaw: string,
   lngRaw: string,
 ): { lat?: number; lng?: number } | undefined {
-  const lat = latRaw === "" ? undefined : Number(latRaw);
-  const lng = lngRaw === "" ? undefined : Number(lngRaw);
+  // Accept a decimal comma too (a locale-formatted paste like "60,472").
+  const lat = latRaw === "" ? undefined : Number(latRaw.replace(",", "."));
+  const lng = lngRaw === "" ? undefined : Number(lngRaw.replace(",", "."));
   if (lat === undefined && lng === undefined) return undefined;
   const point: { lat?: number; lng?: number } = {};
   if (lat !== undefined && !Number.isNaN(lat)) point.lat = lat;
@@ -103,14 +104,14 @@ export function GeoInput({
   return (
     <div data-slot="geo-input" className="flex gap-2">
       <div className="flex-1 space-y-1">
-        <span id={latHintId} className="block text-muted-foreground text-xs">
+        <span id={latHintId} className="block font-medium text-muted-foreground text-xs">
           Latitude
         </span>
         <Input
           id={id}
-          type="number"
+          type="text"
           inputMode="decimal"
-          step="any"
+          autoComplete="off"
           aria-labelledby={labelledBy(latHintId)}
           {...aria}
           value={latStr}
@@ -120,14 +121,14 @@ export function GeoInput({
         />
       </div>
       <div className="flex-1 space-y-1">
-        <span id={lngHintId} className="block text-muted-foreground text-xs">
+        <span id={lngHintId} className="block font-medium text-muted-foreground text-xs">
           Longitude
         </span>
         <Input
           id={`${id}-lng`}
-          type="number"
+          type="text"
           inputMode="decimal"
-          step="any"
+          autoComplete="off"
           aria-labelledby={labelledBy(lngHintId)}
           {...aria}
           value={lngStr}
@@ -304,7 +305,7 @@ function GeoMapPicker({
     <div
       data-slot="geo-map-picker"
       className={cn(
-        "h-64 w-full overflow-hidden rounded-md border",
+        "h-64 w-full overflow-hidden rounded-md border sm:h-72",
         disabled && "pointer-events-none opacity-60",
       )}
     >

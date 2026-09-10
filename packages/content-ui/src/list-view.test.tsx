@@ -84,11 +84,40 @@ describe("ListView", () => {
     expect(screen.queryByText("No records.")).toBeNull();
   });
 
-  test("an empty list without loading shows the empty message only", () => {
-    render(<ListView.Root collection={posts} rows={[]} />);
-    // Both the table cell and the sr-only live region read the empty message.
+  test("an empty list without loading shows the empty state only", () => {
+    render(<ListView.Root collection={posts} rows={[]} emptyMessage="No records." />);
+    // Both the empty-state title and the sr-only live region read the message.
     expect(screen.getAllByText("No records.")).toHaveLength(2);
     expect(screen.queryByText("Loading…")).toBeNull();
+  });
+
+  test("the empty state carries the host's primary action", () => {
+    render(
+      <ListView.Root
+        collection={posts}
+        rows={[]}
+        emptyAction={<button type="button">New post</button>}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "New post" })).toBeDefined();
+  });
+
+  test("row selection shows a bulk bar with the host's actions", () => {
+    const rows = [
+      { id: "1", title: "Hello" },
+      { id: "2", title: "World" },
+    ];
+    render(
+      <ListView.Root
+        collection={posts}
+        rows={rows}
+        selectable
+        bulkActions={(selected) => <button type="button">Delete {selected.size}</button>}
+      />,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select all rows" }));
+    expect(screen.getByText("2 selected")).toBeDefined();
+    expect(screen.getByRole("button", { name: "Delete 2" })).toBeDefined();
   });
 
   test("shows Load more only when there's a cursor and a handler", () => {

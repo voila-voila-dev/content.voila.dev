@@ -13,10 +13,13 @@ import { RichTextDisplay } from "../components/widgets/rich-text-display";
 // to `branding.logo` as an image `src`). The same mark backs the favicon.
 import logoUrl from "../logo.svg?url";
 import { mediaClient } from "./content-client";
+import { fetchCounts } from "./counts";
 
 export const admin = defineAdmin({
   config,
   branding: { title: "Demo", logo: logoUrl, favicon: logoUrl },
+  // Per-collection counts for the sidebar badges + dashboard tiles (a server fn).
+  counts: () => fetchCounts(),
   widgets: {
     edit: {
       richText: RichTextInput,

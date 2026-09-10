@@ -4,8 +4,10 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Doc } from "@voila/content-ui";
+import { toast } from "@voila.dev/ui/sonner";
 import { useAdmin } from "../context";
 import { singletonClient } from "../lib/client-access";
+import { toastError } from "./use-collection-mutations";
 
 export function useSingletonMutations(slug: string) {
   const { admin } = useAdmin();
@@ -16,7 +18,9 @@ export function useSingletonMutations(slug: string) {
     mutationFn: (values: Doc) => api.set(values),
     onSuccess: (updated) => {
       queryClient.setQueryData([slug, "singleton"], updated);
+      toast.success("Saved");
     },
+    onError: (error) => toastError(error, "Could not save the changes."),
   });
 
   return { save };
