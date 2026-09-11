@@ -76,14 +76,15 @@ export function LoginScreen(): ReactNode {
                 />
                 <div className="space-y-1">
                   <p className="font-medium">Check your inbox</p>
+                  {/* Deliberately says nothing about where the link comes from.
+                      A sign-in page is read by whoever is trying to get in, and
+                      "check the server terminal" is an instruction only the
+                      person running it locally could act on — on a deployed
+                      admin it is noise at best and a leaked internal at worst. */}
                   <p className="text-muted-foreground">
                     We sent a sign-in link to{" "}
-                    <span className="font-medium text-foreground">{email}</span>. In development
-                    it's printed to the server terminal (look for{" "}
-                    <code className="rounded bg-muted px-1 py-0.5 text-xs">
-                      [voila/auth] magic link
-                    </code>
-                    ).
+                    <span className="font-medium text-foreground">{email}</span>. It expires
+                    shortly, so open it soon.
                   </p>
                   <Button
                     type="button"
