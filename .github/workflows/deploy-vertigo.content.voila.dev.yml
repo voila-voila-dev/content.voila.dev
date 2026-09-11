@@ -6,6 +6,10 @@ on:
       - main
     paths:
       - "apps/vertigo.content.voila.dev/**"
+      # The app bundles these at build time, so a fix in `content-admin` (say,
+      # sign-in copy) ships only if a package change also triggers a deploy.
+      # Without this the Worker silently drifts behind main.
+      - "packages/**"
       - ".github/workflows/deploy-vertigo.content.voila.dev.yml"
   workflow_dispatch:
 
