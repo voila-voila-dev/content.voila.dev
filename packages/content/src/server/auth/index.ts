@@ -7,6 +7,7 @@
 // re-exported here so it sits alongside the rest of the server auth surface.
 export { authTableStatements, authTablesSql } from "../../sql";
 export type { AccessControl, AccessRequest } from "./access";
+export { type AllowlistAccessOptions, allowlistAccess } from "./allowlist";
 export type { Authenticator } from "./authenticator";
 export { readCookie } from "./cookies";
 export {
@@ -23,4 +24,11 @@ export {
   type GuardPass,
   type RouteDescriptor,
 } from "./guard";
+export {
+  type AccessOption,
+  type AccessPolicy,
+  type AccessPolicyContext,
+  type AccessPolicyFactory,
+  resolveAccessPolicy,
+} from "./policy";
 export type { Operation, Principal } from "./principal";

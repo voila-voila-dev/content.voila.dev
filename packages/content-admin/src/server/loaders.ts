@@ -5,7 +5,7 @@
 // updates every site; the tiny `createServerFn` wrapper stays in the app.
 
 import type { NormalizedConfig } from "@voila/content";
-import type { Authenticator, Database } from "@voila/content/server";
+import type { AccessPolicy, Authenticator, Database } from "@voila/content/server";
 import { brandSingletons, readBrandSource } from "../lib/brand-source";
 import type { AdminBrandSource, ResolvedAdminTheme } from "../types";
 
@@ -76,4 +76,28 @@ export async function resolveBrandSource(
     }),
   );
   return readBrandSource(theme, Object.fromEntries(entries));
+}
+
+/**
+ * Resolve the session *and* whether the policy admits it. A signed-in account
+ * the policy rejects (removed from the allowlist, or never on it) must not see
+ * the admin shell: the host's guard redirects it to the login page with an
+ * explanation instead of letting every REST call fail with 403. Policies
+ * without an `admits` check (first-user-wins) admit any session; their RBAC
+ * hook still guards each request.
+ */
+export async function resolveAdmission(
+  runtime: {
+    readonly auth: { readonly authenticator: Authenticator };
+    readonly policy: AccessPolicy;
+  },
+  request: Request,
+): Promise<{ user: SessionUser; admitted: boolean } | null> {
+  const session = await resolveSession(runtime.auth.authenticator, request);
+  if (session === null) return null;
+  const { admits } = runtime.policy;
+  if (admits === undefined) return { user: session.user, admitted: true };
+  const { email } = session.user;
+  const admitted = email === null ? false : await admits(email);
+  return { user: session.user, admitted };
 }

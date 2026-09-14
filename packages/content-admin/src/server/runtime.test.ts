@@ -6,8 +6,14 @@
 // already covers.
 
 import { beforeEach, describe, expect, it } from "bun:test";
-import { defineCollection, defineConfig, fields, type NormalizedConfig } from "@voila/content";
-import type { AccessControl, Authenticator } from "@voila/content/server";
+import {
+  defineAdminsCollection,
+  defineCollection,
+  defineConfig,
+  fields,
+  type NormalizedConfig,
+} from "@voila/content";
+import { type AccessControl, type Authenticator, allowlistAccess } from "@voila/content/server";
 import { makeBunSqliteDriver, type SqliteDriver } from "@voila/content/server/bun-sqlite";
 import { deriveSchema } from "@voila/content/sql";
 import { createApiHandler } from "./api-handler";
@@ -23,7 +29,7 @@ const posts = defineCollection({
 
 const config: NormalizedConfig = defineConfig({
   branding: { name: "Test" },
-  collections: { posts },
+  collections: { posts, admins: defineAdminsCollection() },
 });
 
 // Render the derived schema straight to DDL (same approach as the engine tests).
@@ -171,5 +177,75 @@ describe("createApiHandler", () => {
     });
     expect((await handle(new Request("https://x/api/authors"))).status).toBe(200);
     expect((await handle(new Request("https://x/api/auth/session"))).status).toBe(418);
+  });
+});
+
+describe("allowlist policy", () => {
+  let driver: SqliteDriver;
+
+  beforeEach(async () => {
+    driver = makeBunSqliteDriver({ url: ":memory:" });
+    await createTables(driver, config);
+  });
+
+  it("builds the policy from the runtime's handles and exposes `admits`", async () => {
+    const rt = createAdminRuntime(config, {
+      driver,
+      secret: SECRET,
+      authenticator: allowAuth,
+      access: allowlistAccess(),
+    });
+    await rt.database.create("admins", { email: "a@b.co" });
+    expect(await rt.policy.admits?.("a@b.co")).toBe(true);
+    expect(await rt.policy.admits?.("x@b.co")).toBe(false);
+  });
+
+  it("keeps a bare AccessControl hook as a policy without `admits`", () => {
+    const rt = createAdminRuntime(config, {
+      driver,
+      secret: SECRET,
+      authenticator: allowAuth,
+      access: allowAccess,
+    });
+    expect(rt.policy.admits).toBeUndefined();
+  });
+
+  it("rejects a magic-link sign-in for an unlisted address before reaching auth", async () => {
+    const rt = createAdminRuntime(config, {
+      driver,
+      secret: SECRET,
+      authenticator: allowAuth,
+      access: allowlistAccess(),
+    });
+    await rt.database.create("admins", { email: "a@b.co" });
+    const handle = createApiHandler(rt);
+    const signIn = (email: unknown) =>
+      handle(
+        new Request("https://x/api/auth/sign-in/magic-link", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email, callbackURL: "/admin" }),
+        }),
+      );
+    expect((await signIn("stranger@b.co")).status).toBe(403);
+    expect((await signIn(42)).status).toBe(403);
+    // A listed address passes through to the (stub) auth handler, which 404s.
+    expect((await signIn("A@b.co")).status).toBe(404);
+  });
+
+  it("gates REST requests on the same list (verdicts expire with the TTL)", async () => {
+    let clock = 0;
+    const rt = createAdminRuntime(config, {
+      driver,
+      secret: SECRET,
+      authenticator: allowAuth, // principal a@b.co
+      access: allowlistAccess({ ttlMs: 1000, now: () => clock }),
+    });
+    const before = await rt.restHandler(new Request("https://x/api/posts"));
+    expect(before?.status).toBe(403);
+    await rt.database.create("admins", { email: "a@b.co" });
+    clock = 1001;
+    const after = await rt.restHandler(new Request("https://x/api/posts"));
+    expect(after?.status).toBe(200);
   });
 });

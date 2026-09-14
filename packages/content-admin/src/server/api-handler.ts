@@ -2,6 +2,10 @@
 // (`/admin/api/auth/*`) are served by Better Auth (sign-in, magic-link verify,
 // sign-out); everything else forwards to the voila REST handler.
 //
+// When the access policy can decide from an email alone (`policy.admits`), the
+// magic-link sign-in is gated here: an address the policy rejects gets a 403
+// before any email is sent, which the login screen renders as "not allowed".
+//
 // Reads also seed the CSRF cookie: the first response a caller without one gets
 // carries a signed `voila_csrf` token. The typed client mirrors it into the
 // `x-csrf-token` header on writes, satisfying the engine's double-submit check.
@@ -18,14 +22,26 @@ import type { AdminRuntime } from "./runtime";
  * route folds to a 404 so the route owns the whole `/admin/api/*` space.
  */
 export function createApiHandler(
-  runtime: Pick<AdminRuntime, "auth" | "restHandler" | "authSecret">,
+  runtime: Pick<AdminRuntime, "auth" | "restHandler" | "authSecret"> &
+    Partial<Pick<AdminRuntime, "policy">>,
 ): (request: Request) => Promise<Response> {
   const { auth, restHandler, authSecret } = runtime;
+  const admits = runtime.policy?.admits;
+  const signInPath = `${auth.basePath}/sign-in/magic-link`;
   return async (request: Request): Promise<Response> => {
     const url = new URL(request.url);
     // Match the auth base path on a segment boundary so a collection whose slug
     // starts with the base (e.g. `authors` under `/api/auth`) isn't swallowed.
     if (url.pathname === auth.basePath || url.pathname.startsWith(`${auth.basePath}/`)) {
+      if (admits !== undefined && request.method === "POST" && url.pathname === signInPath) {
+        const email = await readSignInEmail(request);
+        if (email === undefined || !(await admits(email))) {
+          return Response.json(
+            { error: { code: "FORBIDDEN" }, message: "This address is not allowed to sign in." },
+            { status: 403 },
+          );
+        }
+      }
       return auth.handler(request);
     }
 
@@ -43,4 +59,13 @@ export function createApiHandler(
     }
     return response;
   };
+}
+
+/** The `email` of a magic-link sign-in body, or undefined when absent/malformed. */
+async function readSignInEmail(request: Request): Promise<string | undefined> {
+  const body = (await request
+    .clone()
+    .json()
+    .catch(() => null)) as { email?: unknown } | null;
+  return typeof body?.email === "string" ? body.email : undefined;
 }

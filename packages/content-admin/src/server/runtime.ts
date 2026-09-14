@@ -14,13 +14,15 @@ import {
   makeBetterAuth,
 } from "@voila/content/better-auth";
 import {
-  type AccessControl,
+  type AccessOption,
+  type AccessPolicy,
   type Authenticator,
   createRestHandler,
   type Database,
   makeDatabase,
   makeMediaStore,
   makeViewStore,
+  resolveAccessPolicy,
   type SqlDriver,
   type Storage,
 } from "@voila/content/server";
@@ -51,8 +53,12 @@ export interface AdminRuntimeOptions {
   readonly sessionTtl?: string;
   /** Replace the default Better Auth authenticator (e.g. a custom IdP bridge). */
   readonly authenticator?: Authenticator;
-  /** Replace the default first-user-wins access control. */
-  readonly access?: AccessControl;
+  /**
+   * Replace the default first-user-wins access control: a bare `AccessControl`
+   * hook, or a policy factory such as `allowlistAccess()` (built here with the
+   * driver, database and config).
+   */
+  readonly access?: AccessOption;
 }
 
 export interface AdminRuntime {
@@ -60,6 +66,11 @@ export interface AdminRuntime {
   readonly auth: AdminAuthBridge;
   /** The REST dispatcher: `(request) => Response | null` (null = not our route). */
   readonly restHandler: (request: Request) => Promise<Response | null>;
+  /**
+   * The resolved access policy. `policy.admits`, when present, is consulted
+   * before a magic link is sent and by the host's `/admin` guard.
+   */
+  readonly policy: AccessPolicy;
   /** The signing secret, re-exported so the API handler mints CSRF tokens. */
   readonly authSecret: string;
   /** The base path the routes mount under. */
@@ -113,15 +124,19 @@ export function createAdminRuntime(
   // every `_views` request has an owner from the resolved principal).
   const views = { store: makeViewStore(driver) };
 
+  const policy = resolveAccessPolicy(options.access, { driver, database, config }, () =>
+    firstUserAccess(driver),
+  );
+
   const restHandler = createRestHandler(
     { config, database, media, views },
     {
       basePath,
       auth: auth.authenticator,
       csrf: { secret },
-      access: options.access ?? firstUserAccess(driver),
+      access: policy.access,
     },
   );
 
-  return { database, auth, restHandler, authSecret: secret, basePath };
+  return { database, auth, restHandler, policy, authSecret: secret, basePath };
 }
