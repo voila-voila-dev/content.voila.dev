@@ -1,3 +1,4 @@
+export { type AdminsCollectionOptions, defineAdminsCollection } from "./admins";
 export type { Branding } from "./branding";
 export type { CollectionMap, Config, NormalizedConfig, SingletonMap } from "./config";
 export { defineConfig } from "./config";

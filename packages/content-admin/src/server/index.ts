@@ -7,6 +7,7 @@
 export { createApiHandler } from "./api-handler";
 export {
   countDocuments,
+  resolveAdmission,
   resolveBrandSource,
   resolveSession,
   type SessionUser,

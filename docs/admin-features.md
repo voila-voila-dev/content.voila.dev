@@ -188,3 +188,46 @@ build (`import.meta.env.DEV === false`) keeps the pinned origin.
 // app/lib/server.ts
 export const runtime = createWorkerAdmin(config, { dev: import.meta.env.DEV });
 ```
+
+## Who may sign in: the collection-backed allowlist
+
+By default the admin is first-user-wins: the first account to sign in owns it and
+every later address is denied. When several people need access — and the list
+should be editable without a redeploy — keep it in a collection instead:
+
+```ts
+// content.config.ts
+import { defineAdminsCollection, defineConfig } from "@voila/content";
+
+export default defineConfig({
+  collections: {
+    // `admins` with `email` (+ `name`); labels/group/icon are overridable.
+    admins: defineAdminsCollection({ label: "Administrateurs", group: "Réglages" }),
+    // …
+  },
+});
+```
+
+```ts
+// app/lib/server.ts
+import { allowlistAccess } from "@voila/content/server";
+
+export const runtime = createWorkerAdmin(config, {
+  dev: import.meta.env.DEV,
+  access: allowlistAccess(), // or { collection: "staff", field: "contactEmail" }
+});
+```
+
+With this policy:
+
+- magic-link sign-in returns 403 for an address that is not listed — no email is
+  sent, and the login screen shows "not allowed";
+- every REST request is authorized against the same table (verdicts cached 30 s,
+  so removing a row locks the account out within that window);
+- the host's `/admin` guard can use `resolveAdmission(runtime, request)` to send
+  a signed-in but unlisted account back to the login page instead of rendering an
+  admin shell whose every call fails.
+
+Seed the collection before the first sign-in (a migration or your seed script):
+an empty allowlist admits nobody. Any string field of email addresses works;
+`allowlistAccess` throws at boot if the collection or field is not in the config.
