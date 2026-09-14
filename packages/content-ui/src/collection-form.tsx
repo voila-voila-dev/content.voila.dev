@@ -17,19 +17,20 @@
 
 import { type Collection, type InferFields, slugify } from "@voila/content";
 import { Button } from "@voila.dev/ui/button";
-import { Label } from "@voila.dev/ui/label";
 import { cn } from "@voila.dev/ui/utils";
 import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { FieldCard } from "./field-card";
 import { FieldGroupNav } from "./field-group-nav";
+import { FieldRow } from "./field-row";
 import { dirtyFieldKeys } from "./lib/dirty";
 import type { Doc } from "./lib/doc";
 import { resolveFieldGroups } from "./lib/groups";
 import { getFieldLabel, humanize } from "./lib/humanize";
-import { localizedFieldErrors, validateFields } from "./lib/validate";
+import { type FieldIssue, localizedFieldErrors, validateFields } from "./lib/validate";
 import { type LocaleProgress, LocaleSwitcher } from "./locale-switcher";
 import { LocalizedFieldEditor } from "./localized-field";
 import { type BodyWidth, PageLayout } from "./page-layout";
+import { EditRegistryProvider } from "./registry/context";
 import { defaultEditRegistry, type EditRegistry, resolveEditWidget } from "./registry/edit";
 
 /**
@@ -224,6 +225,12 @@ export function CollectionForm<C extends Collection = Collection>({
   const [errors, setErrors] = useState<Readonly<Record<string, string>>>(() => ({
     ...serverErrors,
   }));
+  // Path-level issues under each failed field — what a structured widget
+  // (blocks, array, object) needs to place a message next to the nested
+  // control. Cleared together with the field's error.
+  const [fieldIssues, setFieldIssues] = useState<
+    Readonly<Record<string, ReadonlyArray<FieldIssue>>>
+  >({});
   const [submitting, setSubmitting] = useState(false);
   // Per-field save (`saveMode="field"`): which field is mid-save, which fields
   // have unsaved edits, and which just saved (for the brief confirmation).
@@ -383,6 +390,12 @@ export function CollectionForm<C extends Collection = Collection>({
       for (const k of stale) delete rest[k];
       return rest;
     });
+    setFieldIssues((prev) => {
+      if (!(name in prev)) return prev;
+      const rest = { ...prev };
+      delete rest[name];
+      return rest;
+    });
   }
 
   // Move focus to the first field that failed validation, so a keyboard / AT
@@ -413,10 +426,12 @@ export function CollectionForm<C extends Collection = Collection>({
     const result = validateFields(collection.fields, values, keys, { locales, defaultLocale });
     if (Object.keys(result.errors).length > 0) {
       setErrors(result.errors);
+      setFieldIssues(result.issues);
       focusFirstError(result.errors);
       return;
     }
     setErrors({});
+    setFieldIssues({});
     setSubmitting(true);
     try {
       // `result.values` has cleared the fields' Standard Schemas, so it
@@ -438,6 +453,7 @@ export function CollectionForm<C extends Collection = Collection>({
     const result = validateFields(collection.fields, values, [key], { locales, defaultLocale });
     if (result.errors[key] !== undefined) {
       setErrors((prev) => ({ ...prev, [key]: result.errors[key] as string }));
+      setFieldIssues((prev) => ({ ...prev, [key]: result.issues[key] ?? [] }));
       const localized = collection.fields[key]?.meta.localized === true && locales !== undefined;
       const base = `${collection.slug}-${key}`;
       document.getElementById(localized ? `${base}-${locales?.[0]}` : base)?.focus();
@@ -492,28 +508,45 @@ export function CollectionForm<C extends Collection = Collection>({
     const isDirty = perField && changed;
     const saving = savingField === key;
     const justSaved = savedField === key;
-    return (
-      <div
-        key={key}
-        data-slot="form-field"
-        data-dirty={changed || undefined}
-        className="space-y-1.5"
-      >
-        <div className="flex items-baseline justify-between gap-2">
-          <Label id={`${id}-label`} htmlFor={localized ? `${id}-${locales?.[0]}` : id}>
-            {getFieldLabel(key, field)}
-            {required ? (
-              <span aria-hidden className="ml-0.5 text-destructive">
-                *
-              </span>
-            ) : null}
-          </Label>
-          {count ? (
-            <span className="text-muted-foreground text-xs tabular-nums" aria-live="off">
-              {count}
-            </span>
-          ) : null}
+    const saveRow =
+      perField && (isDirty || saving || justSaved) ? (
+        <div
+          data-slot="field-save"
+          className="flex items-center justify-end gap-2 text-muted-foreground text-xs"
+        >
+          {justSaved && !isDirty ? (
+            <span role="status">Saved</span>
+          ) : (
+            <>
+              <span>Unsaved changes</span>
+              <Button
+                type="button"
+                size="xs"
+                disabled={saving || !isDirty}
+                onClick={() => submitField(key)}
+              >
+                {saving ? "Saving…" : submitLabel}
+              </Button>
+            </>
+          )}
         </div>
+      ) : null;
+    return (
+      <FieldRow
+        key={key}
+        id={id}
+        htmlFor={localized ? `${id}-${locales?.[0]}` : id}
+        label={getFieldLabel(key, field)}
+        required={required}
+        count={count}
+        help={help}
+        error={fieldError}
+        // Suppressed for a localized field once its per-locale errors render
+        // inline, to avoid showing it twice.
+        hideError={hasLocaleErrors}
+        dirty={changed}
+        trailer={saveRow}
+      >
         {localized ? (
           <LocalizedFieldEditor
             field={field}
@@ -536,44 +569,11 @@ export function CollectionForm<C extends Collection = Collection>({
             id={id}
             labelId={`${id}-label`}
             error={fieldError}
+            issues={fieldIssues[key]}
             disabled={fieldDisabled}
           />
         ) : null}
-        {help ? (
-          <p id={`${id}-description`} className="text-muted-foreground text-xs">
-            {help}
-          </p>
-        ) : null}
-        {/* Field-level message — suppressed for a localized field once its
-            per-locale errors render inline, to avoid showing it twice. */}
-        {fieldError && !hasLocaleErrors ? (
-          <p id={`${id}-error`} role="alert" className="text-destructive text-sm">
-            {fieldError}
-          </p>
-        ) : null}
-        {perField && (isDirty || saving || justSaved) ? (
-          <div
-            data-slot="field-save"
-            className="flex items-center justify-end gap-2 text-muted-foreground text-xs"
-          >
-            {justSaved && !isDirty ? (
-              <span role="status">Saved</span>
-            ) : (
-              <>
-                <span>Unsaved changes</span>
-                <Button
-                  type="button"
-                  size="xs"
-                  disabled={saving || !isDirty}
-                  onClick={() => submitField(key)}
-                >
-                  {saving ? "Saving…" : submitLabel}
-                </Button>
-              </>
-            )}
-          </div>
-        ) : null}
-      </div>
+      </FieldRow>
     );
   }
 
@@ -724,23 +724,27 @@ export function CollectionForm<C extends Collection = Collection>({
   // Per-field mode: no wrapping `<form>` — every field saves independently.
   if (perField) {
     return (
-      <PageLayout.Root data-slot="collection-form" data-dirty={hasUnsavedChanges || undefined}>
-        {header}
-        {strip}
-        {body}
-      </PageLayout.Root>
+      <EditRegistryProvider registry={registry}>
+        <PageLayout.Root data-slot="collection-form" data-dirty={hasUnsavedChanges || undefined}>
+          {header}
+          {strip}
+          {body}
+        </PageLayout.Root>
+      </EditRegistryProvider>
     );
   }
 
   // Form mode: the `<form>` uses `display:contents` so it doesn't break the page
   // frame's flex column; the header submit targets it by id.
   return (
-    <PageLayout.Root data-slot="collection-form" data-dirty={hasUnsavedChanges || undefined}>
-      {header}
-      {strip}
-      <form id={formId} onSubmit={handleSubmit} noValidate className={cn("contents")}>
-        {body}
-      </form>
-    </PageLayout.Root>
+    <EditRegistryProvider registry={registry}>
+      <PageLayout.Root data-slot="collection-form" data-dirty={hasUnsavedChanges || undefined}>
+        {header}
+        {strip}
+        <form id={formId} onSubmit={handleSubmit} noValidate className={cn("contents")}>
+          {body}
+        </form>
+      </PageLayout.Root>
+    </EditRegistryProvider>
   );
 }

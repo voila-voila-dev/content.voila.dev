@@ -4,6 +4,8 @@
 // overrides over the defaults — the custom-widget escape hatch for forms.
 
 import type { FieldMetaBase } from "@voila/content";
+import { ArrayInput } from "../widgets/array";
+import { BlocksInput } from "../widgets/blocks";
 import {
   BooleanInput,
   ColorInput,
@@ -17,6 +19,7 @@ import {
 } from "../widgets/edit";
 import { GeoInput } from "../widgets/geo";
 import { MultiSelectInput } from "../widgets/multi-select";
+import { ObjectInput } from "../widgets/object";
 import { RelationIdInput } from "../widgets/relation";
 import { mergeMaps } from "./merge";
 import { resolveWidget } from "./resolve";
@@ -40,6 +43,11 @@ export const defaultEditRegistry: EditRegistry = {
   select: SelectInput,
   enum: SelectInput,
   multiSelect: MultiSelectInput,
+  // Structured values: each renders its members' own widgets through the
+  // registry in scope (`useEditRegistry`), so injected widgets apply inside.
+  array: ArrayInput,
+  object: ObjectInput,
+  blocks: BlocksInput,
   // A relation can only show ids until something resolves them to titles; the
   // admin layer swaps in the real picker via `createRelationInput`.
   relation: RelationIdInput,

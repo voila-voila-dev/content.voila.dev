@@ -13,6 +13,12 @@ const posts = defineCollection({
     cover: fields.media({ accept: ["image/*"] }),
     gallery: fields.array(fields.media({ accept: ["image/*"] })),
     publishedAt: fields.datetime(),
+    sections: fields.blocks({
+      types: {
+        hero: { fields: { title: fields.string({ required: true }), body: fields.richText() } },
+        cta: { fields: { label: fields.string(), href: fields.string({ format: "url" }) } },
+      },
+    }),
   },
 });
 
@@ -59,6 +65,20 @@ describe("InferDoc", () => {
     type _Cover = Expect<Equal<Post["cover"], fields.MediaValue>>;
     type _Gallery = Expect<Equal<Post["gallery"], ReadonlyArray<fields.MediaValue>>>;
 
+    // Blocks infer to a discriminated union on `type`, one member per block
+    // type, each flattened to a plain object (a rich-text field inside a block
+    // stays its alias — no deep instantiation).
+    type Section = Post["sections"][number];
+    type _Sections = Expect<
+      Equal<
+        Section,
+        | { readonly type: "hero"; readonly title: string; readonly body: fields.RichTextValue }
+        | { readonly type: "cta"; readonly label: string; readonly href: string }
+      >
+    >;
+    type _Hero = Extract<Section, { type: "hero" }>;
+    type _HeroTitle = Expect<Equal<_Hero["title"], string>>;
+
     // A value of the inferred shape is assignable — proves the type is concrete.
     const file: fields.MediaValue = {
       id: "11111111-1111-1111-1111-111111111111",
@@ -72,6 +92,7 @@ describe("InferDoc", () => {
       cover: file,
       gallery: [file],
       publishedAt: new Date(0),
+      sections: [{ type: "cta", label: "Go", href: "https://example.com" }],
     };
     expect(doc.title["fr-FR"]).toBe("Bonjour");
     expect(doc.views).toBe(3);

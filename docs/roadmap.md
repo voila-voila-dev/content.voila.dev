@@ -34,7 +34,8 @@ All packages are published; `bun create content-voila <dir>` works from npm alon
 
 ## Next — Phase 5 remainder
 
-- [ ] Edit widgets for relation / array / object (the "serious CMS" gap)
+- [x] Edit widgets for array / object + `fields.blocks()` (the page-builder primitive) — see [admin features](./admin-features.md#blocks-objects--arrays-page-builder)
+- [ ] Edit widget for relation `through` / polymorphic
 - [ ] `voila seed` / `voila doctor` (doctor detects the open-mount / missing-secret cases)
 - [ ] MCP server over the config (the typed config makes it nearly free — on-brand for the AI-agent story)
 - [ ] Audit log; import/export (JSON/CSV)

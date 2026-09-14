@@ -22,6 +22,7 @@ export { DetailView, type DetailViewProps, documentTitle } from "./detail-view";
 export { FieldCard } from "./field-card";
 export { FieldGroupNav, type FieldGroupNavProps, resolveGroupIcon } from "./field-group-nav";
 export { FieldRenderer, type FieldRendererProps } from "./field-renderer";
+export { FieldRow, type FieldRowProps } from "./field-row";
 export { FilterBuilder, type FilterBuilderProps, FilterEditor } from "./filter-builder";
 export { KanbanView, type KanbanViewProps } from "./kanban-view";
 export {
@@ -102,7 +103,14 @@ export {
   themeInitScript,
   watchSystemTheme,
 } from "./lib/theme";
-export { type FormValidation, validateFields } from "./lib/validate";
+export {
+  type FieldIssue,
+  type FormValidation,
+  formatFieldIssue,
+  issueMessageAt,
+  issuesUnder,
+  validateFields,
+} from "./lib/validate";
 export { ListView, type ListViewProps, PAGE_SIZES, searchEnabled } from "./list-view";
 export {
   type LocaleProgress,
@@ -111,8 +119,21 @@ export {
 } from "./locale-switcher";
 export { LocalizedFieldEditor, type LocalizedFieldEditorProps } from "./localized-field";
 export { MapView, type MapViewProps } from "./map-view";
+export {
+  NestedDisplayRows,
+  type NestedDisplayRowsProps,
+  NestedFields,
+  type NestedFieldsProps,
+  visibleKeys,
+} from "./nested-fields";
 export { type BodyWidth, PageLayout, pageGutter } from "./page-layout";
 export { PublishControls, type PublishControlsProps } from "./publish-controls";
+export {
+  DisplayRegistryProvider,
+  EditRegistryProvider,
+  useDisplayRegistry,
+  useEditRegistry,
+} from "./registry/context";
 export {
   defaultEditRegistry,
   type EditRegistry,
@@ -149,6 +170,16 @@ export {
   type ViewTabsProps,
   type ViewType,
 } from "./view-tabs";
+export { ArrayDisplay, ArrayInput, arrayItems, moveItem, useItemKeys } from "./widgets/array";
+export {
+  BlocksDisplay,
+  BlocksInput,
+  type BlockTypeShape,
+  blankBlock,
+  blockSummary,
+  blocksValue,
+  blockType,
+} from "./widgets/blocks";
 export {
   BooleanDisplay,
   ColorDisplay,
@@ -206,6 +237,7 @@ export {
   MultiSelectInput,
   multiSelectValues,
 } from "./widgets/multi-select";
+export { ObjectDisplay, ObjectInput } from "./widgets/object";
 export {
   createRelationDisplay,
   createRelationInput,

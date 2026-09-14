@@ -24,8 +24,19 @@ export {
   type ImageCdn,
   mediaVariantUrls,
 } from "./_media-cdn";
+export { isField, walkFields } from "./_nested";
 // Structured
-export { type ArrayOpts, array } from "./array";
+export { type ArrayMeta, type ArrayOpts, array } from "./array";
+export {
+  type BlockDef,
+  type BlocksMeta,
+  type BlocksOpts,
+  type BlocksValue,
+  type BlockTypeMeta,
+  type BlockTypes,
+  type BlockValue,
+  blocks,
+} from "./blocks";
 export { type BooleanOpts, boolean } from "./boolean";
 export { type CodeLanguage, type CodeOpts, code } from "./code";
 export { type ColorFormat, type ColorOpts, color } from "./color";
@@ -50,7 +61,7 @@ export {
 } from "./media";
 export { type MultiSelectOpts, multiSelect } from "./multi-select";
 export { type NumberOpts, number } from "./number";
-export { type ObjectOpts, type ObjectShape, object } from "./object";
+export { type ObjectMeta, type ObjectOpts, type ObjectShape, object } from "./object";
 export { type PasswordHash, type PasswordOpts, password } from "./password";
 export { type PolymorphicOpts, type PolymorphicRef, polymorphic } from "./polymorphic";
 // Specialized

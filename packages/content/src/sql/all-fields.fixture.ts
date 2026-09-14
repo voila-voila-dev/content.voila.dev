@@ -35,7 +35,23 @@ const everything = defineCollection({
     sections: fields.array(fields.string()),
     seo: fields.object({ title: fields.string(), description: fields.string() }),
     cover: fields.media({ accept: ["image/*"] }),
+    gallery: fields.array(fields.media()),
     blocks: fields.richText(),
+    pageBlocks: fields.blocks({
+      max: 20,
+      types: {
+        hero: {
+          label: "Hero",
+          icon: "Sparkle",
+          fields: { title: fields.string({ required: true }), image: fields.media() },
+        },
+        faq: {
+          fields: {
+            items: fields.array(fields.object({ q: fields.string(), a: fields.markdown() })),
+          },
+        },
+      },
+    }),
     related: fields.polymorphic({ to: ["everything", "settings"] }),
     // Relations
     authorId: fields.relation({ to: "authors" }),

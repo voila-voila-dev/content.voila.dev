@@ -9,11 +9,84 @@ import type { Field } from "@voila/content";
 import { isBlank } from "./blank";
 import type { Doc } from "./doc";
 
+/**
+ * One validation issue below a field: `path` is relative to the field
+ * (`[2, "title"]` for the third block's title), `message` the schema's text.
+ */
+export interface FieldIssue {
+  readonly path: ReadonlyArray<string | number>;
+  readonly message: string;
+}
+
 export interface FormValidation {
   /** Decoded values for the fields that validated (empty optionals omitted). */
   readonly values: Doc;
-  /** Field key → first error message, for the fields that failed. */
+  /**
+   * Field key → first error message, for the fields that failed. An issue
+   * nested inside a structured field keeps its sub-path in the message
+   * (`[2].title: Required.`) so the field-level line still points somewhere.
+   */
   readonly errors: Readonly<Record<string, string>>;
+  /**
+   * Field key → every issue under that field, paths relative to the field.
+   * Container widgets (blocks, arrays, objects) slice these by segment
+   * (`issuesUnder`) to render each message next to the nested control.
+   */
+  readonly issues: Readonly<Record<string, ReadonlyArray<FieldIssue>>>;
+}
+
+// Flatten a Standard Schema issue path (which may carry `{ key }` segments) to
+// plain string/number segments — the same shape the REST envelope uses.
+function normalizePath(
+  path: ReadonlyArray<PropertyKey | { readonly key: PropertyKey }> | undefined,
+): Array<string | number> {
+  if (!path) return [];
+  return path.map((seg) => {
+    const key = typeof seg === "object" ? seg.key : seg;
+    return typeof key === "number" ? key : String(key);
+  });
+}
+
+/** `[2].title: Required.` — an issue's message with its sub-path, when nested. */
+export function formatFieldIssue(issue: FieldIssue): string {
+  if (issue.path.length === 0) return issue.message;
+  const sub = issue.path
+    .map((seg) => (typeof seg === "number" ? `[${seg}]` : `.${seg}`))
+    .join("")
+    .replace(/^\./, "");
+  return `${sub}: ${issue.message}`;
+}
+
+/** The issues under one segment of a field's value, re-rooted at that segment. */
+export function issuesUnder(
+  issues: ReadonlyArray<FieldIssue> | undefined,
+  segment: string | number,
+): ReadonlyArray<FieldIssue> {
+  if (!issues) return [];
+  return issues
+    .filter((issue) => issue.path[0] === segment)
+    .map((issue) => ({ path: issue.path.slice(1), message: issue.message }));
+}
+
+/**
+ * The message to show right at `path` — the first issue whose path is exactly
+ * `path` (a scalar's own error), else the first issue below it formatted with
+ * its remaining sub-path.
+ */
+export function issueMessageAt(
+  issues: ReadonlyArray<FieldIssue> | undefined,
+  path: ReadonlyArray<string | number>,
+): string | undefined {
+  if (!issues) return undefined;
+  const below = issues.filter(
+    (issue) => issue.path.length >= path.length && path.every((seg, i) => issue.path[i] === seg),
+  );
+  const exact = below.find((issue) => issue.path.length === path.length);
+  if (exact) return exact.message;
+  const first = below[0];
+  return first
+    ? formatFieldIssue({ path: first.path.slice(path.length), message: first.message })
+    : undefined;
 }
 
 /**
@@ -110,6 +183,7 @@ export function validateFields(
 ): FormValidation {
   const out: Doc = {};
   const errors: Record<string, string> = {};
+  const issues: Record<string, ReadonlyArray<FieldIssue>> = {};
   const requiredLocale = opts?.defaultLocale ?? opts?.locales?.[0];
   for (const name of keys ?? Object.keys(fields)) {
     const field = fields[name];
@@ -141,10 +215,16 @@ export function validateFields(
       continue;
     }
     if (result.issues) {
-      errors[name] = result.issues[0]?.message ?? "Invalid value.";
+      const list = result.issues.map((issue) => ({
+        path: normalizePath(issue.path),
+        message: issue.message,
+      }));
+      issues[name] = list;
+      const first = list[0];
+      errors[name] = first ? formatFieldIssue(first) : "Invalid value.";
     } else {
       out[name] = result.value;
     }
   }
-  return { values: out, errors };
+  return { values: out, errors, issues };
 }

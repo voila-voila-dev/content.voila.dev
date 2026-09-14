@@ -589,3 +589,71 @@ describe("unsaved-changes reporting", () => {
     await waitFor(() => expect(isDirty(container)).toBe(false));
   });
 });
+
+describe("CollectionForm — structured fields (blocks / object / array)", () => {
+  const pages = defineCollection({
+    slug: "pages",
+    fields: {
+      title: fields.string({ required: true }),
+      sections: fields.blocks({
+        types: {
+          hero: { fields: { headline: fields.string({ required: true }) } },
+          cta: { fields: { label: fields.string() } },
+        },
+      }),
+    },
+  });
+
+  test("renders the blocks editor, surfaces a nested error on submit, and submits decoded", async () => {
+    const onSubmit = mock(async () => {});
+    render(
+      <CollectionForm
+        collection={pages}
+        defaultValues={{ title: "Home", sections: [{ type: "hero" }] }}
+        onSubmit={onSubmit}
+        title="Edit"
+      />,
+    );
+    // The blocks widget is mounted under the field's id.
+    expect(document.querySelector("[data-slot=blocks-input]")?.id).toBe("pages-sections");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    // The nested control shows its own message, and the field-level line
+    // carries the sub-path so the row still points somewhere.
+    await waitFor(() => {
+      expect(document.getElementById("pages-sections-0-headline-error")?.textContent).toBe(
+        "Required.",
+      );
+    });
+    expect(document.getElementById("pages-sections-error")?.textContent).toBe(
+      "[0].headline: Required.",
+    );
+    expect(onSubmit).not.toHaveBeenCalled();
+    // Fixing the nested field clears both messages and submits the decoded value.
+    fireEvent.change(document.getElementById("pages-sections-0-headline") as HTMLInputElement, {
+      target: { value: "Hi" },
+    });
+    expect(document.getElementById("pages-sections-error")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0]?.[0]).toEqual({
+      title: "Home",
+      sections: [{ type: "hero", headline: "Hi" }],
+    });
+  });
+
+  test("resolves nested widgets through the form's registry", () => {
+    const Custom = ({ id }: EditWidgetProps) => <input id={id} data-custom />;
+    render(
+      <CollectionForm
+        collection={pages}
+        defaultValues={{ sections: [{ type: "cta", label: "Go" }] }}
+        registry={{ ...defaultEditRegistry, string: Custom }}
+        onSubmit={mock()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Expand block 1/ }));
+    expect(document.getElementById("pages-sections-0-label")?.hasAttribute("data-custom")).toBe(
+      true,
+    );
+  });
+});

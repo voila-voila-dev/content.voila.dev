@@ -87,7 +87,14 @@ function fieldText(info: SearchFieldInfo, value: unknown): string {
       .join(" ");
   }
   if (info.kind === "richText") return richTextPlain(value);
-  if (Array.isArray(value)) return value.map((entry) => String(entry)).join(" ");
+  // Scalar lists (tags) index as words; lists of objects (blocks, arrays of
+  // objects) carry no flat text and would only add "[object Object]".
+  if (Array.isArray(value)) {
+    return value
+      .filter((entry) => entry !== null && typeof entry !== "object")
+      .map((entry) => String(entry))
+      .join(" ");
+  }
   if (typeof value === "object") return "";
   return String(value);
 }

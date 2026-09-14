@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { fields } from "@voila/content";
-import { localizedFieldErrors, validateFields } from "./validate";
+import {
+  formatFieldIssue,
+  issueMessageAt,
+  issuesUnder,
+  localizedFieldErrors,
+  validateFields,
+} from "./validate";
 
 const LOCALES = ["en-US", "fr-FR"] as const;
 
@@ -171,5 +177,39 @@ describe("localizedFieldErrors", () => {
     } as unknown as ReturnType<typeof fields.string>;
     const out = localizedFieldErrors(asyncField, { "en-US": "x", "fr-FR": "y" }, LOCALES);
     expect(out["en-US"]).toBe("Validation did not complete.");
+  });
+});
+
+describe("nested issues", () => {
+  const page = fields.blocks({
+    types: { hero: { fields: { title: fields.string({ required: true }) } } },
+  });
+
+  test("validateFields keeps path-level issues and prefixes the field message", () => {
+    const result = validateFields(
+      { page },
+      { page: [{ type: "hero", title: "ok" }, { type: "hero" }] },
+    );
+    expect(result.errors.page).toBe("[1].title: Required.");
+    expect(result.issues.page).toEqual([{ path: [1, "title"], message: "Required." }]);
+  });
+
+  test("issuesUnder re-roots at a segment; issueMessageAt reads exact or nested", () => {
+    const issues = [
+      { path: [1, "title"], message: "Required." },
+      { path: [2], message: "Expected a block" },
+    ];
+    expect(issuesUnder(issues, 1)).toEqual([{ path: ["title"], message: "Required." }]);
+    expect(issuesUnder(undefined, 1)).toEqual([]);
+    expect(issueMessageAt(issues, [2])).toBe("Expected a block");
+    expect(issueMessageAt(issues, [1])).toBe("title: Required.");
+    expect(issueMessageAt(issues, [0])).toBeUndefined();
+    expect(formatFieldIssue({ path: [], message: "Bad." })).toBe("Bad.");
+  });
+
+  test("an empty list counts as blank for blocks and arrays", () => {
+    const result = validateFields({ page }, { page: [] });
+    expect(result.values).toEqual({});
+    expect(result.errors).toEqual({});
   });
 });
