@@ -122,29 +122,42 @@ function groupItems(entries: ReadonlyArray<{ item: NavItem; group: string }>): N
   return [...groups.entries()].map(([label, items]) => ({ label, items }));
 }
 
-/** Build the sidebar nav model from a normalized config, in declaration order. */
+/**
+ * Build the sidebar nav model from a normalized config. Entities carrying an
+ * `order` come first, ascending; the rest keep declaration order (collections,
+ * then singletons). Groups follow the first entity that names them.
+ */
 export function buildNav(config: NormalizedConfig, options: BuildNavOptions = {}): NavGroups {
   const base = normalizeBase(options.basePath ?? "/admin");
   const { currentPath } = options;
   const collectionDefs = Object.values(config.collections) as Collection[];
   const singletonDefs = Object.values(config.singletons) as Singleton[];
+  const rank = (entity: { readonly order?: number }) =>
+    typeof entity.order === "number" ? entity.order : Number.POSITIVE_INFINITY;
 
   // Longest-prefix dedupe runs over the whole set before bucketing, so a
   // singleton and a collection can never both be active.
-  const all = markLongestActive([
+  // `Array.prototype.sort` is stable, so unordered entities keep their place.
+  const ordered = [
     ...collectionDefs.map((c) => ({
       item: toItem("collection", c, base, currentPath),
       group: c.group ?? DEFAULT_GROUP_LABELS.collection,
       href: `${base}/${c.slug}`,
       isActive: isNavActive(`${base}/${c.slug}`, currentPath),
+      rank: rank(c),
     })),
     ...singletonDefs.map((s) => ({
       item: toItem("singleton", s, base, currentPath),
       group: s.group ?? DEFAULT_GROUP_LABELS.singleton,
       href: `${base}/${s.slug}`,
       isActive: isNavActive(`${base}/${s.slug}`, currentPath),
+      rank: rank(s),
     })),
-  ]).map((entry) => ({ item: { ...entry.item, isActive: entry.isActive }, group: entry.group }));
+  ].sort((a, b) => a.rank - b.rank);
+  const all = markLongestActive(ordered).map((entry) => ({
+    item: { ...entry.item, isActive: entry.isActive },
+    group: entry.group,
+  }));
 
   const collections = all.filter((e) => e.item.kind === "collection").map((e) => e.item);
   const singletons = all.filter((e) => e.item.kind === "singleton").map((e) => e.item);

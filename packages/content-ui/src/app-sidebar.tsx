@@ -186,7 +186,7 @@ function SectionNav({
   );
 }
 
-/** The 32px tinted mark: the host logo, else the brand's initial. */
+/** The 32px mark: the host logo filling the square, else the brand's initial on a tint. */
 function BrandMark({
   logo,
   name,
@@ -197,7 +197,10 @@ function BrandMark({
   return (
     <span
       aria-hidden
-      className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-sidebar-primary text-sidebar-primary-foreground [&_img]:size-5 [&_svg]:size-5"
+      className={cn(
+        "flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md [&_img]:size-full [&_img]:object-cover [&_svg]:size-5",
+        logo == null && "bg-sidebar-primary text-sidebar-primary-foreground",
+      )}
     >
       {logo ?? <span className="font-semibold text-sm">{name.trim().charAt(0).toUpperCase()}</span>}
     </span>

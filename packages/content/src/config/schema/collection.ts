@@ -38,6 +38,12 @@ export interface CollectionDef<
    */
   readonly group?: string;
   /**
+   * Position in the admin sidebar (and dashboard), ascending. Entities without
+   * one keep declaration order, after the ordered ones — so a singleton can be
+   * listed before the collections of its group.
+   */
+  readonly order?: number;
+  /**
    * Field whose value names a document (e.g. `"title"`). The admin UI uses it
    * wherever one row needs a human heading — the detail page, breadcrumbs —
    * falling back to the collection label when unset or empty.
@@ -99,6 +105,7 @@ export function defineCollection<
   readonly labelSingular?: string;
   readonly icon?: string;
   readonly group?: string;
+  readonly order?: number;
   readonly titleField?: keyof Fields & string;
   readonly drafts?: Drafts;
   readonly revisions?: boolean;
@@ -113,6 +120,7 @@ export function defineCollection<
     labelSingular: def.labelSingular,
     icon: def.icon,
     group: def.group,
+    order: def.order,
     titleField: def.titleField,
     drafts: def.drafts,
     revisions: def.revisions,
