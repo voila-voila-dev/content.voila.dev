@@ -14,7 +14,7 @@ import { Skeleton } from "@voila.dev/ui/skeleton";
 import { cn } from "@voila.dev/ui/utils";
 import { cloneElement, type ReactElement, type ReactNode } from "react";
 import { NamedIcon } from "./lib/icons";
-import { buildNav, DEFAULT_NAV_ICONS, type NavItem } from "./lib/nav";
+import { buildNav, DEFAULT_NAV_ICONS, type NavItem, type NavLayoutGroup } from "./lib/nav";
 import { PageLayout } from "./page-layout";
 import { Empty, formatDate, relativeDate } from "./widgets/display";
 
@@ -34,6 +34,8 @@ export interface DashboardProps {
   readonly counts?: Readonly<Record<string, number>>;
   /** URL prefix the admin is mounted under. Defaults to `/admin`. */
   readonly basePath?: string;
+  /** The nav layout (see `BuildNavOptions.groups`): tiles follow its order. */
+  readonly navGroups?: ReadonlyArray<NavLayoutGroup>;
   /** Render a card's link element (e.g. a framework `Link`). */
   readonly renderLink?: (href: string, children: ReactNode) => ReactElement;
   readonly title?: ReactNode;
@@ -152,13 +154,14 @@ function Root({
   config,
   counts,
   basePath,
+  navGroups,
   renderLink = defaultRenderLink,
   title,
   emptyMessage = "No collections configured.",
   recent,
   recentLoading = false,
 }: DashboardProps): ReactNode {
-  const { collections } = buildNav(config, { basePath });
+  const { collections } = buildNav(config, { basePath, groups: navGroups });
 
   return (
     <PageLayout.Root data-slot="dashboard">

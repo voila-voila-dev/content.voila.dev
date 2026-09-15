@@ -11,8 +11,6 @@ export interface SingletonDef<Slug extends string, Fields extends FieldsMap> {
   readonly icon?: string;
   /** Sidebar group label; omit for the default "Content" group. */
   readonly group?: string;
-  /** Position in the admin sidebar, ascending (see `CollectionDef.order`). */
-  readonly order?: number;
   /**
    * Optional field groups for the admin edit page (see `CollectionDef.groups`).
    * Held with the wide `GroupDef`; `defineSingleton` checks the field keys at
@@ -32,7 +30,6 @@ export function defineSingleton<const Slug extends string, const Fields extends 
   readonly label?: string;
   readonly icon?: string;
   readonly group?: string;
-  readonly order?: number;
   readonly groups?: ReadonlyArray<GroupDef<keyof Fields & string>>;
   readonly fields: Fields;
 }): Singleton<Slug, Fields> {
@@ -42,7 +39,6 @@ export function defineSingleton<const Slug extends string, const Fields extends 
     label: def.label,
     icon: def.icon,
     group: def.group,
-    order: def.order,
     groups: def.groups,
     fields: def.fields,
   };

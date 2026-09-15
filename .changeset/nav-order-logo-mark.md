@@ -1,7 +1,6 @@
 ---
-"@voila/content": minor
 "@voila/content-ui": minor
-"@voila/content-admin": patch
+"@voila/content-admin": minor
 ---
 
-`defineCollection` / `defineSingleton` accept `order`, the entity's position in the admin sidebar and dashboard (ascending; unordered entities keep declaration order after them, so a singleton can lead its group). A host `branding.logo` now fills the sidebar and login marks instead of sitting on the initial's tint.
+`defineAdmin({ nav: { groups } })` lays the sidebar out explicitly — `{ label, items: [slug, …] }` per group, in order (the dashboard tiles follow); entities the layout doesn't list keep their own `group` and declaration order. Also `buildNav({ groups })`, `AppSidebar` / `AdminShell` / `Dashboard` `navGroups`. A host `branding.logo` now fills the sidebar and login marks instead of sitting on the initial's tint.

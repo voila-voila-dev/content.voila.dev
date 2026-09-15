@@ -8,6 +8,7 @@ import type {
   DisplayRegistry,
   EditRegistry,
   NavItem,
+  NavLayoutGroup,
   ThemeDensity,
   ThemeRadius,
 } from "@voila/content-ui";
@@ -136,6 +137,13 @@ export interface CustomScreen<C extends NormalizedConfig = NormalizedConfig> {
  *  Custom screens with a `nav` entry are added automatically; `extra` adds
  *  arbitrary links (e.g. to the public site) under their `group` label. */
 export interface NavExtension {
+  /**
+   * The sidebar layout, group by group: `{ label, items: [slug, …] }`. Listed
+   * collections / singletons render in this order under these labels; the
+   * others follow, bucketed by their own `group`. The dashboard tiles follow
+   * the same order. Omit to derive every group from the config.
+   */
+  readonly groups?: ReadonlyArray<NavLayoutGroup>;
   /** Extra standalone items appended after the config + custom-screen nav. */
   readonly extra?: readonly (NavItem & { readonly group?: string })[];
 }

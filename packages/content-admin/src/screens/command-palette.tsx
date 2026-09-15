@@ -62,7 +62,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
   const [query, setQuery] = useState("");
   const term = useDebounced(query.trim(), 200);
 
-  const nav = buildNav(admin.config, { basePath: admin.basePath });
+  const nav = buildNav(admin.config, { basePath: admin.basePath, groups: admin.nav?.groups });
   const extra = buildExtraGroups({
     screens: admin.screens,
     nav: admin.nav,

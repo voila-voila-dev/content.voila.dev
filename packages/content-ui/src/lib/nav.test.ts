@@ -72,24 +72,41 @@ describe("buildNav", () => {
   });
 });
 
-describe("buildNav — order", () => {
-  test("ordered entities come first ascending, the rest keep declaration order", () => {
-    const ordered = defineConfig({
-      branding: { name: "Acme" },
-      collections: {
-        cities: defineCollection({ slug: "cities", group: "Agency", order: 30, fields: {} }),
-        pages: defineCollection({ slug: "pages", group: "Content", order: 10, fields: {} }),
-        posts: defineCollection({ slug: "posts", group: "Content", fields: {} }),
-        admins: defineCollection({ slug: "admins", group: "Agency", order: 21, fields: {} }),
-      },
-      singletons: {
-        settings: defineSingleton({ slug: "settings", group: "Agency", order: 20, fields: {} }),
-      },
+describe("buildNav — layout groups", () => {
+  const laid = defineConfig({
+    branding: { name: "Acme" },
+    collections: {
+      cities: defineCollection({ slug: "cities", group: "Territory", fields: {} }),
+      pages: defineCollection({ slug: "pages", fields: {} }),
+      posts: defineCollection({ slug: "posts", group: "Blog", fields: {} }),
+      admins: defineCollection({ slug: "admins", fields: {} }),
+    },
+    singletons: {
+      settings: defineSingleton({ slug: "settings", fields: {} }),
+    },
+  });
+
+  test("listed entities follow the layout; the rest keep their own group and order", () => {
+    const nav = buildNav(laid, {
+      groups: [
+        { label: "Content", items: ["pages", "posts"] },
+        { label: "Agency", items: ["settings", "admins", "nope"] },
+      ],
     });
-    const nav = buildNav(ordered);
     expect(nav.groups.map((g) => [g.label, g.items.map((i) => i.slug)])).toEqual([
       ["Content", ["pages", "posts"]],
-      ["Agency", ["settings", "admins", "cities"]],
+      ["Agency", ["settings", "admins"]],
+      ["Territory", ["cities"]],
+    ]);
+    expect(nav.collections.map((i) => i.slug)).toEqual(["pages", "posts", "admins", "cities"]);
+  });
+
+  test("an empty layout is the declaration order", () => {
+    expect(buildNav(laid, { groups: [] }).groups.map((g) => g.label)).toEqual([
+      "Territory",
+      "Collections",
+      "Blog",
+      "Content",
     ]);
   });
 });

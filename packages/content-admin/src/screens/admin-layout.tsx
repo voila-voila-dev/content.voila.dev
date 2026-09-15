@@ -78,6 +78,7 @@ export function AdminLayoutScreen(): ReactNode {
       brandSubtitle={admin.slots.shell?.brandSubtitle ?? admin.branding.title}
       sidebarFooter={footer}
       extraGroups={extraGroups}
+      navGroups={admin.nav?.groups}
       counts={counts}
       onSearch={() => setPaletteOpen(true)}
     >
