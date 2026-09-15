@@ -5,8 +5,10 @@
 // through the registry in scope so injected media / relation / rich-text
 // widgets work inside a block). "Add block" opens the catalogue from
 // `meta.types`. Reordering is native HTML5 drag plus up / down buttons — the
-// same dependency-free pattern as the column picker. Emits a fresh array on
-// every edit and `undefined` when the last block goes.
+// same dependency-free pattern as the column picker. Cards expand with a plain
+// disclosure button (no height animation: a block's fields grow as items are
+// added, which an animated panel would clip). Emits a fresh array on every
+// edit and `undefined` when the last block goes.
 
 import {
   CaretDownIcon,
@@ -19,7 +21,6 @@ import {
 import type { FieldsMap } from "@voila/content";
 import { Badge } from "@voila.dev/ui/badge";
 import { Button } from "@voila.dev/ui/button";
-import { Collapsible } from "@voila.dev/ui/collapsible";
 import { DropdownMenu } from "@voila.dev/ui/dropdown-menu";
 import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useEffect, useState } from "react";
@@ -159,137 +160,149 @@ export function BlocksInput(props: EditWidgetProps): ReactNode {
       aria-labelledby={props.labelId}
       aria-invalid={props.error ? true : undefined}
       disabled={props.disabled}
-      className="space-y-2"
+      // `min-w-0`: a fieldset's default `min-inline-size: min-content` would
+      // let a wide nested field push the whole editor past the form column.
+      className="min-w-0 space-y-2"
     >
-      {blocks.map((block, index) => {
-        const key = itemKeys.keys[index] ?? String(index);
-        const type = blockType(block);
-        const def = type === undefined ? undefined : types[type];
-        const issues = issuesUnder(props.issues, index);
-        const invalid = issues.length > 0;
-        const expanded = invalid || open.has(key);
-        const summary = blockSummary(block, def);
-        const label = def?.label ?? (type === undefined ? "Block" : `Unknown block type “${type}”`);
-        return (
-          <Collapsible.Root
-            key={key}
-            open={expanded}
-            onOpenChange={(next) => toggle(key, next)}
-            data-slot="block"
-            data-block-type={type}
-            draggable={!props.disabled}
-            onDragStart={(event) => {
-              event.dataTransfer.setData("text/plain", String(index));
-              event.dataTransfer.effectAllowed = "move";
-              setDragIndex(index);
-            }}
-            onDragOver={(event) => {
-              event.preventDefault();
-              if (overIndex !== index) setOverIndex(index);
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              const raw = event.dataTransfer.getData("text/plain");
-              drop(index, raw === "" ? dragIndex : Number(raw));
-            }}
-            onDragEnd={() => {
-              setDragIndex(null);
-              setOverIndex(null);
-            }}
-            className={cn(
-              "rounded-md border bg-card",
-              invalid && "border-destructive",
-              dragIndex === index && "opacity-50",
-              overIndex === index && dragIndex !== index && "ring-2 ring-ring",
-            )}
-          >
-            <div data-slot="block-header" className="flex items-center gap-2 px-2 py-1.5">
-              <DotsSixVerticalIcon
-                aria-hidden
-                className="size-4 shrink-0 cursor-grab text-muted-foreground"
-              />
-              <Collapsible.Trigger
-                aria-label={`${expanded ? "Collapse" : "Expand"} block ${index + 1}: ${label}`}
-                className="flex min-w-0 flex-1 items-center gap-2 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <Badge variant="secondary" className="shrink-0 gap-1">
-                  {def?.icon ? <NamedIcon name={def.icon} className="size-3.5" /> : null}
-                  {label}
-                </Badge>
-                {summary ? (
-                  <span className="min-w-0 truncate text-muted-foreground text-sm">{summary}</span>
-                ) : null}
-                {invalid ? (
-                  <WarningCircleIcon
-                    aria-label="Has errors"
-                    className="size-4 shrink-0 text-destructive"
-                  />
-                ) : null}
-                <CaretDownIcon
-                  aria-hidden
-                  className={cn(
-                    "ml-auto size-4 shrink-0 text-muted-foreground transition-transform",
-                    expanded && "rotate-180",
-                  )}
-                />
-              </Collapsible.Trigger>
-              <span className="flex shrink-0 items-center">
-                <Button
-                  type="button"
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label={`Move block ${index + 1} up`}
-                  disabled={props.disabled || index === 0}
-                  onClick={() => move(index, index - 1)}
-                >
-                  <CaretUpIcon aria-hidden />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label={`Move block ${index + 1} down`}
-                  disabled={props.disabled || index === blocks.length - 1}
-                  onClick={() => move(index, index + 1)}
-                >
-                  <CaretDownIcon aria-hidden />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon-xs"
-                  variant="ghost"
-                  aria-label={`Remove block ${index + 1}`}
-                  disabled={props.disabled || atMin}
-                  onClick={() => remove(index)}
-                >
-                  <XIcon aria-hidden />
-                </Button>
-              </span>
-            </div>
-            <Collapsible.Content className="border-t px-4 py-4">
-              {def ? (
-                <NestedFields
-                  fields={def.fields}
-                  value={block}
-                  onChange={(next) => {
-                    const copy = [...blocks];
-                    copy[index] = { ...next, type };
-                    emit(copy);
-                  }}
-                  idPrefix={`${props.id}-${index}`}
-                  issues={issues}
-                  disabled={props.disabled}
-                />
-              ) : (
-                <p className="text-muted-foreground text-sm">
-                  This block's type is no longer in the catalogue. Remove it or restore the type in
-                  the config.
-                </p>
+      <ul className="space-y-2">
+        {blocks.map((block, index) => {
+          const key = itemKeys.keys[index] ?? String(index);
+          const type = blockType(block);
+          const def = type === undefined ? undefined : types[type];
+          const issues = issuesUnder(props.issues, index);
+          const invalid = issues.length > 0;
+          const expanded = invalid || open.has(key);
+          const summary = blockSummary(block, def);
+          const label =
+            def?.label ?? (type === undefined ? "Block" : `Unknown block type “${type}”`);
+          const panelId = `${props.id}-${index}-panel`;
+          return (
+            <li
+              key={key}
+              data-slot="block"
+              data-block-type={type}
+              draggable={!props.disabled}
+              onDragStart={(event) => {
+                event.dataTransfer.setData("text/plain", String(index));
+                event.dataTransfer.effectAllowed = "move";
+                setDragIndex(index);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                if (overIndex !== index) setOverIndex(index);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                const raw = event.dataTransfer.getData("text/plain");
+                drop(index, raw === "" ? dragIndex : Number(raw));
+              }}
+              onDragEnd={() => {
+                setDragIndex(null);
+                setOverIndex(null);
+              }}
+              className={cn(
+                "rounded-md border bg-card",
+                invalid && "border-destructive",
+                dragIndex === index && "opacity-50",
+                overIndex === index && dragIndex !== index && "ring-2 ring-ring",
               )}
-            </Collapsible.Content>
-          </Collapsible.Root>
-        );
-      })}
+            >
+              <div data-slot="block-header" className="flex items-center gap-2 px-2 py-1.5">
+                <DotsSixVerticalIcon
+                  aria-hidden
+                  className="size-4 shrink-0 cursor-grab text-muted-foreground"
+                />
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  aria-controls={expanded ? panelId : undefined}
+                  aria-label={`${expanded ? "Collapse" : "Expand"} block ${index + 1}: ${label}`}
+                  onClick={() => toggle(key, !expanded)}
+                  className="flex min-w-0 flex-1 items-center gap-2 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Badge variant="secondary" className="shrink-0 gap-1">
+                    {def?.icon ? <NamedIcon name={def.icon} className="size-3.5" /> : null}
+                    {label}
+                  </Badge>
+                  {summary ? (
+                    <span className="min-w-0 truncate text-muted-foreground text-sm">
+                      {summary}
+                    </span>
+                  ) : null}
+                  {invalid ? (
+                    <WarningCircleIcon
+                      aria-label="Has errors"
+                      className="size-4 shrink-0 text-destructive"
+                    />
+                  ) : null}
+                  <CaretDownIcon
+                    aria-hidden
+                    className={cn(
+                      "ml-auto size-4 shrink-0 text-muted-foreground transition-transform",
+                      expanded && "rotate-180",
+                    )}
+                  />
+                </button>
+                <span className="flex shrink-0 items-center">
+                  <Button
+                    type="button"
+                    size="icon-xs"
+                    variant="ghost"
+                    aria-label={`Move block ${index + 1} up`}
+                    disabled={props.disabled || index === 0}
+                    onClick={() => move(index, index - 1)}
+                  >
+                    <CaretUpIcon aria-hidden />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon-xs"
+                    variant="ghost"
+                    aria-label={`Move block ${index + 1} down`}
+                    disabled={props.disabled || index === blocks.length - 1}
+                    onClick={() => move(index, index + 1)}
+                  >
+                    <CaretDownIcon aria-hidden />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon-xs"
+                    variant="ghost"
+                    aria-label={`Remove block ${index + 1}`}
+                    disabled={props.disabled || atMin}
+                    onClick={() => remove(index)}
+                  >
+                    <XIcon aria-hidden />
+                  </Button>
+                </span>
+              </div>
+              {expanded ? (
+                <div id={panelId} className="border-t px-4 py-4">
+                  {def ? (
+                    <NestedFields
+                      fields={def.fields}
+                      value={block}
+                      onChange={(next) => {
+                        const copy = [...blocks];
+                        copy[index] = { ...next, type };
+                        emit(copy);
+                      }}
+                      idPrefix={`${props.id}-${index}`}
+                      issues={issues}
+                      disabled={props.disabled}
+                    />
+                  ) : (
+                    <p className="text-muted-foreground text-sm">
+                      This block's type is no longer in the catalogue. Remove it or restore the type
+                      in the config.
+                    </p>
+                  )}
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
       {singleType !== undefined ? (
         <Button
           type="button"

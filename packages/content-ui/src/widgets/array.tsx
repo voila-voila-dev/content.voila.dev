@@ -83,7 +83,7 @@ export function ArrayInput(props: EditWidgetProps): ReactNode {
       aria-labelledby={props.labelId}
       aria-invalid={props.error ? true : undefined}
       disabled={props.disabled}
-      className="space-y-2"
+      className="min-w-0 space-y-2"
     >
       {items.map((entry, index) => {
         const rowId = `${props.id}-${index}`;

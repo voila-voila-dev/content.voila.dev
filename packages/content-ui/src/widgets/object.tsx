@@ -34,7 +34,7 @@ export function ObjectInput(props: EditWidgetProps): ReactNode {
       aria-labelledby={props.labelId}
       aria-invalid={props.error ? true : undefined}
       disabled={props.disabled}
-      className={cn("rounded-md border p-4", props.error && "border-destructive")}
+      className={cn("min-w-0 rounded-md border p-4", props.error && "border-destructive")}
     >
       <NestedFields
         fields={shape}
