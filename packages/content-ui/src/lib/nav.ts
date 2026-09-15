@@ -36,11 +36,26 @@ export interface NavGroups {
   readonly groups: readonly NavGroup[];
 }
 
+/**
+ * One sidebar group as the host lays it out: its label and the entity slugs it
+ * holds, in order. Slugs that match no collection or singleton are ignored.
+ */
+export interface NavLayoutGroup {
+  readonly label: string;
+  readonly items: ReadonlyArray<string>;
+}
+
 export interface BuildNavOptions {
   /** URL prefix the admin is mounted under. Defaults to `/admin`. */
   readonly basePath?: string;
   /** The current location's pathname, used to mark the active item. */
   readonly currentPath?: string;
+  /**
+   * The sidebar layout, group by group. Listed entities render in this order;
+   * entities the layout doesn't mention follow, bucketed by their own `group`
+   * in declaration order. Omit to derive every group from the config.
+   */
+  readonly groups?: ReadonlyArray<NavLayoutGroup>;
 }
 
 /** Default icons per entity kind, when the config declares none. */
@@ -111,6 +126,30 @@ function toItem(
   };
 }
 
+/**
+ * Apply a host layout: listed entities first, in layout order and under the
+ * layout's group label; the rest keep their declaration order and own group.
+ */
+function applyLayout<E extends { readonly item: NavItem; readonly group: string }>(
+  entries: ReadonlyArray<E>,
+  groups: ReadonlyArray<NavLayoutGroup> | undefined,
+): E[] {
+  if (!groups || groups.length === 0) return [...entries];
+  const bySlug = new Map(entries.map((entry) => [entry.item.slug, entry]));
+  const placed = new Set<string>();
+  const out: E[] = [];
+  for (const group of groups) {
+    for (const slug of group.items) {
+      const entry = bySlug.get(slug);
+      if (!entry || placed.has(slug)) continue;
+      placed.add(slug);
+      out.push({ ...entry, group: group.label });
+    }
+  }
+  for (const entry of entries) if (!placed.has(entry.item.slug)) out.push(entry);
+  return out;
+}
+
 /** Bucket items into labelled groups, in first-seen order. */
 function groupItems(entries: ReadonlyArray<{ item: NavItem; group: string }>): NavGroup[] {
   const groups = new Map<string, NavItem[]>();
@@ -123,42 +162,37 @@ function groupItems(entries: ReadonlyArray<{ item: NavItem; group: string }>): N
 }
 
 /**
- * Build the sidebar nav model from a normalized config. Entities carrying an
- * `order` come first, ascending; the rest keep declaration order (collections,
- * then singletons). Groups follow the first entity that names them.
+ * Build the sidebar nav model from a normalized config: declaration order
+ * (collections, then singletons), or the host's `groups` layout when given.
  */
 export function buildNav(config: NormalizedConfig, options: BuildNavOptions = {}): NavGroups {
   const base = normalizeBase(options.basePath ?? "/admin");
   const { currentPath } = options;
   const collectionDefs = Object.values(config.collections) as Collection[];
   const singletonDefs = Object.values(config.singletons) as Singleton[];
-  const rank = (entity: { readonly order?: number }) =>
-    typeof entity.order === "number" ? entity.order : Number.POSITIVE_INFINITY;
 
-  // Longest-prefix dedupe runs over the whole set before bucketing, so a
-  // singleton and a collection can never both be active.
-  // `Array.prototype.sort` is stable, so unordered entities keep their place.
-  const ordered = [
+  const declared = [
     ...collectionDefs.map((c) => ({
       item: toItem("collection", c, base, currentPath),
       group: c.group ?? DEFAULT_GROUP_LABELS.collection,
       href: `${base}/${c.slug}`,
       isActive: isNavActive(`${base}/${c.slug}`, currentPath),
-      rank: rank(c),
     })),
     ...singletonDefs.map((s) => ({
       item: toItem("singleton", s, base, currentPath),
       group: s.group ?? DEFAULT_GROUP_LABELS.singleton,
       href: `${base}/${s.slug}`,
       isActive: isNavActive(`${base}/${s.slug}`, currentPath),
-      rank: rank(s),
     })),
-  ].sort((a, b) => a.rank - b.rank);
-  const all = markLongestActive(ordered).map((entry) => ({
+  ];
+  const laidOut = applyLayout(declared, options.groups);
+
+  // Longest-prefix dedupe runs over the whole set before bucketing, so a
+  // singleton and a collection can never both be active.
+  const all = markLongestActive(laidOut).map((entry) => ({
     item: { ...entry.item, isActive: entry.isActive },
     group: entry.group,
   }));
-
   const collections = all.filter((e) => e.item.kind === "collection").map((e) => e.item);
   const singletons = all.filter((e) => e.item.kind === "singleton").map((e) => e.item);
   return { collections, singletons, groups: groupItems(all) };

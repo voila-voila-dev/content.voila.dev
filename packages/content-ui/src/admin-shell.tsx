@@ -34,6 +34,8 @@ export interface AdminShellProps {
   readonly defaultSidebarOpen?: boolean;
   /** Extra nav groups appended after collections/singletons (e.g. custom screens). */
   readonly extraGroups?: AppSidebarProps["extraGroups"];
+  /** The sidebar layout (see `AppSidebarProps.navGroups`). */
+  readonly navGroups?: AppSidebarProps["navGroups"];
   /** Document count per collection slug, shown as a badge on its nav item. */
   readonly counts?: AppSidebarProps["counts"];
   /** Called when the sidebar's search entry (⌘K) is activated. Omit to hide it. */
@@ -56,6 +58,7 @@ export function AdminShell({
   sidebarFooter,
   defaultSidebarOpen = true,
   extraGroups,
+  navGroups,
   counts,
   onSearch,
   displayLocale,
@@ -90,6 +93,7 @@ export function AdminShell({
             brandSubtitle={brandSubtitle}
             footer={sidebarFooter}
             extraGroups={extraGroups}
+            navGroups={navGroups}
             counts={counts}
             section={section}
             onSearch={onSearch}

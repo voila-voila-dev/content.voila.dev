@@ -77,6 +77,7 @@ export {
   type NavGroup,
   type NavGroups,
   type NavItem,
+  type NavLayoutGroup,
   normalizeBase,
 } from "./lib/nav";
 export { type PublishState, publishStatus } from "./lib/publish-status";

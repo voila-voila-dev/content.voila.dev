@@ -17,7 +17,13 @@ import { Sidebar } from "@voila.dev/ui/sidebar";
 import { cn } from "@voila.dev/ui/utils";
 import { cloneElement, type ReactElement, type ReactNode } from "react";
 import { NamedIcon } from "./lib/icons";
-import { buildNav, DEFAULT_NAV_ICONS, homeHref, type NavItem } from "./lib/nav";
+import {
+  buildNav,
+  DEFAULT_NAV_ICONS,
+  homeHref,
+  type NavItem,
+  type NavLayoutGroup,
+} from "./lib/nav";
 import type { SidebarSection } from "./lib/shell-context";
 
 export interface AppSidebarProps {
@@ -47,6 +53,8 @@ export interface AppSidebarProps {
     readonly label: string;
     readonly items: readonly NavItem[];
   }>;
+  /** The sidebar layout (see `BuildNavOptions.groups`). Omit to derive it from the config. */
+  readonly navGroups?: ReadonlyArray<NavLayoutGroup>;
   /** Document count per collection slug, shown as a trailing badge. */
   readonly counts?: Readonly<Record<string, number>>;
   /** When set, the content swaps to this entity section (see `ShellContext`). */
@@ -216,12 +224,13 @@ export function AppSidebar({
   brandSubtitle,
   footer,
   extraGroups,
+  navGroups,
   counts,
   section,
   onSearch,
   homeLabel = "Overview",
 }: AppSidebarProps): ReactNode {
-  const nav = buildNav(config, { basePath, currentPath });
+  const nav = buildNav(config, { basePath, currentPath, groups: navGroups });
   const home = homeHref(basePath);
   const name = config.branding.name;
 

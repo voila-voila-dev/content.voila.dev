@@ -74,6 +74,7 @@ export function DashboardScreen(): ReactNode {
       config={admin.config}
       counts={counts}
       basePath={admin.basePath}
+      navGroups={admin.nav?.groups}
       title={title}
       recent={recent}
       recentLoading={recentLoading}
