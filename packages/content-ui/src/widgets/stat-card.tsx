@@ -40,9 +40,11 @@ export function StatCard({
       data-slot="stat-card"
       className={href ? "transition-colors hover:bg-accent/50" : undefined}
     >
-      <Card.Header className="flex-row items-center justify-between gap-2 space-y-0 pb-2">
+      <Card.Header className="items-center pb-2">
         <Card.Title className="text-sm font-medium text-muted-foreground">{label}</Card.Title>
-        {icon ? <span className="text-muted-foreground">{icon}</span> : null}
+        {icon ? (
+          <Card.Action className="self-center text-muted-foreground">{icon}</Card.Action>
+        ) : null}
       </Card.Header>
       <Card.Content>
         <div className="text-2xl font-semibold tabular-nums">{value}</div>

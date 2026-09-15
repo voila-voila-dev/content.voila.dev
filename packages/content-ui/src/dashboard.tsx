@@ -128,7 +128,9 @@ function CollectionTile({
       data-slot="collection-tile"
       className="relative transition-colors hover:bg-accent/40"
     >
-      <Card.Header className="flex-row items-center justify-between gap-2 space-y-0 pb-2">
+      {/* The kit's header is a grid; `Card.Action` is what puts the quick
+          action in the right-hand column, on the title's row. */}
+      <Card.Header className="items-center pb-2">
         <span className="flex min-w-0 items-center gap-2">
           <NamedIcon
             name={item.icon}
@@ -137,7 +139,7 @@ function CollectionTile({
           />
           {titleLink}
         </span>
-        {newLink}
+        <Card.Action className="self-center">{newLink}</Card.Action>
       </Card.Header>
       <Card.Content>
         <div className="font-semibold text-2xl tabular-nums">{count}</div>
