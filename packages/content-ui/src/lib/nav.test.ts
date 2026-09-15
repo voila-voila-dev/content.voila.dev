@@ -71,3 +71,25 @@ describe("buildNav", () => {
     expect(nav.singletons).toEqual([]);
   });
 });
+
+describe("buildNav — order", () => {
+  test("ordered entities come first ascending, the rest keep declaration order", () => {
+    const ordered = defineConfig({
+      branding: { name: "Acme" },
+      collections: {
+        cities: defineCollection({ slug: "cities", group: "Agency", order: 30, fields: {} }),
+        pages: defineCollection({ slug: "pages", group: "Content", order: 10, fields: {} }),
+        posts: defineCollection({ slug: "posts", group: "Content", fields: {} }),
+        admins: defineCollection({ slug: "admins", group: "Agency", order: 21, fields: {} }),
+      },
+      singletons: {
+        settings: defineSingleton({ slug: "settings", group: "Agency", order: 20, fields: {} }),
+      },
+    });
+    const nav = buildNav(ordered);
+    expect(nav.groups.map((g) => [g.label, g.items.map((i) => i.slug)])).toEqual([
+      ["Content", ["pages", "posts"]],
+      ["Agency", ["settings", "admins", "cities"]],
+    ]);
+  });
+});

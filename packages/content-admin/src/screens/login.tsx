@@ -10,6 +10,7 @@ import { Button } from "@voila.dev/ui/button";
 import { Card } from "@voila.dev/ui/card";
 import { Input } from "@voila.dev/ui/input";
 import { Label } from "@voila.dev/ui/label";
+import { cn } from "@voila.dev/ui/utils";
 import { type FormEvent, type ReactNode, useId, useState } from "react";
 import { useAdmin } from "../context";
 import { SignInError, useSignIn } from "../hooks/use-auth-mutations";
@@ -42,7 +43,10 @@ export function LoginScreen(): ReactNode {
         <div className="flex flex-col items-center gap-3 text-center">
           <span
             aria-hidden
-            className="flex size-12 items-center justify-center overflow-hidden rounded-xl bg-primary text-primary-foreground [&_img]:size-7 [&_svg]:size-7"
+            className={cn(
+              "flex size-12 items-center justify-center overflow-hidden rounded-xl [&_img]:size-full [&_img]:object-cover [&_svg]:size-7",
+              logo == null && "bg-primary text-primary-foreground",
+            )}
           >
             {logo ?? (
               <span className="font-semibold text-lg">{name.trim().charAt(0).toUpperCase()}</span>
