@@ -11,6 +11,7 @@ import { Select } from "@voila.dev/ui/select";
 import { Switch } from "@voila.dev/ui/switch";
 import { Textarea } from "@voila.dev/ui/textarea";
 import type { ReactNode } from "react";
+import type { FieldIssue } from "../lib/validate";
 
 export interface EditWidgetProps {
   readonly value: unknown;
@@ -26,6 +27,12 @@ export interface EditWidgetProps {
    */
   readonly labelId?: string;
   readonly error?: string;
+  /**
+   * Validation issues below this field, paths relative to it. Only container
+   * widgets (blocks, arrays, objects) read these — they slice by segment to put
+   * each message next to the nested control that failed.
+   */
+  readonly issues?: ReadonlyArray<FieldIssue>;
   readonly disabled?: boolean;
 }
 
@@ -297,9 +304,10 @@ export function SelectInput({
 }
 
 /**
- * Fallback for kinds with no editor yet (array, object, media, relation,
- * richText, …). Honest and non-destructive: it shows the kind and disables
- * input rather than silently dropping or corrupting the value.
+ * Fallback for kinds with no editor yet (media, relation, richText, json, …,
+ * plus an `array` whose item is a bare validator). Honest and non-destructive:
+ * it shows the kind and disables input rather than silently dropping or
+ * corrupting the value.
  */
 export function UnsupportedInput({ id, field }: EditWidgetProps): ReactNode {
   // richText advertises its own fix: the registry item that vends a real editor.

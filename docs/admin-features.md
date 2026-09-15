@@ -87,6 +87,77 @@ Without maplibre, geo fields still edit (the lat/lng inputs) and display
 (`GeoDisplay`); only the map surfaces are unavailable. Set the map style with
 `defineAdmin({ mapStyleUrl })` (defaults to the public MapLibre demo style).
 
+## Blocks, objects & arrays (page builder)
+
+`fields.blocks({ types })` is an ordered, polymorphic list — the page-builder
+primitive. A `pages` collection declares its section catalogue once; every block
+stored is `{ type: "<key>", ...fields }`:
+
+```ts
+const pages = defineCollection({
+  slug: "pages",
+  fields: {
+    title: fields.string({ required: true }),
+    slug: fields.slug({ from: "title" }),
+    blocks: fields.blocks({
+      types: {
+        hero: {
+          label: "Hero",
+          icon: "Sparkle",
+          description: "Big title over a picture",
+          fields: {
+            title: fields.string({ required: true }),
+            image: fields.media({ accept: ["image/*"] }),
+            body: fields.richText(),
+          },
+        },
+        faq: {
+          fields: {
+            items: fields.array(
+              fields.object({ question: fields.string({ required: true }), answer: fields.markdown() }),
+            ),
+          },
+        },
+        cta: { fields: { label: fields.string(), href: fields.string({ format: "url" }) } },
+      },
+    }),
+  },
+});
+```
+
+The admin gets, with no host code:
+
+- **Add block** — a menu built from `types` (label, description, icon), a plain
+  button when there is one type, disabled at `max`;
+- one **collapsible card per block** — type badge, a summary line from the first
+  text field, drag handle + move up / down + remove, the block's own fields inside;
+- **nested editors** — every field inside a block, object or array renders its
+  own widget through the same registry as top-level fields, so the media
+  picker, relation combobox and rich-text editor a host injects with
+  `defineAdmin({ widgets })` work at any depth;
+- **nested errors** — a failed nested field shows its message under its own
+  control (the card expands), and the field-level line keeps the path
+  (`[2].title: Required.`), as does the server's 422 envelope.
+
+`fields.object({ … })` and `fields.array(item)` get the same treatment: a
+bordered member group, and a list with add / move / remove honouring `min` /
+`max`. (An `array` whose item is a bare validator rather than a field still
+shows the unsupported-input notice — there is no widget to render.)
+
+On the site, `InferDoc<typeof config, "pages">["blocks"][number]` is a
+discriminated union on `type`, so a `switch (block.type)` is exhaustive.
+
+Limits, by design:
+
+- **No localized fields inside** a block, object or array — localize the outer
+  field (`blocks({ …, localized: true })`) and the whole list is per locale.
+  The constructors throw otherwise.
+- **No persisted per-block key.** React keys are handled client-side; declare a
+  `fields.string()` yourself if a block needs a stable anchor.
+- A blocks field is one **JSON column**: it is neither sortable, filterable nor
+  searchable, and the list screen hides it from the default columns.
+- Overriding the editor is the usual registry hook: `widgets.edit.blocks`.
+
 ## Per-field save
 
 For grouped collections, the detail screen edits **per field**: each field is its

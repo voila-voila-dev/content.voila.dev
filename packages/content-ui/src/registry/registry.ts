@@ -5,6 +5,8 @@
 // defaults (`mergeDisplayRegistry`) — the escape hatch for custom cell renderers.
 
 import type { FieldMetaBase } from "@voila/content";
+import { ArrayDisplay } from "../widgets/array";
+import { BlocksDisplay } from "../widgets/blocks";
 import {
   BooleanDisplay,
   ColorDisplay,
@@ -20,6 +22,7 @@ import {
 import { GeoDisplay } from "../widgets/geo";
 import { MediaDisplay } from "../widgets/media";
 import { MultiSelectDisplay } from "../widgets/multi-select";
+import { ObjectDisplay } from "../widgets/object";
 import { mergeMaps } from "./merge";
 import { resolveWidget } from "./resolve";
 
@@ -27,7 +30,7 @@ export type DisplayRegistry = Readonly<Record<string, DisplayWidget>>;
 
 /**
  * Built-in display widgets keyed by field `kind`. Kinds with no dedicated entry
- * (array, object, json, …) fall through to `JsonDisplay`. `relation` resolves
+ * (json, polymorphic, …) fall through to `JsonDisplay`. `relation` resolves
  * to ids only until the admin injects `createRelationDisplay`.
  */
 export const defaultDisplayRegistry: DisplayRegistry = {
@@ -50,6 +53,9 @@ export const defaultDisplayRegistry: DisplayRegistry = {
   time: DateDisplay,
   media: MediaDisplay,
   geo: GeoDisplay,
+  array: ArrayDisplay,
+  object: ObjectDisplay,
+  blocks: BlocksDisplay,
 };
 
 /** Merge a caller's overrides over the default display widgets. */

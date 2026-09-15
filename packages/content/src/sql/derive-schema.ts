@@ -10,7 +10,7 @@
 // IS NULL`) can be added later without rewriting the table.
 
 import type { NormalizedConfig } from "../config/config";
-import type { FieldsMap } from "../config/schema/fields";
+import { type FieldsMap, walkFields } from "../config/schema/fields";
 import { toColumnName } from "./to-column-name";
 import type { ColumnSchema, IndexSchema, TableSchema } from "./types";
 
@@ -84,6 +84,7 @@ function columnTypeFor(meta: FieldMetaLite): ColumnSchema["type"] {
     case "json":
     case "array":
     case "object":
+    case "blocks":
     case "geo":
     case "multiSelect":
     case "media":
@@ -178,10 +179,8 @@ export const VIEWS_TABLE = "voila_views";
 /**
  * The engine-owned media library: one row per uploaded file, keyed by the
  * storage object `key` the `Storage` seam wrote. Emitted only when the config
- * declares a media field, so schemas without uploads stay lean. Detection is
- * top-level only — array/object field metas don't retain their children, so a
- * media field nested inside one isn't visible here (declare a top-level media
- * field, or ship the table yourself, if you compose media that way).
+ * declares a media field — at the top level or nested inside an array, object
+ * or blocks field — so schemas without uploads stay lean.
  */
 function mediaTable(): TableSchema {
   return {
@@ -215,9 +214,13 @@ function mediaTable(): TableSchema {
   };
 }
 
-/** True when any top-level field in the map is a media field. */
+/** True when any field in the map — nested ones included — is a media field. */
 function usesMedia(fields: FieldsMap): boolean {
-  return Object.values(fields).some((field) => readMeta(field).kind === "media");
+  let found = false;
+  walkFields(fields, (field) => {
+    if (readMeta(field).kind === "media") found = true;
+  });
+  return found;
 }
 
 /**

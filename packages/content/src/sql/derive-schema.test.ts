@@ -60,6 +60,13 @@ describe("deriveSchema", () => {
     expect(slugIdx?.unique).toBe(true);
   });
 
+  it("stores blocks and nested-array columns as JSON", () => {
+    const cols = deriveSchema(allFieldsConfig).find((t) => t.name === "everything")?.columns ?? [];
+    const json = { sqlite: "TEXT", postgres: "JSONB" };
+    expect(cols.find((c) => c.name === "page_blocks")?.type).toEqual(json);
+    expect(cols.find((c) => c.name === "gallery")?.type).toEqual(json);
+  });
+
   it("treats single relations as text id columns and many-relations as JSON", () => {
     const tables = deriveSchema(allFieldsConfig);
     const cols = tables.find((t) => t.name === "everything")?.columns ?? [];
@@ -199,6 +206,17 @@ describe("voila_media", () => {
       collections: {},
       singletons: { profile },
     });
+    expect(deriveSchema(config).some((t) => t.name === "voila_media")).toBe(true);
+  });
+
+  it("ships it when the only media field is nested inside blocks", () => {
+    const pages = defineCollection({
+      slug: "pages",
+      fields: {
+        sections: fields.blocks({ types: { hero: { fields: { image: fields.media() } } } }),
+      },
+    });
+    const config = defineConfig({ branding: { name: "Acme" }, collections: { pages } });
     expect(deriveSchema(config).some((t) => t.name === "voila_media")).toBe(true);
   });
 

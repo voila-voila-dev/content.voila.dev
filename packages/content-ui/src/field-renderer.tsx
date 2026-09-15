@@ -16,11 +16,8 @@ import type { Field } from "@voila/content";
 import { Badge } from "@voila.dev/ui/badge";
 import type { ReactNode } from "react";
 import { resolveLocalized, useI18n } from "./lib/i18n";
-import {
-  type DisplayRegistry,
-  defaultDisplayRegistry,
-  resolveDisplayWidget,
-} from "./registry/registry";
+import { DisplayRegistryProvider, useDisplayRegistry } from "./registry/context";
+import { type DisplayRegistry, resolveDisplayWidget } from "./registry/registry";
 import type { DisplayContext } from "./widgets/display";
 
 export interface FieldRendererProps {
@@ -35,9 +32,35 @@ export interface FieldRendererProps {
 export function FieldRenderer({
   field,
   value,
-  registry = defaultDisplayRegistry,
+  registry: explicitRegistry,
   context = "detail",
 }: FieldRendererProps): ReactNode {
+  // The registry in scope (a parent renderer's, or the defaults) unless the
+  // caller passes one; either way it is provided downward so a structured
+  // widget renders its nested values through the same registry.
+  const inherited = useDisplayRegistry();
+  const registry = explicitRegistry ?? inherited;
+  const rendered = (
+    <FieldRendererInner field={field} value={value} registry={registry} context={context} />
+  );
+  return registry === inherited ? (
+    rendered
+  ) : (
+    <DisplayRegistryProvider registry={registry}>{rendered}</DisplayRegistryProvider>
+  );
+}
+
+function FieldRendererInner({
+  field,
+  value,
+  registry,
+  context,
+}: {
+  readonly field: Field;
+  readonly value: unknown;
+  readonly registry: DisplayRegistry;
+  readonly context: DisplayContext;
+}): ReactNode {
   const i18n = useI18n();
   if (field.meta.localized === true) {
     const inner = field.inner ?? field;

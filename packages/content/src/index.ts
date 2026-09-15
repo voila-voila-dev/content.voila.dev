@@ -14,6 +14,10 @@ export { defineCollection } from "./config/schema/collection";
 export type {
   AccessibleFields,
   BaseFieldOpts,
+  BlockDef,
+  BlocksValue,
+  BlockTypes,
+  BlockValue,
   CloudflareImageCdnOpts,
   Field,
   FieldAccess,

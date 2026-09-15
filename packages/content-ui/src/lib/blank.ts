@@ -31,5 +31,10 @@ export function isBlank(field: Field, value: unknown): boolean {
   if (field.meta.kind === "richText") {
     return !Array.isArray(value) || value.map(richTextText).join("").trim() === "";
   }
+  // An empty list is "nothing here" for the list kinds, so removing the last
+  // block or item leaves an optional field absent rather than storing `[]`.
+  if (field.meta.kind === "blocks" || field.meta.kind === "array") {
+    return Array.isArray(value) && value.length === 0;
+  }
   return false;
 }

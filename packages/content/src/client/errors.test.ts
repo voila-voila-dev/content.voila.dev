@@ -103,7 +103,7 @@ describe("issuesByField", () => {
           { path: [], message: "Malformed." },
         ],
       }),
-    ).toEqual({ title: "Required.", tags: "Too long." });
+    ).toEqual({ title: "Required.", tags: "[1]: Too long." });
   });
 
   it("maps a CONFLICT to its colliding field", () => {

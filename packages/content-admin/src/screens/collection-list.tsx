@@ -74,7 +74,16 @@ const DEFAULT_PAGE_SIZE = 25;
  * don't mind h…" tells an editor nothing they can scan. They stay one click
  * away in the column picker, and any saved view that names them still shows them.
  */
-const NOISY_COLUMN_KINDS = new Set(["richText", "markdown", "code", "json", "media", "object"]);
+const NOISY_COLUMN_KINDS = new Set([
+  "richText",
+  "markdown",
+  "code",
+  "json",
+  "media",
+  "object",
+  "array",
+  "blocks",
+]);
 
 /** How many columns a table opens with before the picker takes over. */
 const DEFAULT_COLUMN_BUDGET = 8;

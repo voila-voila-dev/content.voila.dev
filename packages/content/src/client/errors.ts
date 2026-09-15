@@ -38,18 +38,30 @@ function describeFailure(failure: ApiFailure): string | null {
   return failure.code === "CONFLICT" ? "A unique field already has this value." : null;
 }
 
+// `[2].title` — where inside a structured field (blocks, array, object) an
+// issue landed, so the field-level message still points at the right item.
+function formatSubPath(path: ReadonlyArray<string | number>): string {
+  return path
+    .map((seg) => (typeof seg === "number" ? `[${seg}]` : `.${seg}`))
+    .join("")
+    .replace(/^\./, "");
+}
+
 /**
  * Flatten a failure's issues to `{ field: message }` — the shape a form maps
  * onto its inputs (e.g. `CollectionForm`'s `serverErrors` prop). Each issue is
- * keyed by its top-level field (first issue per field wins). Failures without
- * issues are form-level, not field-level: `{}`.
+ * keyed by its top-level field (first issue per field wins); an issue nested
+ * inside a structured field keeps its sub-path in the message
+ * (`[2].title: Required.`). Failures without issues are form-level, not
+ * field-level: `{}`.
  */
 export function issuesByField(failure: ApiFailure): Record<string, string> {
   const out: Record<string, string> = {};
   for (const issue of failureIssues(failure)) {
-    const field = issue.path[0];
+    const [field, ...rest] = issue.path;
     if (field === undefined) continue;
-    out[String(field)] ??= issue.message;
+    out[String(field)] ??=
+      rest.length > 0 ? `${formatSubPath(rest)}: ${issue.message}` : issue.message;
   }
   return out;
 }
