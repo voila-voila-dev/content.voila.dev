@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { render } from "@testing-library/react";
 import type { FieldMetaBase } from "@voila/content";
+import { I18nProvider } from "../lib/i18n";
 import {
   BooleanDisplay,
   ColorDisplay,
@@ -106,6 +107,43 @@ describe("NumberDisplay", () => {
     expect(render(<NumberDisplay value={null} meta={meta("number")} />).container.textContent).toBe(
       "—",
     );
+  });
+});
+
+describe("formatting locale (I18nProvider.locale)", () => {
+  test("NumberDisplay groups digits the way the provided locale does", () => {
+    const { container } = render(
+      <I18nProvider locale="fr-FR">
+        <NumberDisplay value={30000} meta={meta("number")} />
+      </I18nProvider>,
+    );
+    // "30 000" (narrow no-break space) rather than "30,000".
+    expect(container.textContent).toBe((30000).toLocaleString("fr-FR"));
+    expect(container.textContent).not.toBe((30000).toLocaleString("en-US"));
+  });
+
+  test("DateDisplay formats in the provided locale", () => {
+    const d = new Date("2026-09-10T10:30:00.000Z");
+    const { container } = render(
+      <I18nProvider locale="fr-FR">
+        <DateDisplay value={d} meta={meta("date")} />
+      </I18nProvider>,
+    );
+    expect(container.querySelector("time")?.textContent).toBe(
+      new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" }).format(d),
+    );
+    expect(container.querySelector("time")?.textContent).not.toBe(
+      new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(d),
+    );
+  });
+
+  test("without a locale, the runtime default applies (unchanged behaviour)", () => {
+    const { container } = render(
+      <I18nProvider>
+        <NumberDisplay value={1234} meta={meta("number")} />
+      </I18nProvider>,
+    );
+    expect(container.textContent).toBe((1234).toLocaleString());
   });
 });
 

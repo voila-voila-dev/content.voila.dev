@@ -73,6 +73,13 @@ export interface CsrfError extends BaseError {
   readonly code: "CSRF";
 }
 
+export interface NotSupportedError extends BaseError {
+  readonly code: "NOT_SUPPORTED";
+  /** The collection and the operation it doesn't offer. */
+  readonly collectionSlug: string;
+  readonly operation: string;
+}
+
 export interface TooLargeError extends BaseError {
   readonly code: "TOO_LARGE";
   /** The configured cap, in bytes. */
@@ -121,7 +128,8 @@ export type ApiFailure =
   | UnauthorizedError
   | ForbiddenError
   | CsrfError
-  | TooLargeError;
+  | TooLargeError
+  | NotSupportedError;
 
 export type ApiErrorCode = ApiFailure["code"];
 
@@ -140,6 +148,7 @@ const STATUS: Record<ApiErrorCode, number> = {
   FORBIDDEN: 403,
   CSRF: 403,
   TOO_LARGE: 413,
+  NOT_SUPPORTED: 405,
 };
 
 // ---------- typed constructors ----------
@@ -234,6 +243,16 @@ export function tooLarge(maxBytes: number, size?: number): TooLargeError {
     : { code: "TOO_LARGE", maxBytes, size };
 }
 
+/**
+ * The collection doesn't offer this operation: switched off via
+ * `operations.<op>: false`, or an external collection whose `CollectionSource`
+ * lacks the method (or a table-only feature like revisions/publish asked of
+ * one). Distinct from `FORBIDDEN` — no principal could ever do it.
+ */
+export function notSupported(collectionSlug: string, operation: string): NotSupportedError {
+  return { code: "NOT_SUPPORTED", collectionSlug, operation };
+}
+
 // ---------- throwable wrapper ----------
 
 /**
@@ -292,6 +311,7 @@ const DEFAULT_MESSAGE: Record<ApiErrorCode, string> = {
   FORBIDDEN: "You don't have access to this resource.",
   CSRF: "The CSRF token was missing or invalid.",
   TOO_LARGE: "The upload is too large.",
+  NOT_SUPPORTED: "This collection does not support that operation.",
 };
 
 /**
@@ -316,6 +336,8 @@ export function failureMessage(failure: ApiFailure): string {
       return `No "${failure.collectionSlug}" matched.`;
     case "TOO_LARGE":
       return `The upload exceeds the maximum of ${failure.maxBytes} bytes.`;
+    case "NOT_SUPPORTED":
+      return `"${failure.collectionSlug}" does not support "${failure.operation}".`;
     default:
       return DEFAULT_MESSAGE[failure.code];
   }

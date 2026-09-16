@@ -81,6 +81,7 @@ export function AdminLayoutScreen(): ReactNode {
       navGroups={admin.nav?.groups}
       counts={counts}
       onSearch={() => setPaletteOpen(true)}
+      locale={admin.locale}
     >
       <Outlet />
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />

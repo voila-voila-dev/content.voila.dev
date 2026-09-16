@@ -47,6 +47,29 @@ describe("Dashboard", () => {
     ]);
   });
 
+  test("hides the quick New link when the collection turns create off", () => {
+    const readMostly = defineConfig({
+      branding: { name: "Acme" },
+      collections: {
+        posts: defineCollection({ slug: "posts", fields: { title: fields.string() } }),
+        listings: defineCollection({
+          slug: "listings",
+          external: true,
+          operations: { create: false },
+          fields: { ref: fields.string() },
+        }),
+      },
+    });
+    render(<Dashboard.Root config={readMostly} />);
+    expect(screen.getAllByRole("link", { name: "New" }).map((a) => a.getAttribute("href"))).toEqual(
+      ["/admin/posts/new"],
+    );
+    // The tile itself still renders and links to the list.
+    expect(screen.getByRole("link", { name: "Listings" }).getAttribute("href")).toBe(
+      "/admin/listings",
+    );
+  });
+
   test("shows an em-dash for a collection with no count", () => {
     render(<Dashboard.Root config={config} counts={{ posts: 12 }} />);
     const authors = screen.getByRole("link", { name: "Authors" });

@@ -9,6 +9,7 @@ export {
   type BaseError,
   type ErrorEnvelope,
   errorResponse,
+  type NotSupportedError,
   type ValidationIssue,
 } from "./errors";
 export { redactDocument } from "./field-access";

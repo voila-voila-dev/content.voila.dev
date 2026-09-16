@@ -13,12 +13,15 @@ export { coerceBindings, type SqlDriver, type SqlRow, type SqlValue } from "./dr
 // `node:sqlite`) at module scope, so they are deliberately NOT re-exported
 // here — import `@voila/content/server/bun-sqlite` or `…/node-sqlite` instead.
 // Only the runtime-neutral pieces surface through the barrel.
+export type { CollectionSource, MakeDatabaseOptions } from "./source";
 export { resolveSqliteUrl, type SqliteDriver, type SqliteDriverOpts } from "./sqlite";
 export type {
   Database,
   Document,
   DraftFilter,
   FieldValue,
+  FilterOp,
+  ListFilter,
   ListOpts,
   ListResult,
   OrderDirection,
@@ -26,4 +29,6 @@ export type {
   Revision,
   RevisionListOpts,
   RevisionListResult,
+  SearchOpts,
+  SearchResult,
 } from "./types";

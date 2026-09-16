@@ -16,6 +16,7 @@ import { Kbd } from "@voila.dev/ui/kbd";
 import { Sidebar } from "@voila.dev/ui/sidebar";
 import { cn } from "@voila.dev/ui/utils";
 import { cloneElement, type ReactElement, type ReactNode } from "react";
+import { useI18n } from "./lib/i18n";
 import { NamedIcon } from "./lib/icons";
 import {
   buildNav,
@@ -83,6 +84,8 @@ function NavGroup({
   readonly renderLink: (item: NavItem) => ReactElement;
   readonly counts?: Readonly<Record<string, number>>;
 }): ReactNode {
+  // The admin's formatting locale, for the count badges.
+  const { locale } = useI18n();
   if (items.length === 0) return null;
   return (
     <Sidebar.Group>
@@ -105,7 +108,7 @@ function NavGroup({
                 </Sidebar.MenuButton>
                 {typeof count === "number" ? (
                   <Sidebar.MenuBadge className="text-muted-foreground tabular-nums">
-                    {count.toLocaleString()}
+                    {count.toLocaleString(locale)}
                   </Sidebar.MenuBadge>
                 ) : null}
               </Sidebar.MenuItem>

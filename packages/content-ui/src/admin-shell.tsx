@@ -42,6 +42,11 @@ export interface AdminShellProps {
   readonly onSearch?: () => void;
   /** Locale the admin displays localized values in; defaults to `i18n.defaultLocale`. */
   readonly displayLocale?: string;
+  /**
+   * BCP 47 locale for formatting dates, numbers and relative times throughout
+   * the admin (see `I18nContextValue.locale`). Defaults to the browser's.
+   */
+  readonly locale?: string;
   readonly children?: ReactNode;
 }
 
@@ -62,6 +67,7 @@ export function AdminShell({
   counts,
   onSearch,
   displayLocale,
+  locale,
   children,
 }: AdminShellProps): ReactNode {
   const [open, setOpen] = useState(defaultSidebarOpen);
@@ -82,7 +88,7 @@ export function AdminShell({
 
   return (
     <ShellContext.Provider value={{ inShell: true, section, setSection }}>
-      <I18nProvider i18n={config.i18n} displayLocale={displayLocale}>
+      <I18nProvider i18n={config.i18n} displayLocale={displayLocale} locale={locale}>
         <Sidebar.Provider open={open} onOpenChange={setOpen}>
           <AppSidebar
             config={config}

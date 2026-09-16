@@ -23,6 +23,7 @@ import {
   type SearchFieldInfo,
   toMatchQuery,
 } from "./search-content";
+import type { CollectionSource, MakeDatabaseOptions } from "./source";
 import type {
   Database,
   Document,
@@ -46,21 +47,28 @@ const MAX_LIMIT = 100;
 
 /** A query or mapping failure. `conflict` is set when the failure is a
  *  unique-constraint violation; `field` carries the offending column's field
- *  name when the driver reveals it. The driver's error is kept as `cause`. */
+ *  name when the driver reveals it. `unsupported` is set when the operation
+ *  simply doesn't exist for the collection — an external collection whose
+ *  `CollectionSource` lacks the method, or a table-only feature (revisions,
+ *  publish, restore) asked of an external slug; the REST layer maps it to
+ *  `405 NOT_SUPPORTED` rather than a 500. The driver's error is kept as `cause`. */
 export class DatabaseError extends Error {
   readonly conflict: boolean;
   readonly field: string | undefined;
+  readonly unsupported: boolean;
 
   constructor(opts: {
     readonly message: string;
     readonly cause?: unknown;
     readonly conflict?: boolean;
     readonly field?: string;
+    readonly unsupported?: boolean;
   }) {
     super(opts.message, opts.cause !== undefined ? { cause: opts.cause } : undefined);
     this.name = "DatabaseError";
     this.conflict = opts.conflict ?? false;
     this.field = opts.field;
+    this.unsupported = opts.unsupported ?? false;
   }
 }
 
@@ -283,9 +291,222 @@ const REVISION_SYSTEM_FIELDS = new Set([
   "publishedAt",
 ]);
 
-export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Database {
+// System keys every collection exposes to `orderBy`/`filters`/`findOne`, table-
+// backed or not. Mirrors the REST layer's `SYSTEM_KINDS` (soft-delete and
+// publish state are table-only concepts, so they're absent here).
+const EXTERNAL_SYSTEM_KEYS: ReadonlyArray<string> = ["id", "createdAt", "updatedAt"];
+
+// The `Database` surface for one external slug, closed over its source. Every
+// method rejects with `DatabaseError` — `unsupported: true` when the source
+// lacks the method or the operation is table-only (revisions, publish state,
+// soft-delete restore, singleton upsert) — so the REST layer can answer 405.
+function bindExternal(
+  slug: string,
+  fields: FieldsMap,
+  source: CollectionSource | undefined,
+): Database {
+  const knownKeys = new Set<string>([...EXTERNAL_SYSTEM_KEYS, ...Object.keys(fields)]);
+
+  const unsupported = (operation: string): DatabaseError =>
+    new DatabaseError({
+      message: `Operation "${operation}" is not supported by external collection "${slug}".`,
+      unsupported: true,
+    });
+
+  // Resolve the source method to call, or reject: no source at all is a wiring
+  // error the host must fix; a missing method is a legitimate "not offered".
+  const method = <K extends keyof CollectionSource>(
+    name: K,
+    operation: string,
+  ): NonNullable<CollectionSource[K]> => {
+    if (source === undefined) {
+      throw new DatabaseError({
+        message: `External collection "${slug}" has no source registered — pass it via makeDatabase(config, driver, { sources: { ${slug}: … } }).`,
+      });
+    }
+    const fn = source[name];
+    if (fn === undefined) throw unsupported(operation);
+    return fn.bind(source) as NonNullable<CollectionSource[K]>;
+  };
+
+  // Run a source call, wrapping any rejection as a `DatabaseError` (a typed
+  // `DatabaseError` the source threw itself passes through untouched).
+  const exec = async <A>(message: string, fn: () => Promise<A>): Promise<A> => {
+    try {
+      return await fn();
+    } catch (cause) {
+      if (cause instanceof DatabaseError) throw cause;
+      throw new DatabaseError({ message, cause });
+    }
+  };
+
+  const requireKey = (key: string, what: string): void => {
+    if (!knownKeys.has(key)) {
+      throw new DatabaseError({ message: `Unknown ${what} field "${key}" on "${slug}".` });
+    }
+  };
+
+  const list = async (_collection: string, opts: ListOpts = {}): Promise<ListResult> => {
+    const orderBy = opts.orderBy ?? "id";
+    requireKey(orderBy, "orderBy");
+    for (const filter of opts.filters ?? []) requireKey(filter.field, "filter");
+    // Normalize before delegating so every source sees the same clamped/defaulted
+    // shape the SQL path enforces on itself.
+    const normalized: ListOpts = {
+      ...opts,
+      orderBy,
+      direction: opts.direction === "asc" ? "asc" : "desc",
+      limit: Math.min(Math.max(1, Math.trunc(opts.limit ?? DEFAULT_LIMIT)), MAX_LIMIT),
+    };
+    const fn = method("list", "list");
+    return exec(`Failed to list "${slug}".`, () => fn(normalized));
+  };
+
+  const get = async (_collection: string, id: string): Promise<Document | null> => {
+    const fn = method("get", "get");
+    return exec(`Failed to get "${slug}/${id}".`, () => fn(id));
+  };
+
+  const findOne = async (
+    _collection: string,
+    field: string,
+    value: FieldValue,
+  ): Promise<Document | null> => {
+    requireKey(field, "lookup");
+    const fn = method("findOne", "findOne");
+    return exec(`Failed to find "${slug}" by "${field}".`, () => fn(field, value));
+  };
+
+  const create = async (_collection: string, values: Document): Promise<Document> => {
+    const fn = method("create", "create");
+    return exec(`Failed to create "${slug}".`, () => fn(values));
+  };
+
+  const update = async (
+    _collection: string,
+    id: string,
+    values: Document,
+  ): Promise<Document | null> => {
+    const fn = method("update", "update");
+    return exec(`Failed to update "${slug}/${id}".`, () => fn(id, values));
+  };
+
+  // A source has one notion of deletion; both `Database` flavors land on it.
+  const remove = async (_collection: string, id: string): Promise<boolean> => {
+    const fn = method("delete", "delete");
+    return exec(`Failed to delete "${slug}/${id}".`, () => fn(id));
+  };
+
+  const search = async (
+    _collection: string,
+    query: string,
+    opts: SearchOpts = {},
+  ): Promise<SearchResult> => {
+    const fn = method("search", "search");
+    const normalized: SearchOpts = {
+      ...opts,
+      limit: Math.min(Math.max(1, Math.trunc(opts.limit ?? DEFAULT_LIMIT)), MAX_LIMIT),
+    };
+    return exec(`Failed to search "${slug}".`, () => fn(query, normalized));
+  };
+
+  // Table-only features. Resolved lazily (inside the async call) so a missing
+  // source still surfaces as the wiring error rather than a generic 405.
+  const tableOnly = (operation: string) => async (): Promise<never> => {
+    method("get", operation);
+    throw unsupported(operation);
+  };
+
+  return {
+    list,
+    get,
+    findOne,
+    create,
+    update,
+    upsert: tableOnly("upsert"),
+    softDelete: remove,
+    hardDelete: remove,
+    restore: tableOnly("restore"),
+    publish: tableOnly("publish"),
+    unpublish: tableOnly("unpublish"),
+    listRevisions: tableOnly("listRevisions"),
+    getRevision: tableOnly("getRevision"),
+    restoreRevision: tableOnly("restoreRevision"),
+    search,
+  };
+}
+
+// Bind every external collection of the config to its registered source (or to
+// the "no source" rejecter), and reject sources registered for slugs that
+// aren't external collections — a typo or a forgotten `external: true` would
+// otherwise silently serve the table while the source sits unused.
+function bindExternalCollections(
+  config: NormalizedConfig,
+  sources: Readonly<Record<string, CollectionSource>> | undefined,
+): ReadonlyMap<string, Database> {
+  const collections = config.collections as Record<
+    string,
+    { fields: FieldsMap; external?: boolean }
+  >;
+  const bound = new Map<string, Database>();
+  for (const [slug, collection] of Object.entries(collections)) {
+    if (collection.external !== true) continue;
+    bound.set(slug, bindExternal(slug, collection.fields, sources?.[slug]));
+  }
+  for (const slug of Object.keys(sources ?? {})) {
+    if (bound.has(slug)) continue;
+    const reason = Object.hasOwn(collections, slug)
+      ? `collection "${slug}" is not declared \`external: true\``
+      : `"${slug}" is not a collection of this config`;
+    throw new Error(`Cannot register a CollectionSource for "${slug}": ${reason}.`);
+  }
+  return bound;
+}
+
+// Route each `Database` method by its first argument (the slug): an external
+// slug goes to its bound source, everything else to the SQL implementation.
+function dispatchBySlug(sql: Database, external: ReadonlyMap<string, Database>): Database {
+  if (external.size === 0) return sql;
+  const route = <K extends keyof Database>(name: K): Database[K] =>
+    ((collection: string, ...rest: ReadonlyArray<unknown>) => {
+      const target = external.get(collection) ?? sql;
+      return (target[name] as (...args: ReadonlyArray<unknown>) => unknown)(collection, ...rest);
+    }) as Database[K];
+  return {
+    list: route("list"),
+    get: route("get"),
+    findOne: route("findOne"),
+    create: route("create"),
+    update: route("update"),
+    upsert: route("upsert"),
+    softDelete: route("softDelete"),
+    hardDelete: route("hardDelete"),
+    restore: route("restore"),
+    publish: route("publish"),
+    unpublish: route("unpublish"),
+    listRevisions: route("listRevisions"),
+    getRevision: route("getRevision"),
+    restoreRevision: route("restoreRevision"),
+    search: route("search"),
+  };
+}
+
+/**
+ * Build the runtime `Database` over a SQL driver. `options.sources` binds the
+ * config's external collections (`external: true`, no table) to host-provided
+ * `CollectionSource`s; calls for those slugs never touch the driver.
+ */
+export function makeDatabase(
+  config: NormalizedConfig,
+  driver: SqlDriver,
+  options: MakeDatabaseOptions = {},
+): Database {
+  // Validated first so a mis-registered source fails at boot, before any query.
+  const external = bindExternalCollections(config, options.sources);
+
   // Engine-owned system tables (the revision store) ship with the schema but
-  // aren't collections — they never resolve through `requireTable`.
+  // aren't collections — they never resolve through `requireTable`. External
+  // collections have no table either: `deriveSchema` skips them.
   const tables = new Map<string, TableInfo>(
     deriveSchema(config)
       .filter((t) => t.system !== true)
@@ -867,7 +1088,7 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
     return { documents };
   };
 
-  return {
+  const sql: Database = {
     list,
     get,
     findOne,
@@ -884,4 +1105,5 @@ export function makeDatabase(config: NormalizedConfig, driver: SqlDriver): Datab
     restoreRevision,
     search,
   };
+  return dispatchBySlug(sql, external);
 }

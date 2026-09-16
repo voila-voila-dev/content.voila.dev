@@ -201,6 +201,12 @@ export interface DefineAdminOptions<C extends NormalizedConfig = NormalizedConfi
    * the dashboard tiles (e.g. a server function). Omit to show no counts.
    */
   readonly counts?: () => Promise<Readonly<Record<string, number>>>;
+  /**
+   * BCP 47 locale used by Intl to format dates, numbers and relative times in
+   * the admin chrome; defaults to the browser's. Distinct from the content
+   * `i18n` locales, which pick WHICH translation of a localized field to show.
+   */
+  readonly locale?: string;
 }
 
 /** The built admin instance shared through context to every screen. */
@@ -224,4 +230,10 @@ export interface AdminInstance<C extends NormalizedConfig = NormalizedConfig> {
   readonly mapDarkStyleUrl?: string;
   /** Per-collection count resolver for the sidebar badges / dashboard. */
   readonly counts?: () => Promise<Readonly<Record<string, number>>>;
+  /**
+   * BCP 47 locale used by Intl to format dates, numbers and relative times in
+   * the admin chrome; defaults to the browser's. Distinct from the content
+   * `i18n` locales, which pick WHICH translation of a localized field to show.
+   */
+  readonly locale?: string;
 }

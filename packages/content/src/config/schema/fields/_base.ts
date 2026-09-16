@@ -33,6 +33,13 @@ export interface BaseFieldOpts<T = unknown> {
   readonly access?: FieldAccess;
   readonly transform?: FieldTransform<T>;
   /**
+   * The field is shown but never written from the admin: the record form
+   * renders its display widget instead of an input (and omits it from the
+   * "New" form), and the REST write routes reject a payload naming it.
+   * For system/computed values an external source fills in.
+   */
+  readonly readOnly?: boolean;
+  /**
    * Override the generated DB column name. Defaults to
    * `toColumnName(fieldName)` (camelCase → snake_case). Used verbatim, so the
    * caller is responsible for picking a valid SQL identifier; the DDL layer
@@ -55,6 +62,7 @@ function pickCommon<T>(opts: BaseFieldOpts<T>): Partial<FieldMetaBase> {
   if (opts.defaultValue !== undefined) m.defaultValue = opts.defaultValue;
   if (opts.access !== undefined) m.access = opts.access;
   if (opts.transform !== undefined) m.transform = opts.transform;
+  if (opts.readOnly !== undefined) m.readOnly = opts.readOnly;
   if (opts.column !== undefined) m.column = opts.column;
   // `m` carries `T`-typed transform/defaultValue; `FieldMeta` erases `T`, so
   // this single assertion is the metadata-bag boundary (not a field-level cast).

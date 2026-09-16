@@ -29,6 +29,7 @@ import type { Doc, FieldChoice, StatusFilterValue, ViewFieldChoices } from "@voi
 import {
   CalendarView,
   ColumnEditor,
+  collectionOperations,
   defaultCardFields,
   documentTitle,
   FilterEditor,
@@ -381,6 +382,9 @@ export function CollectionListScreen(): ReactNode {
     working.columns && working.columns.length > 0 ? working.columns : defaultColumns(collection);
   const label = collection.label ?? slug;
   const singular = singularLabel(collection);
+  // Which write affordances to offer at all (a read-mostly external collection
+  // may turn some off); the REST layer refuses the same operations with a 405.
+  const ops = collectionOperations(collection);
 
   const kanbanable = kanbanFields(collection);
   const geoable = geoFields(collection);
@@ -515,12 +519,12 @@ export function CollectionListScreen(): ReactNode {
   );
 
   const newHref = `${admin.basePath}/${slug}/new`;
-  const newButton = (
+  const newButton = ops.create ? (
     <Button size="sm" nativeButton={false} render={<AdminLink href={newHref} />}>
       <PlusIcon aria-hidden />
       New {singular.toLowerCase()}
     </Button>
-  );
+  ) : null;
   const controls = (
     <>
       {admin.slots.collection?.listActions?.({ slug, client: admin.client })}
@@ -638,16 +642,26 @@ export function CollectionListScreen(): ReactNode {
       status={status}
       onStatusChange={setStatus}
       emptyAction={admin.slots.collection?.emptyState?.({ slug, collection }) ?? newButton}
-      selectable
+      // Selection exists for the bulk actions (set a field, delete); a
+      // collection that offers no write at all has nothing to select rows FOR.
+      selectable={ops.create || ops.update || ops.delete}
       selected={selected}
       onSelectedChange={setSelected}
-      rowActions={(row) => (
-        <RowActions
-          singular={singular.toLowerCase()}
-          onDuplicate={() => duplicateRow(row)}
-          onDelete={() => removeMany.mutate([String((row as { id?: unknown }).id)])}
-        />
-      )}
+      rowActions={
+        ops.create || ops.delete
+          ? (row) => (
+              <RowActions
+                singular={singular.toLowerCase()}
+                onDuplicate={ops.create ? () => duplicateRow(row) : undefined}
+                onDelete={
+                  ops.delete
+                    ? () => removeMany.mutate([String((row as { id?: unknown }).id)])
+                    : undefined
+                }
+              />
+            )
+          : undefined
+      }
       bulkActions={(ids) => (
         <BulkActions
           ids={ids}
@@ -655,6 +669,8 @@ export function CollectionListScreen(): ReactNode {
           rows={rows}
           defaultLocale={admin.config.i18n?.defaultLocale}
           slug={slug}
+          canUpdate={ops.update}
+          canDelete={ops.delete}
           deleting={removeMany.isPending}
           applying={updateMany.isPending}
           onSetField={(values, label) =>
@@ -686,7 +702,9 @@ function suffixTitle(value: unknown, suffix: string): unknown {
 /**
  * The per-row overflow menu, revealed on hover. Duplicate and Delete are the
  * two things an editor wants from a list row without opening the record; Open
- * is already the row itself.
+ * is already the row itself. Either handler may be absent when the collection
+ * turns that operation off (`operations.create` / `operations.delete`) — the
+ * caller omits the whole menu when both are.
  */
 function RowActions({
   singular,
@@ -694,8 +712,8 @@ function RowActions({
   onDelete,
 }: {
   readonly singular: string;
-  readonly onDuplicate: () => void;
-  readonly onDelete: () => void;
+  readonly onDuplicate?: () => void;
+  readonly onDelete?: () => void;
 }): ReactNode {
   return (
     <DropdownMenu.Root>
@@ -713,14 +731,18 @@ function RowActions({
         <DotsThreeIcon weight="bold" aria-hidden />
       </DropdownMenu.Trigger>
       <DropdownMenu.Content align="end">
-        <DropdownMenu.Item onClick={onDuplicate}>
-          <CopyIcon aria-hidden />
-          Duplicate
-        </DropdownMenu.Item>
-        <DropdownMenu.Item variant="destructive" onClick={onDelete}>
-          <TrashIcon aria-hidden />
-          Delete
-        </DropdownMenu.Item>
+        {onDuplicate ? (
+          <DropdownMenu.Item onClick={onDuplicate}>
+            <CopyIcon aria-hidden />
+            Duplicate
+          </DropdownMenu.Item>
+        ) : null}
+        {onDelete ? (
+          <DropdownMenu.Item variant="destructive" onClick={onDelete}>
+            <TrashIcon aria-hidden />
+            Delete
+          </DropdownMenu.Item>
+        ) : null}
       </DropdownMenu.Content>
     </DropdownMenu.Root>
   );
@@ -742,6 +764,8 @@ function BulkActions({
   rows,
   defaultLocale,
   slug,
+  canUpdate,
+  canDelete,
   deleting,
   applying,
   onSetField,
@@ -752,6 +776,10 @@ function BulkActions({
   readonly rows: ReadonlyArray<Doc>;
   readonly defaultLocale?: string;
   readonly slug: string;
+  /** `operations.update` — gates the "Set <field>" menus. */
+  readonly canUpdate: boolean;
+  /** `operations.delete` — gates the Delete button. */
+  readonly canDelete: boolean;
   readonly deleting: boolean;
   readonly applying: boolean;
   readonly onSetField: (values: Doc, label: string) => void;
@@ -759,10 +787,10 @@ function BulkActions({
 }): ReactNode {
   const count = ids.size;
   // Enum fields are the ones with a closed, human-labelled value set, which is
-  // exactly what a bulk "move to…" needs.
-  const enumFields = Object.entries(collection.fields).filter(
-    ([, field]) => field.meta.kind === "enum",
-  );
+  // exactly what a bulk "move to…" needs. None when updates are off.
+  const enumFields = canUpdate
+    ? Object.entries(collection.fields).filter(([, field]) => field.meta.kind === "enum")
+    : [];
 
   function exportSelected() {
     const selectedRows = rows.filter((row) => ids.has(String((row as { id?: unknown }).id)));
@@ -806,7 +834,7 @@ function BulkActions({
         <DownloadSimpleIcon aria-hidden />
         Export CSV
       </Button>
-      <BulkDelete count={count} pending={deleting} onConfirm={onDelete} />
+      {canDelete ? <BulkDelete count={count} pending={deleting} onConfirm={onDelete} /> : null}
     </>
   );
 }

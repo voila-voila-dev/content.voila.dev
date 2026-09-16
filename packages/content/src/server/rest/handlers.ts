@@ -12,8 +12,10 @@
 import type { NormalizedConfig } from "../../config/config";
 import { localeChain } from "../../config/i18n";
 import { localizeDocument } from "../../config/localize";
+import type { CollectionOperations } from "../../config/schema/collection";
 import type { Field, FieldsMap } from "../../config/schema/fields";
 import type { Principal } from "../auth/principal";
+import { DatabaseError } from "../database/database";
 import type { Database, Document } from "../database/types";
 import {
   ApiError,
@@ -24,6 +26,7 @@ import {
   forbidden,
   internalFailure,
   notFound,
+  notSupported,
   unknownCollection,
   unknownField,
 } from "./errors";
@@ -59,12 +62,17 @@ export interface RestContext {
 }
 
 // `NormalizedConfig` narrows its collection/singleton maps with a mapped type
-// whose values erase to `unknown` under indexing; the read layer only ever reads
-// `fields` off an entry. These two helpers are the single place that re-views the
-// maps as that field-bearing shape, so the cast isn't restated at every call.
+// whose values erase to `unknown` under indexing; the REST layer only reads
+// `fields` (plus a collection's `operations`/`external` switches) off an entry.
+// These two helpers are the single place that re-views the maps as that shape,
+// so the cast isn't restated at every call.
 type FieldBearingMap = Record<string, { fields: FieldsMap }>;
-const collectionsOf = (config: NormalizedConfig): FieldBearingMap =>
-  config.collections as FieldBearingMap;
+type CollectionMap = Record<
+  string,
+  { fields: FieldsMap; operations?: CollectionOperations; external?: boolean }
+>;
+const collectionsOf = (config: NormalizedConfig): CollectionMap =>
+  config.collections as CollectionMap;
 const singletonsOf = (config: NormalizedConfig): FieldBearingMap =>
   config.singletons as FieldBearingMap;
 
@@ -79,10 +87,49 @@ export function requireCollection(config: NormalizedConfig, slug: string): Colle
   // `Object.hasOwn` guards against inherited keys (`"toString"`, …) before the
   // own-value read; the capture is what lets TS drop the `| undefined`.
   const collection = Object.hasOwn(collections, slug) ? collections[slug] : undefined;
-  if (collection) return { slug, fields: collection.fields };
+  if (collection) {
+    return {
+      slug,
+      fields: collection.fields,
+      ...(collection.operations === undefined ? {} : { operations: collection.operations }),
+      ...(collection.external === undefined ? {} : { external: collection.external }),
+    };
+  }
   const singleton = Object.hasOwn(singletons, slug) ? singletons[slug] : undefined;
   if (singleton) return { slug, fields: singleton.fields };
   return fail(unknownCollection(slug));
+}
+
+/**
+ * Refuse an operation the collection switched off (`operations.<op>: false`)
+ * with a 405 `NOT_SUPPORTED`. Runs before the body is even parsed — the answer
+ * doesn't depend on the payload. Singletons carry no switches, so they pass.
+ */
+export function assertOperationEnabled(
+  entry: CollectionLike,
+  operation: keyof CollectionOperations,
+): void {
+  if (entry.operations?.[operation] === false) fail(notSupported(entry.slug, operation));
+}
+
+/**
+ * Run a `Database` call, translating an `unsupported` `DatabaseError` (an
+ * external collection whose source lacks the method, or a table-only feature
+ * asked of one) into a typed 405. Any other error escapes to the caller —
+ * `runHandler` folds it to `INTERNAL`, or a more specific wrapper (the write
+ * path's `CONFLICT` mapping) handles it first.
+ */
+export async function runDatabase<A>(
+  slug: string,
+  operation: string,
+  fn: () => Promise<A>,
+): Promise<A> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (error instanceof DatabaseError && error.unsupported) fail(notSupported(slug, operation));
+    throw error;
+  }
 }
 
 /** Whether a slug names a configured singleton — drives the router's split
@@ -172,7 +219,9 @@ export function handleList(
     const entry = requireCollection(ctx.config, slug);
     const query = parseListQuery(url, entry);
     const chain = resolveReadLocale(ctx.config, url);
-    const result = await ctx.database.list(entry.slug, query);
+    const result = await runDatabase(entry.slug, "list", () =>
+      ctx.database.list(entry.slug, query),
+    );
     const data = result.documents.map((row) => serializeRow(entry, row, principal, chain));
     return Response.json({
       data,
@@ -193,7 +242,7 @@ export function handleFindById(
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
     const chain = url === undefined ? null : resolveReadLocale(ctx.config, url);
-    const row = await ctx.database.get(entry.slug, id);
+    const row = await runDatabase(entry.slug, "get", () => ctx.database.get(entry.slug, id));
     if (row === null) fail(notFound(entry.slug));
     return Response.json({ data: serializeRow(entry, row, principal, chain, id) });
   }, ctx.onError);
@@ -239,7 +288,9 @@ export function handleFindByField(
       fail(forbidden(entry.slug, "read", [fieldName]));
     }
     const value = coerceFieldValue(field, rawValue);
-    const row = await ctx.database.findOne(entry.slug, fieldName, value);
+    const row = await runDatabase(entry.slug, "findOne", () =>
+      ctx.database.findOne(entry.slug, fieldName, value),
+    );
     if (row === null) fail(notFound(entry.slug));
     return Response.json({ data: serializeRow(entry, row, principal, chain) });
   }, ctx.onError);

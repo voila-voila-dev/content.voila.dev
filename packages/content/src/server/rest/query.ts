@@ -9,6 +9,7 @@
 // replayed under a different ordering than the request asks for — then hand the
 // original token straight back to `Database.list`.
 
+import type { CollectionOperations } from "../../config/schema/collection";
 import type { Field, FieldsMap } from "../../config/schema/fields";
 import { decodeCursor } from "../database/cursor";
 import type {
@@ -24,10 +25,18 @@ import { badRequest, fail, invalidCursor, invalidOrder } from "./errors";
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
 
-/** A collection or singleton, reduced to what the read layer reads off it. */
+/**
+ * A collection or singleton, reduced to what the REST layer reads off it.
+ * `operations`/`external` come from `CollectionDef` — singletons carry neither
+ * (every operation is on, and a singleton always has a table).
+ */
 export interface CollectionLike {
   readonly slug: string;
   readonly fields: FieldsMap;
+  /** Per-operation switches; an absent key means the operation is on. */
+  readonly operations?: CollectionOperations;
+  /** True when the rows come from a host `CollectionSource`, not a table. */
+  readonly external?: boolean;
 }
 
 /**

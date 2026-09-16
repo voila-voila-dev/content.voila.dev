@@ -80,6 +80,10 @@ export {
   type NavLayoutGroup,
   normalizeBase,
 } from "./lib/nav";
+export {
+  collectionOperations,
+  type ResolvedCollectionOperations,
+} from "./lib/operations";
 export { type PublishState, publishStatus } from "./lib/publish-status";
 export {
   ShellContext,

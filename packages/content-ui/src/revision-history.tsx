@@ -11,6 +11,7 @@ import { Badge } from "@voila.dev/ui/badge";
 import { Button } from "@voila.dev/ui/button";
 import type { ReactNode } from "react";
 import type { Doc } from "./lib/doc";
+import { useI18n } from "./lib/i18n";
 import { StatusBadge } from "./widgets/status-badge";
 
 /** One history entry, as the typed client returns it. */
@@ -52,6 +53,8 @@ export function RevisionHistory({
   loadMoreLabel = "Load more",
   now,
 }: RevisionHistoryProps): ReactNode {
+  // The admin's formatting locale, for the snapshot timestamps.
+  const { locale } = useI18n();
   const canLoadMore = Boolean(nextCursor) && onLoadMore !== undefined;
   const newest = revisions[0]?.rev;
 
@@ -73,7 +76,7 @@ export function RevisionHistory({
             <li key={revision.rev} className="flex items-center gap-3 py-2">
               <span className="text-sm font-medium">Revision {revision.rev}</span>
               <span className="text-sm text-muted-foreground">
-                {new Date(revision.createdAt).toLocaleString()}
+                {new Date(revision.createdAt).toLocaleString(locale)}
               </span>
               <StatusBadge doc={revision.doc} now={now} />
               <span className="ml-auto">

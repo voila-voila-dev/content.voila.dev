@@ -21,6 +21,7 @@ import { cn } from "@voila.dev/ui/utils";
 import { type FormEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { FieldCard } from "./field-card";
 import { FieldGroupNav } from "./field-group-nav";
+import { FieldRenderer } from "./field-renderer";
 import { FieldRow } from "./field-row";
 import { dirtyFieldKeys } from "./lib/dirty";
 import type { Doc } from "./lib/doc";
@@ -32,6 +33,7 @@ import { LocalizedFieldEditor } from "./localized-field";
 import { type BodyWidth, PageLayout } from "./page-layout";
 import { EditRegistryProvider } from "./registry/context";
 import { defaultEditRegistry, type EditRegistry, resolveEditWidget } from "./registry/edit";
+import type { DisplayRegistry } from "./registry/registry";
 
 /**
  * The typed document shape for a collection's fields — what `onSubmit` receives
@@ -56,6 +58,19 @@ export interface CollectionFormProps<C extends Collection = Collection> {
   readonly fields?: ReadonlyArray<string>;
   /** Override edit widgets per kind/name. */
   readonly registry?: EditRegistry;
+  /**
+   * Display widgets for `readOnly` fields, which render as read-only rows
+   * (never as inputs) so an editor still sees a system-owned value beside what
+   * they can change. Defaults to the display defaults.
+   */
+  readonly displayRegistry?: DisplayRegistry;
+  /**
+   * Whether the form creates a document or edits one. A `readOnly` field is
+   * OMITTED from a create (nothing has produced its value yet) and shown
+   * read-only on an edit. Defaults to `"edit"` when `defaultValues` is given,
+   * `"create"` otherwise.
+   */
+  readonly mode?: "create" | "edit";
   /**
    * The project's locales (`config.i18n.locales`). When set, localized fields
    * render one input per locale (admin translation); without it they fall back
@@ -132,9 +147,15 @@ export interface CollectionFormProps<C extends Collection = Collection> {
   readonly saveMode?: "form" | "field";
 }
 
-function resolveFieldKeys(collection: Collection, fields?: ReadonlyArray<string>): string[] {
-  if (fields) return fields.filter((k) => Object.hasOwn(collection.fields, k));
-  return Object.keys(collection.fields).filter((k) => !collection.fields[k]?.meta.hidden);
+function resolveFieldKeys(
+  collection: Collection,
+  fields: ReadonlyArray<string> | undefined,
+  omitReadOnly: boolean,
+): string[] {
+  const keys = fields
+    ? fields.filter((k) => Object.hasOwn(collection.fields, k))
+    : Object.keys(collection.fields).filter((k) => !collection.fields[k]?.meta.hidden);
+  return omitReadOnly ? keys.filter((k) => collection.fields[k]?.meta.readOnly !== true) : keys;
 }
 
 interface SlugDerivations {
@@ -196,6 +217,8 @@ export function CollectionForm<C extends Collection = Collection>({
   defaultValues,
   fields,
   registry = defaultEditRegistry,
+  displayRegistry,
+  mode,
   locales,
   onSubmit,
   submitLabel = "Save",
@@ -215,8 +238,14 @@ export function CollectionForm<C extends Collection = Collection>({
 }: CollectionFormProps<C>): ReactNode {
   const perField = saveMode === "field";
   const formId = useId();
-  const keys = resolveFieldKeys(collection, fields);
-  const { bySource, derivable } = slugDerivations(collection, keys);
+  const creating = (mode ?? (defaultValues === undefined ? "create" : "edit")) === "create";
+  const keys = resolveFieldKeys(collection, fields, creating);
+  // `readOnly` fields are shown, never edited: they sit outside dirtiness,
+  // validation and every submitted payload (the REST layer rejects a write
+  // naming one), so the rest of the form works off `editableKeys`.
+  const readOnlyKeys = new Set(keys.filter((k) => collection.fields[k]?.meta.readOnly === true));
+  const editableKeys = keys.filter((k) => !readOnlyKeys.has(k));
+  const { bySource, derivable } = slugDerivations(collection, editableKeys);
   // Internally the form edits a loose record (widgets are kind-keyed, not
   // field-typed); the typed `FormValues<C>` surface lives only at the
   // `onSubmit` boundary, narrowed back once `validateFields` has run.
@@ -251,7 +280,7 @@ export function CollectionForm<C extends Collection = Collection>({
   // is the host's to block — `@voila/content-ui` stays router-agnostic — but
   // this covers the cases the component can see on its own. Cleared on a
   // successful submit (the values are persisted; leaving is now intended).
-  const dirtyFields = dirtyFieldKeys(collection.fields, keys, baseline, values);
+  const dirtyFields = dirtyFieldKeys(collection.fields, editableKeys, baseline, values);
   const hasUnsavedChanges = dirtyFields.size > 0;
   // Mirror the flag out to the host so it can block in-app router navigation
   // (this component can't — it stays router-agnostic).
@@ -314,7 +343,8 @@ export function CollectionForm<C extends Collection = Collection>({
   const grouped = (collection.groups?.length ?? 0) > 0;
   // Create shows every group at once — see `groupLayout`.
   const stacked = grouped && groupLayout === "all";
-  const resolvedGroups = grouped ? resolveFieldGroups(collection, { fields }) : [];
+  // Groups partition the KEPT keys (a create drops its readOnly fields).
+  const resolvedGroups = grouped ? resolveFieldGroups(collection, { fields: keys }) : [];
   const firstGroupId = resolvedGroups[0]?.id;
   const [internalGroup, setInternalGroup] = useState<string | undefined>(
     activeGroup ?? firstGroupId,
@@ -404,7 +434,7 @@ export function CollectionForm<C extends Collection = Collection>({
   // for a localized field); the elements are already rendered, so a synchronous
   // focus by id works.
   function focusFirstError(failed: Readonly<Record<string, string>>) {
-    const firstKey = keys.find((key) => failed[key] !== undefined);
+    const firstKey = editableKeys.find((key) => failed[key] !== undefined);
     if (firstKey === undefined) return;
     const localized = collection.fields[firstKey]?.meta.localized === true && locales !== undefined;
     const id = `${collection.slug}-${firstKey}`;
@@ -423,7 +453,10 @@ export function CollectionForm<C extends Collection = Collection>({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const result = validateFields(collection.fields, values, keys, { locales, defaultLocale });
+    const result = validateFields(collection.fields, values, editableKeys, {
+      locales,
+      defaultLocale,
+    });
     if (Object.keys(result.errors).length > 0) {
       setErrors(result.errors);
       setFieldIssues(result.issues);
@@ -450,6 +483,7 @@ export function CollectionForm<C extends Collection = Collection>({
   // failed field surfaces its error inline and takes focus; a clean save clears
   // the field's unsaved flag and flashes "Saved".
   async function submitField(key: string) {
+    if (readOnlyKeys.has(key)) return;
     const result = validateFields(collection.fields, values, [key], { locales, defaultLocale });
     if (result.errors[key] !== undefined) {
       setErrors((prev) => ({ ...prev, [key]: result.errors[key] as string }));
@@ -485,6 +519,22 @@ export function CollectionForm<C extends Collection = Collection>({
     const field = collection.fields[key];
     if (!field) return null;
     const id = `${collection.slug}-${key}`;
+    // A readOnly field keeps its place in the layout but renders its DISPLAY
+    // widget — no input, no dirty marker, no per-field Save.
+    if (readOnlyKeys.has(key)) {
+      return (
+        <FieldRow key={key} id={id} label={getFieldLabel(key, field)} help={field.meta.description}>
+          <div data-slot="readonly-field" className="text-sm">
+            <FieldRenderer
+              field={field}
+              value={values[key]}
+              registry={displayRegistry}
+              context="detail"
+            />
+          </div>
+        </FieldRow>
+      );
+    }
     const fieldError = errors[key];
     const required = field.meta.required === true;
     // In per-field mode, lock the field's input while its own save is in flight
@@ -626,7 +676,9 @@ export function CollectionForm<C extends Collection = Collection>({
   // still missing work without clicking through every tab.
   const localeProgress = ((): Readonly<Record<string, LocaleProgress>> | undefined => {
     if (!multiLocale || locales === undefined) return undefined;
-    const localizedKeys = keys.filter((key) => collection.fields[key]?.meta.localized === true);
+    const localizedKeys = editableKeys.filter(
+      (key) => collection.fields[key]?.meta.localized === true,
+    );
     if (localizedKeys.length === 0) return undefined;
     const out: Record<string, LocaleProgress> = {};
     for (const locale of locales) {
