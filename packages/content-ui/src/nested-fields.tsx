@@ -36,13 +36,14 @@ export type NestedLayout = "stacked" | "inline";
 /**
  * How a record's members are laid out. `inline` (a responsive grid, labels
  * kept) when every visible member is a short scalar and there are at most
- * four of them — the `{ label, href }` link or `{ icon, text }` chip that
- * reads as one row; `stacked` (one member per line) as soon as a member is
+ * six of them — the `{ label, href }` link or `{ icon, text }` chip that
+ * reads as one row, a call-to-action's six knobs as two; `stacked` (one
+ * member per line) as soon as a member is
  * long-form (rich text, media, a nested array…) or the record is wide.
  */
 export function layoutFor(fields: FieldsMap): NestedLayout {
   const keys = visibleKeys(fields);
-  if (keys.length === 0 || keys.length > 4) return "stacked";
+  if (keys.length === 0 || keys.length > 6) return "stacked";
   for (const key of keys) {
     const meta = (fields[key] as Field).meta as { kind: string; max?: number; localized?: boolean };
     if (!SHORT_KINDS.has(meta.kind) || meta.localized) return "stacked";
@@ -57,6 +58,8 @@ const INLINE_COLUMNS: Record<number, string> = {
   2: "sm:grid-cols-2",
   3: "sm:grid-cols-3",
   4: "sm:grid-cols-2 lg:grid-cols-4",
+  5: "sm:grid-cols-2 lg:grid-cols-3",
+  6: "sm:grid-cols-2 lg:grid-cols-3",
 };
 
 export interface NestedFieldsProps {

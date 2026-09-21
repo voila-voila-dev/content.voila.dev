@@ -41,7 +41,7 @@ describe("NestedFields", () => {
 });
 
 describe("layoutFor", () => {
-  test("inline for up to four short scalars, stacked otherwise", () => {
+  test("inline for up to six short scalars, stacked otherwise", () => {
     expect(layoutFor({ label: fields.string({ max: 60 }), href: fields.string() })).toBe("inline");
     expect(
       layoutFor({
@@ -61,6 +61,18 @@ describe("layoutFor", () => {
         c: fields.string(),
         d: fields.string(),
         e: fields.string(),
+        f: fields.string(),
+      }),
+    ).toBe("inline");
+    expect(
+      layoutFor({
+        a: fields.string(),
+        b: fields.string(),
+        c: fields.string(),
+        d: fields.string(),
+        e: fields.string(),
+        f: fields.string(),
+        g: fields.string(),
       }),
     ).toBe("stacked");
     expect(layoutFor({ t: fields.string({ localized: true }) })).toBe("stacked");
