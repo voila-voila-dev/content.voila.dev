@@ -7,7 +7,7 @@ export { localeChain } from "./config/i18n";
 export { localizeDocument } from "./config/localize";
 export type { MapConfig } from "./config/map";
 export type { GroupDef } from "./config/schema/_groups";
-export type { Collection, CollectionDef } from "./config/schema/collection";
+export type { Collection, CollectionDef, CollectionOperations } from "./config/schema/collection";
 export { defineCollection } from "./config/schema/collection";
 // Shared field types stay top-level so consumers can import them directly
 // without reaching through the namespace.

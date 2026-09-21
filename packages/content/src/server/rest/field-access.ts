@@ -4,8 +4,10 @@
 // resolved. Two effects: read-denied fields are *redacted* from every row the
 // API serializes (lists, finds, write echoes, revision snapshots), and a write
 // payload carrying a write-denied field is *rejected* with a 403 `FORBIDDEN`
-// naming the offending fields. The runtime `Database` stays principal-agnostic
-// by design — a host calling it directly bypasses none of its own code.
+// naming the offending fields. A `readOnly` field is write-denied for everyone
+// — same rejection, no principal involved. The runtime `Database` stays
+// principal-agnostic by design — a host calling it directly bypasses none of
+// its own code.
 
 import type { Field, FieldAccessContext } from "../../config/schema/fields";
 import type { Principal } from "../auth/principal";
@@ -43,8 +45,16 @@ export function redactDocument(
   return out ?? row;
 }
 
+// A field nobody may write from the API: declared `readOnly` (the source or
+// the host owns its value), or its `access.write` rule says no for this caller.
+function isWriteDenied(field: Field, ctx: FieldAccessContext): boolean {
+  if (field.meta.readOnly === true) return true;
+  return field.meta.access?.write?.(ctx) === false;
+}
+
 /**
- * Reject a write payload that touches a write-denied field. Checked after the
+ * Reject a write payload that touches a write-denied field — a `readOnly` one,
+ * or one whose `access.write` rule refuses the principal. Checked after the
  * collection-level RBAC hook allowed the operation — this is the field-level
  * refinement, and it fails closed with the denied field names on the envelope.
  */
@@ -56,7 +66,7 @@ export function assertWritableFields(
   const denied: string[] = [];
   for (const name of Object.keys(data)) {
     const field = Object.hasOwn(entry.fields, name) ? (entry.fields[name] as Field) : undefined;
-    if (field?.meta.access?.write?.(ctx) === false) denied.push(name);
+    if (field !== undefined && isWriteDenied(field, ctx)) denied.push(name);
   }
   if (denied.length > 0) fail(forbidden(entry.slug, ctx.operation, denied));
 }

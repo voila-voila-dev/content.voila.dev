@@ -15,7 +15,14 @@ import { DatabaseError } from "../database/database";
 import type { Revision, RevisionListOpts } from "../database/types";
 import { badRequest, conflict, fail, invalidCursor, notFound } from "./errors";
 import { assertRestorableFields } from "./field-access";
-import { type RestContext, requireCollection, runHandler, serializeRow } from "./handlers";
+import {
+  assertOperationEnabled,
+  type RestContext,
+  requireCollection,
+  runDatabase,
+  runHandler,
+  serializeRow,
+} from "./handlers";
 import type { CollectionLike } from "./query";
 import { parseLimit } from "./query";
 
@@ -40,11 +47,12 @@ function parseRev(raw: string): number {
 
 // Run a revision `Database` call, translating its typed failures: a
 // unique-constraint violation (a restored value colliding) becomes `CONFLICT`,
+// an `unsupported` one (an external collection — no history at all) a 405, and
 // any other `DatabaseError` (collection not revisions-enabled, driver failure)
-// becomes a 400 — matching how the publish handlers treat publish-state errors.
-async function runRevisions<A>(slug: string, fn: () => Promise<A>): Promise<A> {
+// a 400 — matching how the publish handlers treat publish-state errors.
+async function runRevisions<A>(slug: string, operation: string, fn: () => Promise<A>): Promise<A> {
   try {
-    return await fn();
+    return await runDatabase(slug, operation, fn);
   } catch (error) {
     if (error instanceof DatabaseError) {
       if (error.conflict) fail(conflict(slug, error.field));
@@ -78,7 +86,7 @@ export function handleListRevisions(
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
     const query = parseRevisionListQuery(url);
-    const result = await runRevisions(entry.slug, () =>
+    const result = await runRevisions(entry.slug, "listRevisions", () =>
       ctx.database.listRevisions(entry.slug, id, query),
     );
     const data = result.revisions.map((r) => redactRevision(entry, r, principal, id));
@@ -97,7 +105,7 @@ export function handleGetRevision(
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
     const rev = parseRev(rawRev);
-    const revision = await runRevisions(entry.slug, () =>
+    const revision = await runRevisions(entry.slug, "getRevision", () =>
       ctx.database.getRevision(entry.slug, id, rev),
     );
     if (revision === null) fail(notFound(entry.slug));
@@ -116,11 +124,13 @@ export function handleRestoreRevision(
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
+    // Restoring a revision is an update of the live row.
+    assertOperationEnabled(entry, "update");
     const rev = parseRev(rawRev);
     // Restoring rewrites the snapshot's full content, so the principal must be
     // allowed to write every field that carries a `write` rule.
     assertRestorableFields(entry, principal, id);
-    const row = await runRevisions(entry.slug, () =>
+    const row = await runRevisions(entry.slug, "restoreRevision", () =>
       ctx.database.restoreRevision(entry.slug, id, rev),
     );
     if (row === null) fail(notFound(entry.slug));

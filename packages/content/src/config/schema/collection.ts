@@ -80,7 +80,29 @@ export interface CollectionDef<
    * fields at the authoring site. Omit for the flat (ungrouped) layout.
    */
   readonly groups?: ReadonlyArray<GroupDef>;
+  /**
+   * Where the rows live. Default: a table in the content database, generated
+   * by the migrations. `external: true` declares a collection with no table of
+   * its own — the admin runtime serves it from a `CollectionSource` registered
+   * under the slug (`createAdminRuntime(config, { sources })`). Everything
+   * else (list views, filters, sorting, counts, the record form) is unchanged.
+   */
+  readonly external?: boolean;
+  /**
+   * Which write operations the collection offers. All default to `true`.
+   * `false` hides the matching admin UI (New / Duplicate for `create`,
+   * Delete for `delete`, Edit for `update`) and the REST route answers
+   * `405 NOT_SUPPORTED`. Typical for a read-mostly external collection.
+   */
+  readonly operations?: CollectionOperations;
   readonly fields: Fields;
+}
+
+/** Per-operation switches; see `CollectionDef.operations`. */
+export interface CollectionOperations {
+  readonly create?: boolean;
+  readonly update?: boolean;
+  readonly delete?: boolean;
 }
 
 export type Collection<
@@ -104,6 +126,8 @@ export function defineCollection<
   readonly revisions?: boolean;
   readonly search?: SearchOption;
   readonly groups?: ReadonlyArray<GroupDef<keyof Fields & string>>;
+  readonly external?: boolean;
+  readonly operations?: CollectionOperations;
   readonly fields: Fields;
 }): Collection<Slug, Fields, Drafts> {
   return {
@@ -118,6 +142,8 @@ export function defineCollection<
     revisions: def.revisions,
     search: def.search,
     groups: def.groups,
+    external: def.external,
+    operations: def.operations,
     fields: def.fields,
   };
 }

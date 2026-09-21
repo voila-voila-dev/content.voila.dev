@@ -91,6 +91,15 @@ describe("AdminShell", () => {
     expect(screen.getByText((1200).toLocaleString())).toBeDefined();
   });
 
+  test("formats count badges in the configured locale", () => {
+    render(
+      <AdminShell config={config} counts={{ posts: 1200 }} locale="de-DE">
+        <span>body</span>
+      </AdminShell>,
+    );
+    expect(screen.getByText((1200).toLocaleString("de-DE"))).toBeDefined();
+  });
+
   test("threads currentPath to the active nav item", () => {
     render(
       <AdminShell config={config} currentPath="/admin/posts">

@@ -13,8 +13,10 @@ import { Card } from "@voila.dev/ui/card";
 import { Skeleton } from "@voila.dev/ui/skeleton";
 import { cn } from "@voila.dev/ui/utils";
 import { cloneElement, type ReactElement, type ReactNode } from "react";
+import { useI18n } from "./lib/i18n";
 import { NamedIcon } from "./lib/icons";
 import { buildNav, DEFAULT_NAV_ICONS, type NavItem, type NavLayoutGroup } from "./lib/nav";
+import { collectionOperations } from "./lib/operations";
 import { PageLayout } from "./page-layout";
 import { Empty, formatDate, relativeDate } from "./widgets/display";
 
@@ -73,9 +75,19 @@ function RecentSkeleton(): ReactNode {
   );
 }
 
-function formatCount(counts: DashboardProps["counts"], slug: string): ReactNode {
+/** Whether the tile's collection accepts a create (`operations.create`). */
+function canCreate(config: NormalizedConfig, slug: string): boolean {
+  const collection = config.collections[slug];
+  return collection !== undefined && collectionOperations(collection).create;
+}
+
+function formatCount(
+  counts: DashboardProps["counts"],
+  slug: string,
+  locale: string | undefined,
+): ReactNode {
   const n = counts?.[slug];
-  return typeof n === "number" ? n.toLocaleString() : <Empty />;
+  return typeof n === "number" ? n.toLocaleString(locale) : <Empty />;
 }
 
 function defaultRenderLink(href: string, children: ReactNode): ReactElement {
@@ -91,15 +103,19 @@ function toDate(value: RecentItem["updatedAt"]): Date | undefined {
 /**
  * One collection tile: the label is a "stretched" link covering the whole card
  * (so the tile reads as one target without nesting anchors), the count sits
- * below, and a "New" quick action floats above the stretched link.
+ * below, and a "New" quick action floats above the stretched link — unless the
+ * collection turns `operations.create` off, in which case there is no create
+ * page to link to.
  */
 function CollectionTile({
   item,
   count,
+  canCreate,
   renderLink,
 }: {
   readonly item: NavItem;
   readonly count: ReactNode;
+  readonly canCreate: boolean;
   readonly renderLink: (href: string, children: ReactNode) => ReactElement;
 }): ReactNode {
   const titleLink = cloneElement(
@@ -109,22 +125,24 @@ function CollectionTile({
         "font-medium text-muted-foreground text-sm outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-ring",
     },
   );
-  const newLink = cloneElement(
-    renderLink(
-      `${item.href}/new`,
-      <>
-        <PlusIcon aria-hidden />
-        New
-      </>,
-    ) as ReactElement<Record<string, unknown>>,
-    {
-      className: cn(
-        buttonVariants({ variant: "ghost", size: "xs" }),
-        "relative z-10 -mr-1 text-muted-foreground",
-      ),
-      title: "Create new",
-    },
-  );
+  const newLink = canCreate
+    ? cloneElement(
+        renderLink(
+          `${item.href}/new`,
+          <>
+            <PlusIcon aria-hidden />
+            New
+          </>,
+        ) as ReactElement<Record<string, unknown>>,
+        {
+          className: cn(
+            buttonVariants({ variant: "ghost", size: "xs" }),
+            "relative z-10 -mr-1 text-muted-foreground",
+          ),
+          title: "Create new",
+        },
+      )
+    : null;
   return (
     <Card.Root
       data-slot="collection-tile"
@@ -141,7 +159,7 @@ function CollectionTile({
           />
           {titleLink}
         </span>
-        <Card.Action className="self-center">{newLink}</Card.Action>
+        {newLink ? <Card.Action className="self-center">{newLink}</Card.Action> : null}
       </Card.Header>
       <Card.Content>
         <div className="font-semibold text-2xl tabular-nums">{count}</div>
@@ -162,6 +180,8 @@ function Root({
   recentLoading = false,
 }: DashboardProps): ReactNode {
   const { collections } = buildNav(config, { basePath, groups: navGroups });
+  // The admin's formatting locale for the counts and the feed's times.
+  const { locale } = useI18n();
 
   return (
     <PageLayout.Root data-slot="dashboard">
@@ -177,7 +197,8 @@ function Root({
               <CollectionTile
                 key={item.slug}
                 item={item}
-                count={formatCount(counts, item.slug)}
+                count={formatCount(counts, item.slug, locale)}
+                canCreate={canCreate(config, item.slug)}
                 renderLink={renderLink}
               />
             ))}
@@ -210,10 +231,11 @@ function Root({
                             {when ? (
                               <time
                                 dateTime={when.toISOString()}
-                                title={formatDate(when, "datetime")}
+                                title={formatDate(when, "datetime", locale)}
                                 className="w-24 shrink-0 text-right text-muted-foreground text-xs"
                               >
-                                {relativeDate(when) ?? formatDate(when, "datetime")}
+                                {relativeDate(when, undefined, locale) ??
+                                  formatDate(when, "datetime", locale)}
                               </time>
                             ) : null}
                           </>,

@@ -430,6 +430,7 @@ export function deriveSchema(config: NormalizedConfig): ReadonlyArray<TableSchem
       drafts?: boolean;
       revisions?: boolean;
       search?: boolean | ReadonlyArray<string>;
+      external?: boolean;
     }
   >;
   const singletons = config.singletons as Record<string, { fields: FieldsMap }>;
@@ -439,6 +440,10 @@ export function deriveSchema(config: NormalizedConfig): ReadonlyArray<TableSchem
   let anyMedia = false;
   let anySearch = false;
   for (const [slug, collection] of Object.entries(collections)) {
+    // An external collection has no table of its own — a host `CollectionSource`
+    // serves it — so it contributes nothing to the DDL, nor to the shared
+    // stores (revisions/media/search are table-backed features it can't use).
+    if (collection.external === true) continue;
     const revisions = collection.revisions === true;
     anyRevisions ||= revisions;
     anyMedia ||= usesMedia(collection.fields);
@@ -455,7 +460,9 @@ export function deriveSchema(config: NormalizedConfig): ReadonlyArray<TableSchem
   if (anyRevisions) tables.push(revisionsTable());
   if (anyMedia) tables.push(mediaTable());
   if (anySearch) tables.push(searchTable());
-  // Saved views attach to collections, so the store ships whenever any exist.
+  // Saved views attach to collections — external ones included, since the admin
+  // list views over a source are saved the same way — so the store ships
+  // whenever any collection is declared, table-backed or not.
   if (Object.keys(collections).length > 0) tables.push(viewsTable());
   return tables;
 }

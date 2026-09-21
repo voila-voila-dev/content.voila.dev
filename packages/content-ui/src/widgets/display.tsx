@@ -9,6 +9,7 @@ import type { FieldMetaBase } from "@voila/content";
 import { Badge } from "@voila.dev/ui/badge";
 import { cn } from "@voila.dev/ui/utils";
 import type { ReactNode } from "react";
+import { useI18n } from "../lib/i18n";
 import { markdownToPlain, richTextToPlain, truncateText } from "../lib/text";
 
 /** Where a value is being rendered — widgets adapt size and density to it. */
@@ -180,6 +181,9 @@ export function ColorDisplay({ value }: DisplayWidgetProps): ReactNode {
 }
 
 export function NumberDisplay({ value, meta }: DisplayWidgetProps): ReactNode {
+  // The admin's formatting locale (`I18nContextValue.locale`); undefined →
+  // the runtime's default, which is what `toLocaleString()` did before.
+  const { locale } = useI18n();
   if (value === null || value === undefined) return <Empty />;
   const n = typeof value === "number" ? value : Number(value);
   if (Number.isNaN(n)) return <Empty />;
@@ -189,7 +193,7 @@ export function NumberDisplay({ value, meta }: DisplayWidgetProps): ReactNode {
   const grouping = (meta as { grouping?: boolean }).grouping !== false;
   return (
     <span data-slot="number-display" className="tabular-nums">
-      {grouping ? n.toLocaleString() : String(n)}
+      {grouping ? n.toLocaleString(locale) : String(n)}
     </span>
   );
 }
@@ -261,6 +265,7 @@ export function relativeDate(d: Date, now = Date.now(), locale?: string): string
 }
 
 export function DateDisplay({ value, meta }: DisplayWidgetProps): ReactNode {
+  const { locale } = useI18n();
   const d = toDate(value);
   if (d === null) return <Empty />;
   // `time` fields store a bare HH:MM[:SS]; render the string minus seconds.
@@ -275,10 +280,10 @@ export function DateDisplay({ value, meta }: DisplayWidgetProps): ReactNode {
     <time
       data-slot="date-display"
       dateTime={d.toISOString()}
-      title={meta.kind === "date" ? undefined : relativeDate(d)}
+      title={meta.kind === "date" ? undefined : relativeDate(d, undefined, locale)}
       className="whitespace-nowrap tabular-nums"
     >
-      {formatDate(d, meta.kind)}
+      {formatDate(d, meta.kind, locale)}
     </time>
   );
 }

@@ -343,3 +343,56 @@ describe("voila_search", () => {
     expect(deriveSchema(config).some((t) => t.name === "voila_search")).toBe(false);
   });
 });
+
+describe("deriveSchema — external collections", () => {
+  const external = defineCollection({
+    slug: "customers",
+    external: true,
+    revisions: true,
+    search: true,
+    fields: {
+      name: fields.string({ required: true }),
+      avatar: fields.media(),
+    },
+  });
+
+  it("emits no table for an external collection", () => {
+    const config = defineConfig({
+      branding: { name: "Acme" },
+      collections: { customers: external },
+    });
+    const tables = deriveSchema(config);
+    expect(tables.some((t) => t.name === "customers")).toBe(false);
+  });
+
+  it("does not let an external collection pull in the revisions/media/search stores", () => {
+    const config = defineConfig({
+      branding: { name: "Acme" },
+      collections: { customers: external },
+    });
+    const names = deriveSchema(config).map((t) => t.name);
+    expect(names).not.toContain("voila_revisions");
+    expect(names).not.toContain("voila_media");
+    expect(names).not.toContain("voila_search");
+  });
+
+  it("still ships the views store when the only collection is external", () => {
+    const config = defineConfig({
+      branding: { name: "Acme" },
+      collections: { customers: external },
+    });
+    expect(deriveSchema(config).map((t) => t.name)).toEqual(["voila_views"]);
+  });
+
+  it("keeps table-backed collections alongside an external one", () => {
+    const posts = defineCollection({
+      slug: "posts",
+      fields: { title: fields.string({ required: true }) },
+    });
+    const config = defineConfig({
+      branding: { name: "Acme" },
+      collections: { posts, customers: external },
+    });
+    expect(deriveSchema(config).map((t) => t.name)).toEqual(["posts", "voila_views"]);
+  });
+});

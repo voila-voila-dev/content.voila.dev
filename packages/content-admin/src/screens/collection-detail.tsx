@@ -13,6 +13,7 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import type { Collection } from "@voila/content";
 import {
   CollectionForm,
+  collectionOperations,
   DetailView,
   type Doc,
   documentTitle,
@@ -82,6 +83,9 @@ function CollectionDocument({
   const [editing, setEditing] = useState(false);
   const label = collection.label ?? slug;
   const singular = singularLabel(collection);
+  // Which writes the collection offers; anything off is hidden here and
+  // answered 405 by the REST layer anyway.
+  const ops = collectionOperations(collection);
   // Grouped collections save per field, so a blocked navigation there has no
   // single Save to offer — only Discard / Keep editing.
   const guard = useUnsavedGuard({ label: singular.toLowerCase() });
@@ -153,13 +157,14 @@ function CollectionDocument({
         id={id}
         title={title}
         back={back}
-        onRestore={(rev) => restoreRevision.mutate({ id, rev })}
+        // Restoring a revision writes the document, so it follows `update`.
+        onRestore={ops.update ? (rev) => restoreRevision.mutate({ id, rev }) : undefined}
         restoring={restoreRevision.isPending}
       />
     );
   }
 
-  if (editing && doc.data) {
+  if (editing && ops.update && doc.data) {
     const serverErrors = fieldErrors(update.error);
     return (
       <>
@@ -167,6 +172,7 @@ function CollectionDocument({
         <CollectionForm
           collection={collection}
           registry={admin.editWidgets}
+          displayRegistry={admin.displayWidgets}
           locales={admin.config.i18n?.locales}
           defaultLocale={admin.config.i18n?.defaultLocale}
           onDirtyChange={guard.setDirty}
@@ -220,7 +226,7 @@ function CollectionDocument({
       activeGroup={activeGroup}
       onGroupChange={changeGroup}
       aside={
-        collection.drafts === true && doc.data ? (
+        collection.drafts === true && ops.update && doc.data ? (
           <PublishControls
             doc={doc.data}
             onPublish={() => publish.mutate(id)}
@@ -235,7 +241,7 @@ function CollectionDocument({
           <RecordPager slug={slug} id={id} keyboard={!editing} />
           {/* The record's editorial state, changeable in one click — it used to
               be reachable only through Edit mode and a field group. */}
-          {doc.data && collection.drafts !== true ? (
+          {doc.data && ops.update && collection.drafts !== true ? (
             <StatusControl
               collection={collection}
               doc={doc.data}
@@ -244,18 +250,22 @@ function CollectionDocument({
             />
           ) : null}
           {admin.slots.collection?.detailActions?.({ slug, id, client: admin.client })}
-          <Button type="button" size="sm" onClick={() => setEditing(true)}>
-            Edit
-          </Button>
-          <DocumentMenu
-            singular={singular}
-            deleting={remove.isPending}
-            onDelete={() =>
-              remove.mutate(id, {
-                onSuccess: () => navigate({ href: listBack.href }),
-              })
-            }
-          />
+          {ops.update ? (
+            <Button type="button" size="sm" onClick={() => setEditing(true)}>
+              Edit
+            </Button>
+          ) : null}
+          {ops.delete ? (
+            <DocumentMenu
+              singular={singular}
+              deleting={remove.isPending}
+              onDelete={() =>
+                remove.mutate(id, {
+                  onSuccess: () => navigate({ href: listBack.href }),
+                })
+              }
+            />
+          ) : null}
         </>
       }
     />
@@ -321,7 +331,8 @@ function HistorySection({
   readonly id: string;
   readonly title: string;
   readonly back: ReactNode;
-  readonly onRestore: (rev: number) => void;
+  /** Absent when the collection's `operations.update` is off: history stays readable, not restorable. */
+  readonly onRestore?: (rev: number) => void;
   readonly restoring: boolean;
 }): ReactNode {
   const { admin } = useAdmin();

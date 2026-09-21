@@ -20,6 +20,7 @@ import { type ReactElement, type ReactNode, useState } from "react";
 import { DataTable, type TableDensity } from "./data-table";
 import type { Doc } from "./lib/doc";
 import { humanize } from "./lib/humanize";
+import { useI18n } from "./lib/i18n";
 import { NamedIcon } from "./lib/icons";
 import { PageLayout, pageGutter } from "./page-layout";
 import type { DisplayRegistry } from "./registry/registry";
@@ -144,6 +145,8 @@ function Root({
   onDensityChange,
 }: ListViewProps): ReactNode {
   const heading = title ?? collection.label ?? humanize(collection.slug);
+  // The admin's formatting locale, for the footer counts.
+  const { locale } = useI18n();
   const canLoadMore = Boolean(nextCursor) && onLoadMore !== undefined;
   // The search box is always offered when the host wires it. A collection
   // without full-text search still gets a box — the host narrows the loaded
@@ -186,8 +189,8 @@ function Root({
     rows.length === 0
       ? null
       : typeof total === "number" && total >= rows.length
-        ? `Showing ${rows.length.toLocaleString()} of ${total.toLocaleString()} ${total === 1 ? "record" : "records"}`
-        : `Showing ${rows.length.toLocaleString()} ${rows.length === 1 ? "record" : "records"}${canLoadMore ? " — more available" : ""}`;
+        ? `Showing ${rows.length.toLocaleString(locale)} of ${total.toLocaleString(locale)} ${total === 1 ? "record" : "records"}`
+        : `Showing ${rows.length.toLocaleString(locale)} ${rows.length === 1 ? "record" : "records"}${canLoadMore ? " — more available" : ""}`;
 
   const emptyState = (
     <Empty.Root className="py-12">

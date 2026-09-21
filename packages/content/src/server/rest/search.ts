@@ -15,17 +15,19 @@ import {
   type RestContext,
   requireCollection,
   resolveReadLocale,
+  runDatabase,
   runHandler,
   serializeRow,
 } from "./handlers";
 import { parseLimit, parseStatus } from "./query";
 
-// Translate a search `Database` call's typed failure: a collection that isn't
+// Translate a search `Database` call's typed failure: an external source
+// without `search` is a 405 (via `runDatabase`); a collection that isn't
 // search-enabled (or any other `DatabaseError`) becomes a 400, matching how the
 // revision/publish handlers treat their non-applicable collections.
 async function runSearch<A>(slug: string, fn: () => Promise<A>): Promise<A> {
   try {
-    return await fn();
+    return await runDatabase(slug, "search", fn);
   } catch (error) {
     if (error instanceof DatabaseError)
       fail(badRequest({ collection: slug, reason: error.message }));

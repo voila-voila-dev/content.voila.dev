@@ -17,6 +17,7 @@ import {
   type AccessOption,
   type AccessPolicy,
   type Authenticator,
+  type CollectionSource,
   createRestHandler,
   type Database,
   makeDatabase,
@@ -59,6 +60,14 @@ export interface AdminRuntimeOptions {
    * driver, database and config).
    */
   readonly access?: AccessOption;
+  /**
+   * Data sources for the config's external collections (`defineCollection({
+   * external: true })`), keyed by slug. Such a collection has no table in the
+   * content database — the runtime serves its rows through the source (any
+   * store: another D1, an HTTP API, …) while the admin UI, saved views and
+   * REST routes stay the same.
+   */
+  readonly sources?: Readonly<Record<string, CollectionSource>>;
 }
 
 export interface AdminRuntime {
@@ -96,7 +105,7 @@ export function createAdminRuntime(
   // to the literal `/admin/api/auth`).
   const authBasePath = `${basePath}/auth`;
 
-  const database = makeDatabase(config, driver);
+  const database = makeDatabase(config, driver, { sources: options.sources });
 
   const auth: AdminAuthBridge = options.authenticator
     ? {

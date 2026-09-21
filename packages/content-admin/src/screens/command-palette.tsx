@@ -17,6 +17,7 @@ import type { Collection } from "@voila/content";
 import type { Doc } from "@voila/content-ui";
 import {
   buildNav,
+  collectionOperations,
   DEFAULT_NAV_ICONS,
   documentTitle,
   homeHref,
@@ -70,6 +71,11 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
   });
 
   const collections = Object.values(admin.config.collections) as Collection[];
+  // "New …" only for collections that accept a create (`operations.create`).
+  const creatable = nav.collections.filter((item) => {
+    const collection = admin.config.collections[item.slug] as Collection | undefined;
+    return collection !== undefined && collectionOperations(collection).create;
+  });
   // Indexed collections search server-side per term; the rest are matched
   // against one cached page of recent rows, so ⌘K finds records either way.
   const results = useQueries({
@@ -213,9 +219,9 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
             </Command.Item>
           </Command.Group>
 
-          {nav.collections.length > 0 ? (
+          {creatable.length > 0 ? (
             <Command.Group heading="Create">
-              {nav.collections.map((item) => {
+              {creatable.map((item) => {
                 const collection = admin.config.collections[item.slug] as Collection | undefined;
                 const singular = collection ? singularLabel(collection) : item.label;
                 return (

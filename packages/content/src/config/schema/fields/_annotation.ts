@@ -56,6 +56,8 @@ export interface FieldMetaBase {
   readonly defaultValue?: unknown;
   readonly access?: FieldAccess;
   readonly transform?: FieldTransform;
+  /** Never written from the admin; see `BaseFieldOpts.readOnly`. */
+  readonly readOnly?: boolean;
   /** Override the generated DB column name; see `BaseFieldOpts.column`. */
   readonly column?: string;
 }

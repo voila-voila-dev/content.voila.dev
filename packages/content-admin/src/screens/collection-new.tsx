@@ -11,7 +11,13 @@
 
 import { useNavigate, useParams } from "@tanstack/react-router";
 import type { Collection } from "@voila/content";
-import { CollectionForm, type Doc, PageLayout, singularLabel } from "@voila/content-ui";
+import {
+  CollectionForm,
+  collectionOperations,
+  type Doc,
+  PageLayout,
+  singularLabel,
+} from "@voila/content-ui";
 import { Button } from "@voila.dev/ui/button";
 import type { ReactNode } from "react";
 import { useAdmin } from "../context";
@@ -20,7 +26,7 @@ import { useUnsavedGuard } from "../hooks/use-unsaved-guard";
 import { AdminLink } from "../lib/admin-link";
 import { backToList } from "../lib/back";
 import { errorMessage, fieldErrors } from "../lib/field-errors";
-import { CustomScreenDispatcher } from "./custom-dispatcher";
+import { CustomScreenDispatcher, NotFoundScreen } from "./custom-dispatcher";
 
 export function CollectionNewScreen(): ReactNode {
   const { admin } = useAdmin();
@@ -34,6 +40,9 @@ export function CollectionNewScreen(): ReactNode {
   });
 
   if (!collection) return <CustomScreenDispatcher />;
+  // A collection with `operations.create: false` has no create page: the list
+  // never links here, and a typed URL gets the same 404 an unknown path does.
+  if (!collectionOperations(collection).create) return <NotFoundScreen />;
 
   const serverErrors = fieldErrors(create.error);
   const label = collection.label ?? slug;
@@ -45,6 +54,7 @@ export function CollectionNewScreen(): ReactNode {
       <CollectionForm
         collection={collection}
         registry={admin.editWidgets}
+        displayRegistry={admin.displayWidgets}
         locales={admin.config.i18n?.locales}
         defaultLocale={admin.config.i18n?.defaultLocale}
         groupLayout="all"

@@ -243,6 +243,8 @@ function Root({
         defaultView={defaultView}
         onViewChange={onViewChange}
         weekStartsOn={weekStartsOn}
+        // Month / weekday / time labels follow the admin's formatting locale.
+        locale={i18n.locale}
         onEventClick={
           onRowClick
             ? (event) => {

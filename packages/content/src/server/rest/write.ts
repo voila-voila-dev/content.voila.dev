@@ -18,9 +18,11 @@ import type { Document } from "../database/types";
 import { badRequest, conflict, fail, notFound, type ValidationIssue, validation } from "./errors";
 import { assertWritableFields } from "./field-access";
 import {
+  assertOperationEnabled,
   type RestContext,
   requireCollection,
   requireSingleton,
+  runDatabase,
   runHandler,
   serializeRow,
 } from "./handlers";
@@ -74,7 +76,9 @@ export function validateWrite(
 
   for (const [name, field] of Object.entries(entry.fields) as Array<[string, Field]>) {
     if (!Object.hasOwn(data, name)) {
-      if (!opts.partial && field.meta.required === true) {
+      // A read-only field is never part of a write payload (the source or the
+      // host fills it in), so `required` can't be enforced on the way in.
+      if (!opts.partial && field.meta.required === true && field.meta.readOnly !== true) {
         issues.push({ path: [name], message: "Required." });
       }
       continue;
@@ -128,8 +132,16 @@ export function deriveSlugFields(
 ): Document {
   let out = data;
   for (const [name, field] of Object.entries(entry.fields) as Array<[string, Field]>) {
-    const meta = field.meta as { kind: string; localized?: boolean; from?: string };
+    const meta = field.meta as {
+      kind: string;
+      localized?: boolean;
+      from?: string;
+      readOnly?: boolean;
+    };
     if (meta.kind !== "slug" || typeof meta.from !== "string" || meta.localized === true) continue;
+    // A read-only slug is owned by the source/host — deriving it here would only
+    // get the payload rejected by the field-access check that follows.
+    if (meta.readOnly === true) continue;
     const current = data[name];
     if (current !== undefined && current !== null && current !== "") continue;
     const source = slugSourceText(data[meta.from], defaultLocale);
@@ -165,10 +177,12 @@ async function parseWriteBody(request: Request): Promise<Document> {
 }
 
 // Run a `Database` write, translating a unique-constraint `DatabaseError` into a
-// typed `CONFLICT`. Any other driver error escapes to `runHandler` → `INTERNAL`.
-async function runWrite<A>(slug: string, fn: () => Promise<A>): Promise<A> {
+// typed `CONFLICT` and an `unsupported` one (an external source without the
+// method) into `NOT_SUPPORTED`. Any other driver error escapes to `runHandler`
+// → `INTERNAL`.
+async function runWrite<A>(slug: string, operation: string, fn: () => Promise<A>): Promise<A> {
   try {
-    return await fn();
+    return await runDatabase(slug, operation, fn);
   } catch (error) {
     if (error instanceof DatabaseError && error.conflict) fail(conflict(slug, error.field));
     throw error;
@@ -184,6 +198,7 @@ export function handleCreate(
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
+    assertOperationEnabled(entry, "create");
     const body = deriveSlugFields(
       entry,
       await parseWriteBody(request),
@@ -194,7 +209,7 @@ export function handleCreate(
     // 403 regardless of whether its value would have validated.
     assertWritableFields(entry, body, access);
     const values = validateWrite(entry, body, { partial: false });
-    const row = await runWrite(entry.slug, () => ctx.database.create(entry.slug, values));
+    const row = await runWrite(entry.slug, "create", () => ctx.database.create(entry.slug, values));
     return Response.json({ data: serializeRow(entry, row, principal, null) }, { status: 201 });
   }, ctx.onError);
 }
@@ -211,6 +226,7 @@ export function handleSetSingleton(
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireSingleton(ctx.config, slug);
+    assertOperationEnabled(entry, "update");
     const body = deriveSlugFields(
       entry,
       await parseWriteBody(request),
@@ -226,7 +242,7 @@ export function handleSetSingleton(
     };
     assertWritableFields(entry, body, access);
     const values = validateWrite(entry, body, { partial: false });
-    const row = await runWrite(entry.slug, () => ctx.database.upsert(entry.slug, values));
+    const row = await runWrite(entry.slug, "update", () => ctx.database.upsert(entry.slug, values));
     return Response.json({ data: serializeRow(entry, row, principal, null, entry.slug) });
   }, ctx.onError);
 }
@@ -241,6 +257,7 @@ export function handleUpdate(
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
+    assertOperationEnabled(entry, "update");
     const body = await parseWriteBody(request);
     const access: FieldAccessContext = {
       principal,
@@ -250,7 +267,9 @@ export function handleUpdate(
     };
     assertWritableFields(entry, body, access);
     const values = validateWrite(entry, body, { partial: true });
-    const row = await runWrite(entry.slug, () => ctx.database.update(entry.slug, id, values));
+    const row = await runWrite(entry.slug, "update", () =>
+      ctx.database.update(entry.slug, id, values),
+    );
     if (row === null) fail(notFound(entry.slug));
     return Response.json({ data: serializeRow(entry, row, principal, null, id) });
   }, ctx.onError);
@@ -260,7 +279,10 @@ export function handleUpdate(
 export function handleDelete(ctx: RestContext, slug: string, id: string): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
-    const deleted = await ctx.database.softDelete(entry.slug, id);
+    assertOperationEnabled(entry, "delete");
+    const deleted = await runDatabase(entry.slug, "delete", () =>
+      ctx.database.softDelete(entry.slug, id),
+    );
     if (!deleted) fail(notFound(entry.slug));
     return Response.json({ data: { id } });
   }, ctx.onError);
@@ -275,7 +297,12 @@ export function handleRestore(
 ): Promise<Response> {
   return runHandler(async () => {
     const entry = requireCollection(ctx.config, slug);
-    const row = await ctx.database.restore(entry.slug, id);
+    // Un-deleting re-creates the row from the caller's point of view; an
+    // external source without `delete` has nothing to restore either way.
+    assertOperationEnabled(entry, "delete");
+    const row = await runDatabase(entry.slug, "restore", () =>
+      ctx.database.restore(entry.slug, id),
+    );
     if (row === null) fail(notFound(entry.slug));
     return Response.json({ data: serializeRow(entry, row, principal, null, id) });
   }, ctx.onError);
@@ -300,13 +327,14 @@ async function parsePublishAt(request: Request): Promise<number | undefined> {
 }
 
 // Translate a `Database` publish-state error (e.g. collection isn't
-// draft-enabled) into a 400 instead of letting it fold to a generic 500.
+// draft-enabled) into a 400 instead of letting it fold to a generic 500; an
+// external collection (no publish state at all) is a 405 via `runDatabase`.
 async function runPublish(
   slug: string,
   fn: () => Promise<Document | null>,
 ): Promise<Document | null> {
   try {
-    return await fn();
+    return await runDatabase(slug, "publish", fn);
   } catch (error) {
     if (error instanceof DatabaseError)
       fail(badRequest({ collection: slug, reason: error.message }));

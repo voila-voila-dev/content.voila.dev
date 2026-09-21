@@ -13,8 +13,15 @@ import { createContext, type ReactNode, useContext } from "react";
 
 export interface I18nContextValue {
   readonly i18n?: I18nConfig;
-  /** The locale the admin displays in. Defaults to `i18n.defaultLocale`. */
+  /** The CONTENT locale the admin displays in. Defaults to `i18n.defaultLocale`. */
   readonly displayLocale?: string;
+  /**
+   * BCP 47 locale for `Intl` FORMATTING — dates, numbers, relative times — in
+   * the admin chrome. Unrelated to `displayLocale`, which picks a translation;
+   * a French editor of an English-only site wants `fr-FR` here and `en` there.
+   * Undefined means the runtime's default (the browser's).
+   */
+  readonly locale?: string;
 }
 
 const I18nContext = createContext<I18nContextValue>({});
@@ -23,8 +30,15 @@ export interface I18nProviderProps extends I18nContextValue {
   readonly children?: ReactNode;
 }
 
-export function I18nProvider({ i18n, displayLocale, children }: I18nProviderProps): ReactNode {
-  return <I18nContext.Provider value={{ i18n, displayLocale }}>{children}</I18nContext.Provider>;
+export function I18nProvider({
+  i18n,
+  displayLocale,
+  locale,
+  children,
+}: I18nProviderProps): ReactNode {
+  return (
+    <I18nContext.Provider value={{ i18n, displayLocale, locale }}>{children}</I18nContext.Provider>
+  );
 }
 
 /** The current i18n settings (empty outside a provider). */

@@ -657,3 +657,93 @@ describe("CollectionForm — structured fields (blocks / object / array)", () =>
     );
   });
 });
+
+describe("CollectionForm — readOnly fields", () => {
+  const listings = defineCollection({
+    slug: "listings",
+    fields: {
+      title: fields.string({ required: true }),
+      ref: fields.string({ readOnly: true }),
+      price: fields.number({ readOnly: true }),
+    },
+  });
+
+  test("an edit renders a readOnly field with its display widget, not an input", () => {
+    const { container } = render(
+      <CollectionForm
+        collection={listings}
+        onSubmit={mock()}
+        defaultValues={{ title: "Villa", ref: "AB-12", price: 30000 }}
+      />,
+    );
+    expect(screen.getByText("Ref")).toBeDefined();
+    expect(container.querySelector("#listings-ref")).toBeNull();
+    const rows = container.querySelectorAll("[data-slot=readonly-field]");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.textContent).toBe("AB-12");
+    expect(rows[1]?.textContent).toBe((30000).toLocaleString());
+    // The editable field is still an input.
+    expect(container.querySelector("#listings-title")).not.toBeNull();
+  });
+
+  test("a create omits readOnly fields entirely", () => {
+    const { container } = render(<CollectionForm collection={listings} onSubmit={mock()} />);
+    expect(screen.queryByText("Ref")).toBeNull();
+    expect(screen.queryByText("Price")).toBeNull();
+    expect(container.querySelector("[data-slot=readonly-field]")).toBeNull();
+  });
+
+  test("mode overrides the defaultValues heuristic", () => {
+    const { container } = render(
+      <CollectionForm collection={listings} onSubmit={mock()} mode="edit" />,
+    );
+    // No defaults, but an explicit edit still shows the readOnly rows (empty).
+    expect(container.querySelectorAll("[data-slot=readonly-field]")).toHaveLength(2);
+  });
+
+  test("readOnly values are excluded from the submitted payload", async () => {
+    const onSubmit = mock();
+    const { container } = render(
+      <CollectionForm
+        collection={listings}
+        onSubmit={onSubmit}
+        defaultValues={{ title: "Villa", ref: "AB-12", price: 30000 }}
+      />,
+    );
+    fireEvent.submit(form(container));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0]?.[0]).toEqual({ title: "Villa" });
+  });
+
+  test("a readOnly field never reads as dirty", () => {
+    const { container } = render(
+      <CollectionForm
+        collection={listings}
+        onSubmit={mock()}
+        defaultValues={{ title: "Villa", ref: "AB-12" }}
+        saveMode="field"
+      />,
+    );
+    const root = container.querySelector("[data-slot=collection-form]");
+    expect(root?.getAttribute("data-dirty")).toBeNull();
+    expect(container.querySelector("[data-slot=field-save]")).toBeNull();
+    fireEvent.change(container.querySelector("#listings-title") as HTMLInputElement, {
+      target: { value: "Villa 2" },
+    });
+    // Only the edited (editable) field grows a Save row.
+    expect(container.querySelectorAll("[data-slot=field-save]")).toHaveLength(1);
+  });
+
+  test("uses the displayRegistry for readOnly fields", () => {
+    const Custom = ({ value }: { value: unknown }) => <b data-testid="custom">{String(value)}</b>;
+    render(
+      <CollectionForm
+        collection={listings}
+        onSubmit={mock()}
+        defaultValues={{ ref: "AB-12" }}
+        displayRegistry={{ string: Custom }}
+      />,
+    );
+    expect(screen.getByTestId("custom").textContent).toBe("AB-12");
+  });
+});

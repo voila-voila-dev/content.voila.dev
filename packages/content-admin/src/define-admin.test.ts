@@ -47,3 +47,13 @@ describe("defineAdmin", () => {
     expect(admin.nav).toBeUndefined();
   });
 });
+
+describe("defineAdmin — formatting locale", () => {
+  it("leaves the locale unset by default (the browser's applies)", () => {
+    expect(defineAdmin({ config }).locale).toBeUndefined();
+  });
+
+  it("carries the configured locale onto the instance", () => {
+    expect(defineAdmin({ config, locale: "fr-FR" }).locale).toBe("fr-FR");
+  });
+});

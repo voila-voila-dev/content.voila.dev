@@ -35,7 +35,10 @@ export interface WorkerAdminEnv {
 }
 
 export interface CreateWorkerAdminOptions
-  extends Pick<AdminRuntimeOptions, "basePath" | "sessionTtl" | "authenticator" | "access"> {
+  extends Pick<
+    AdminRuntimeOptions,
+    "basePath" | "sessionTtl" | "authenticator" | "access" | "sources"
+  > {
   /** Override the ambient `cloudflare:workers` env (used in tests). */
   readonly env?: WorkerAdminEnv;
   /**
@@ -87,5 +90,6 @@ export function createWorkerAdmin(
     sessionTtl: options.sessionTtl,
     authenticator: options.authenticator,
     access: options.access,
+    sources: options.sources,
   });
 }
