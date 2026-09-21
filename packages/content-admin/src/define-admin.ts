@@ -98,5 +98,6 @@ export function defineAdmin<C extends NormalizedConfig>(
     mapDarkStyleUrl,
     counts: options.counts,
     locale: options.locale,
+    preview: options.preview ?? {},
   };
 }

@@ -25,6 +25,7 @@ import { FieldRenderer } from "./field-renderer";
 import { FieldRow } from "./field-row";
 import { dirtyFieldKeys } from "./lib/dirty";
 import type { Doc } from "./lib/doc";
+import { type FocusPath, FocusPathProvider } from "./lib/focus-path";
 import { resolveFieldGroups } from "./lib/groups";
 import { getFieldLabel, humanize } from "./lib/humanize";
 import { type FieldIssue, localizedFieldErrors, validateFields } from "./lib/validate";
@@ -136,6 +137,19 @@ export interface CollectionFormProps<C extends Collection = Collection> {
    */
   readonly onDirtyChange?: (dirty: boolean) => void;
   /**
+   * Called with the whole document as the user edits it — once on mount with
+   * the defaults, then after every change (slug derivations included). What a
+   * live preview renders from, so it shows unsaved work; grouped forms hold
+   * every field, not just the visible group, so the document is complete.
+   */
+  readonly onValuesChange?: (values: Doc) => void;
+  /**
+   * Called when the user expands a nested row (a block, an array item) with
+   * its path into the document (`["blocks", 2]`), or `null` on collapse. A
+   * live preview can scroll to the matching section.
+   */
+  readonly onFocusPathChange?: (path: FocusPath | null) => void;
+  /**
    * How the form saves:
    * - `"form"` (default) — one Save (in the header) validates and submits every
    *   rendered field at once.
@@ -234,6 +248,8 @@ export function CollectionForm<C extends Collection = Collection>({
   groupLayout = "section",
   defaultLocale,
   onDirtyChange,
+  onValuesChange,
+  onFocusPathChange,
   saveMode = "form",
 }: CollectionFormProps<C>): ReactNode {
   const perField = saveMode === "field";
@@ -293,6 +309,13 @@ export function CollectionForm<C extends Collection = Collection>({
   useEffect(() => {
     return () => onDirtyChangeRef.current?.(false);
   }, []);
+  // Mirror the document out as it changes (live preview). Ref-held so a host
+  // passing an inline arrow doesn't re-fire the effect on every render.
+  const onValuesChangeRef = useRef(onValuesChange);
+  onValuesChangeRef.current = onValuesChange;
+  useEffect(() => {
+    onValuesChangeRef.current?.(values);
+  }, [values]);
   useEffect(() => {
     if (!hasUnsavedChanges) return;
     function onBeforeUnload(event: BeforeUnloadEvent) {
@@ -612,16 +635,18 @@ export function CollectionForm<C extends Collection = Collection>({
             fallbackLocale={defaultLocale ?? locales?.[0]}
           />
         ) : Widget ? (
-          <Widget
-            value={values[key]}
-            onChange={(v) => handleChange(key, v)}
-            field={field}
-            id={id}
-            labelId={`${id}-label`}
-            error={fieldError}
-            issues={fieldIssues[key]}
-            disabled={fieldDisabled}
-          />
+          <FocusPathProvider path={[key]} onChange={onFocusPathChange}>
+            <Widget
+              value={values[key]}
+              onChange={(v) => handleChange(key, v)}
+              field={field}
+              id={id}
+              labelId={`${id}-label`}
+              error={fieldError}
+              issues={fieldIssues[key]}
+              disabled={fieldDisabled}
+            />
+          </FocusPathProvider>
         ) : null}
       </FieldRow>
     );

@@ -29,6 +29,8 @@ export type {
   CustomScreenProps,
   DefineAdminOptions,
   NavExtension,
+  PreviewConfig,
+  PreviewTarget,
   ResolvedAdminTheme,
   SingletonFieldPath,
 } from "./types";

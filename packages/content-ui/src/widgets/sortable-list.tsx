@@ -22,6 +22,7 @@ import {
 import { Button } from "@voila.dev/ui/button";
 import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useEffect, useImperativeHandle, useState } from "react";
+import { FocusPathProvider, useFocusPath } from "../lib/focus-path";
 import { type FieldIssue, issuesUnder } from "../lib/validate";
 
 export interface SortableRowHeader {
@@ -75,6 +76,8 @@ export function SortableList<T>({
 }: SortableListProps<T>): ReactNode {
   // Which rows are expanded, by stable key.
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  // The enclosing document path, when a form tracks focus for a live preview.
+  const focus = useFocusPath();
   // Transient drag state for the visual cues; the reorder reads the source
   // index from the drag's dataTransfer so it is right even if a render lags.
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -94,6 +97,10 @@ export function SortableList<T>({
       else next.delete(key);
       return next;
     });
+    if (focus) {
+      const index = keys.indexOf(key);
+      focus.report(expanded && index !== -1 ? [...focus.path, index] : null);
+    }
   }
   useImperativeHandle(ref, () => ({
     open(key, focusId) {
@@ -221,7 +228,7 @@ export function SortableList<T>({
             </div>
             {expanded ? (
               <div id={panelId} className="border-t px-4 py-4">
-                {body(item, index)}
+                <FocusPathProvider path={[index]}>{body(item, index)}</FocusPathProvider>
               </div>
             ) : null}
           </li>

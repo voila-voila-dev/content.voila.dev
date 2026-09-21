@@ -171,6 +171,100 @@ the admin selects it automatically. `saveMode="field"` submits a one-key partial
 so it only suits a PATCH-style update (collections, not a singleton's
 full-document `set`).
 
+## Live preview
+
+Declare a preview target per collection or singleton and the document screens
+split in two: the form (or read view) on the left, the site's own page on the
+right, re-rendered as you type — unsaved values included.
+
+```ts
+defineAdmin({
+  config,
+  preview: {
+    pages: { url: (doc) => "/preview/pages", size: 50 },
+    settings: { url: () => "/preview/settings" },
+  },
+});
+```
+
+`url` returns a **same-origin path** the admin loads in an iframe; `size` is the
+pane's initial width in percent (default 50). The split is resizable and
+remembered per slug in `localStorage`. The pane only renders on desktop
+(≥ 1024px); narrower screens keep the plain form.
+
+### The protocol
+
+The admin never lets the frame read drafts: it **pushes** the document. Three
+messages, same origin both ways:
+
+| Direction | Message | When |
+| --- | --- | --- |
+| frame → admin | `{ type: "voila:preview:listening" }` | once the route has mounted |
+| admin → frame | `{ type: "voila:preview", doc, seq, focus? }` | on the handshake, then on every edit (debounced 150 ms) |
+| frame → admin | `{ type: "voila:preview:ready", seq }` | once `doc` is rendered |
+
+`doc` is the form's current values — the whole document, even on a grouped form
+that shows one group at a time. `focus` is the path of the nested row the
+editor has open (`["blocks", 2]`), so the site can scroll to that section.
+The admin ignores messages from another origin or another window, and shows
+"Updating…" until the reply carrying the latest `seq` arrives.
+
+### A preview route (TanStack Start)
+
+The route renders the posted document with the same code as the live page —
+here `resolvePage` is whatever turns a stored row into a page payload:
+
+```tsx
+// src/routes/_site.preview.$collection.tsx
+import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
+import { useEffect, useState } from "react";
+
+const previewPage = createServerFn({ method: "POST" })
+  .validator((data: { doc: Record<string, unknown> }) => data)
+  .handler(({ data }) => resolvePage({ id: "preview", ...data.doc }));
+
+export const Route = createFileRoute("/_site/preview/$collection")({
+  loader: ({ params }) => {
+    if (params.collection !== "pages") throw notFound();
+  },
+  head: () => ({ meta: [{ name: "robots", content: "noindex, nofollow" }] }),
+  component: Preview,
+});
+
+function Preview() {
+  const [page, setPage] = useState<PagePayload | null>(null);
+  useEffect(() => {
+    let latest = 0;
+    const onMessage = async (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== "voila:preview") return;
+      const seq = ++latest;
+      const next = await previewPage({ data: { doc: event.data.doc } });
+      if (seq !== latest) return; // a newer document is on its way
+      setPage(next);
+      window.parent.postMessage(
+        { type: "voila:preview:ready", seq: event.data.seq },
+        window.location.origin,
+      );
+    };
+    window.addEventListener("message", onMessage);
+    window.parent.postMessage({ type: "voila:preview:listening" }, window.location.origin);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+  return page ? <CmsPage data={page} /> : <p>Loading preview…</p>;
+}
+```
+
+Reserve the `preview` slug in the collection's `slug` field so no page can
+shadow the route. The route is public but inert: without a parent posting a
+document it renders nothing, and it never queries the database for drafts.
+
+### What it is not
+
+A visual builder. The form stays the single place you edit; the preview shows
+the result. Clicking inside the frame follows links like the real site.
+
 ## Customizing the admin
 
 ```ts

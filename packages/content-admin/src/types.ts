@@ -207,7 +207,29 @@ export interface DefineAdminOptions<C extends NormalizedConfig = NormalizedConfi
    * `i18n` locales, which pick WHICH translation of a localized field to show.
    */
   readonly locale?: string;
+  /**
+   * Live preview, per collection or singleton slug. When set, the document's
+   * detail and edit screens split into the form and an iframe on the site's
+   * own preview route (`url`, a same-origin path), which the admin feeds the
+   * document over `postMessage` as it is edited — unsaved values included.
+   * The frame announces itself with `voila:preview:listening`, receives
+   * `{ type: "voila:preview", doc, seq, focus? }` and answers
+   * `{ type: "voila:preview:ready", seq }`; the site route renders `doc` with
+   * its usual page code and never reads the database for it. Desktop only
+   * (≥ 1024px); the split is remembered per slug in `localStorage`.
+   */
+  readonly preview?: PreviewConfig;
 }
+
+/** One entry of {@link DefineAdminOptions.preview}. */
+export interface PreviewTarget {
+  /** Same-origin path of the site's preview surface for this document. */
+  readonly url: (doc: Readonly<Record<string, unknown>>) => string;
+  /** Initial width of the preview pane, in percent of the split. Default 50. */
+  readonly size?: number;
+}
+
+export type PreviewConfig = Readonly<Record<string, PreviewTarget>>;
 
 /** The built admin instance shared through context to every screen. */
 export interface AdminInstance<C extends NormalizedConfig = NormalizedConfig> {
@@ -236,4 +258,6 @@ export interface AdminInstance<C extends NormalizedConfig = NormalizedConfig> {
    * `i18n` locales, which pick WHICH translation of a localized field to show.
    */
   readonly locale?: string;
+  /** Live-preview targets by slug (see {@link DefineAdminOptions.preview}). */
+  readonly preview: PreviewConfig;
 }
