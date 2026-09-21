@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { fields } from "@voila/content";
-import { NestedDisplayRows, NestedFields, visibleKeys } from "./nested-fields";
+import { layoutFor, NestedDisplayRows, NestedFields, visibleKeys } from "./nested-fields";
 
 afterEach(cleanup);
 
@@ -37,6 +37,34 @@ describe("NestedFields", () => {
       />,
     );
     expect(document.getElementById("p-title-error")?.textContent).toBe("Required.");
+  });
+});
+
+describe("layoutFor", () => {
+  test("inline for up to four short scalars, stacked otherwise", () => {
+    expect(layoutFor({ label: fields.string({ max: 60 }), href: fields.string() })).toBe("inline");
+    expect(
+      layoutFor({
+        kind: fields.select({ options: ["a", "b"] }),
+        on: fields.boolean(),
+        n: fields.number(),
+        when: fields.date(),
+      }),
+    ).toBe("inline");
+    expect(layoutFor({ text: fields.string({ max: 400 }) })).toBe("stacked");
+    expect(layoutFor({ title: fields.string(), body: fields.richText() })).toBe("stacked");
+    expect(layoutFor({ image: fields.media() })).toBe("stacked");
+    expect(
+      layoutFor({
+        a: fields.string(),
+        b: fields.string(),
+        c: fields.string(),
+        d: fields.string(),
+        e: fields.string(),
+      }),
+    ).toBe("stacked");
+    expect(layoutFor({ t: fields.string({ localized: true }) })).toBe("stacked");
+    expect(layoutFor({})).toBe("stacked");
   });
 });
 
