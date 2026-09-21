@@ -13,6 +13,7 @@ import {
   CollectionForm,
   DetailView,
   type Doc,
+  formWidthFor,
   PageLayout,
   resolveFieldGroups,
   useRegisterSidebarSection,
@@ -105,6 +106,7 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
         submitLabel="Save"
         activeGroup={activeGroup}
         onGroupChange={changeGroup}
+        width={formWidthFor(singleton.fields, groups.find((g) => g.id === activeGroup)?.fieldKeys)}
         onSubmit={(values) => save.mutate(values as Doc, { onSuccess: () => setEditing(false) })}
       />
     );

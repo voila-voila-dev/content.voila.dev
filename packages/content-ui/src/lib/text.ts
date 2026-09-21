@@ -38,3 +38,23 @@ export function truncateText(text: string, max = 120): string {
   const at = cut.lastIndexOf(" ");
   return `${(at > max * 0.6 ? cut.slice(0, at) : cut).trimEnd()}…`;
 }
+
+/**
+ * One line that says what a collapsed record holds: the first non-empty
+ * string / markdown / rich-text member, in field order, clipped. Nothing
+ * when the record is still empty. Shared by the blocks and object-array rows.
+ */
+export function recordSummary(
+  record: Readonly<Record<string, unknown>>,
+  fields: Readonly<Record<string, { readonly meta: { readonly kind: string } }>>,
+  max = 80,
+): string | undefined {
+  for (const [key, field] of Object.entries(fields)) {
+    const value = record[key];
+    const kind = field.meta.kind;
+    const text =
+      kind === "richText" ? richTextToPlain(value) : typeof value === "string" ? value.trim() : "";
+    if (text !== "") return truncateText(text, max);
+  }
+  return undefined;
+}

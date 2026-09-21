@@ -41,6 +41,24 @@ describe("ObjectInput", () => {
     expect(document.getElementById("seo-title-error")?.textContent).toBe("Required.");
   });
 
+  test("lays a handful of short scalars out inline, long-form members stacked", () => {
+    const link = fields.object({ label: fields.string({ max: 60 }), href: fields.string() });
+    const { container, rerender } = render(
+      <ObjectInput value={{}} onChange={mock()} field={link} id="l" />,
+    );
+    expect(container.querySelector("[data-slot=object-input]")?.getAttribute("data-layout")).toBe(
+      "inline",
+    );
+    expect(container.querySelector("[data-slot=nested-fields]")?.className).toContain(
+      "sm:grid-cols-2",
+    );
+    const body = fields.object({ title: fields.string(), body: fields.richText() });
+    rerender(<ObjectInput value={{}} onChange={mock()} field={body} id="b" />);
+    expect(container.querySelector("[data-slot=object-input]")?.getAttribute("data-layout")).toBe(
+      "stacked",
+    );
+  });
+
   test("falls back to the unsupported notice without a shape", () => {
     const bare = { ...seo, meta: { kind: "object", widget: "object", keys: [] } } as never;
     const { container } = render(<ObjectInput value={{}} onChange={mock()} field={bare} id="o" />);

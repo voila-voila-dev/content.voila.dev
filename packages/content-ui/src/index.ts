@@ -50,6 +50,7 @@ export {
   groupBy,
 } from "./lib/group-by";
 export {
+  formWidthFor,
   type ResolvedGroup,
   type ResolveFieldGroupsOptions,
   resolveFieldGroups,
@@ -125,10 +126,12 @@ export {
 export { LocalizedFieldEditor, type LocalizedFieldEditorProps } from "./localized-field";
 export { MapView, type MapViewProps } from "./map-view";
 export {
+  layoutFor,
   NestedDisplayRows,
   type NestedDisplayRowsProps,
   NestedFields,
   type NestedFieldsProps,
+  type NestedLayout,
   visibleKeys,
 } from "./nested-fields";
 export { type BodyWidth, PageLayout, pageGutter } from "./page-layout";

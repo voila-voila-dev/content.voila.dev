@@ -1,22 +1,31 @@
-// Array widgets — the editor and reader for `fields.array(item)`. The editor is
-// a list of the item field's own widget (resolved from the registry in scope),
-// each row with move up / move down / remove, plus an "Add item" button that
-// respects `min` / `max`. Emits a fresh array on every edit and `undefined`
-// when the last item goes, so an optional list goes back to "not provided".
-// Without `meta.item` (a bare-validator element) it degrades to the
-// unsupported-input notice, exactly as before.
+// Array widgets — the editor and reader for `fields.array(item)`. Two editors
+// share the "Add item" button that respects `min` / `max`:
+//
+//   • scalars (strings, numbers, selects…) — an inline list of the item's own
+//     widget, each row with move up / move down / remove;
+//   • objects — collapsible cards (`SortableList`, the shell the blocks editor
+//     uses) headed by a one-line summary, so a nav of nine `{label, href}`
+//     links reads as nine rows instead of a wall of open forms.
+//
+// Emits a fresh array on every edit and `undefined` when the last item goes,
+// so an optional list goes back to "not provided". Without `meta.item` (a
+// bare-validator element) it degrades to the unsupported-input notice.
 
 import { CaretDownIcon, CaretUpIcon, PlusIcon, XIcon } from "@phosphor-icons/react";
-import type { Field } from "@voila/content";
+import type { Field, FieldsMap } from "@voila/content";
 import { Button } from "@voila.dev/ui/button";
 import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useRef } from "react";
+import type { Doc } from "../lib/doc";
+import { recordSummary } from "../lib/text";
 import { issueMessageAt, issuesUnder } from "../lib/validate";
+import { NestedFields, visibleKeys } from "../nested-fields";
 import { useDisplayRegistry, useEditRegistry } from "../registry/context";
 import { resolveEditWidget } from "../registry/edit";
 import { resolveDisplayWidget } from "../registry/registry";
 import { type DisplayWidgetProps, Empty, isCompact, Preview } from "./display";
 import { type EditWidgetProps, UnsupportedInput } from "./edit";
+import { SortableList, type SortableListHandle } from "./sortable-list";
 
 interface ArrayMetaShape {
   readonly item?: Field;
@@ -61,19 +70,114 @@ export function useItemKeys(length: number) {
   };
 }
 
+/** The item's member map when the array holds objects (`fields.array(fields.object(...))`). */
+function objectShape(item: Field | undefined): FieldsMap | undefined {
+  if (!item || item.meta.kind !== "object") return undefined;
+  const shape = (item.meta as { shape?: FieldsMap }).shape;
+  return shape && Object.keys(shape).length > 0 ? shape : undefined;
+}
+
+function asRecord(value: unknown): Readonly<Doc> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Readonly<Doc>)
+    : {};
+}
+
 export function ArrayInput(props: EditWidgetProps): ReactNode {
   const meta = props.field.meta as ArrayMetaShape;
   const registry = useEditRegistry();
   const items = arrayItems(props.value);
   const itemKeys = useItemKeys(items.length);
+  const list = useRef<SortableListHandle>(null);
   if (!meta.item) return <UnsupportedInput {...props} />;
   const item = meta.item;
+  const shape = objectShape(item);
   const Widget = resolveEditWidget(item.meta, registry);
   const atMax = meta.max !== undefined && items.length >= meta.max;
   const atMin = meta.min !== undefined && items.length <= meta.min;
 
   function emit(next: ReadonlyArray<unknown>): void {
     props.onChange(next.length === 0 ? undefined : [...next]);
+  }
+
+  const addButton = (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      id={`${props.id}-add`}
+      disabled={props.disabled || atMax}
+      onClick={() => {
+        const index = items.length;
+        itemKeys.add();
+        emit([...items, item.meta.defaultValue]);
+        if (shape) {
+          const key = itemKeys.keys[index];
+          const first = visibleKeys(shape)[0];
+          if (key !== undefined) {
+            list.current?.open(
+              key,
+              first === undefined ? undefined : `${props.id}-${index}-${first}`,
+            );
+          }
+        }
+      }}
+    >
+      <PlusIcon aria-hidden />
+      {atMax ? `Limit of ${meta.max} reached` : "Add item"}
+    </Button>
+  );
+
+  if (shape) {
+    return (
+      <fieldset
+        data-slot="array-input"
+        data-layout="cards"
+        id={props.id}
+        aria-labelledby={props.labelId}
+        aria-invalid={props.error ? true : undefined}
+        disabled={props.disabled}
+        className="min-w-0 space-y-2"
+      >
+        <SortableList
+          ref={list}
+          items={items}
+          keys={itemKeys.keys}
+          noun="item"
+          idPrefix={props.id}
+          issues={props.issues}
+          disabled={props.disabled}
+          atMin={atMin}
+          header={(entry, index) => ({
+            label: `Item ${index + 1}`,
+            summary: recordSummary(asRecord(entry), shape),
+          })}
+          body={(entry, index) => (
+            <NestedFields
+              fields={shape}
+              value={asRecord(entry)}
+              onChange={(next) => {
+                const copy = [...items];
+                copy[index] = next;
+                emit(copy);
+              }}
+              idPrefix={`${props.id}-${index}`}
+              issues={issuesUnder(props.issues, index)}
+              disabled={props.disabled}
+            />
+          )}
+          onMove={(from, to) => {
+            itemKeys.move(from, to);
+            emit(moveItem(items, from, to));
+          }}
+          onRemove={(index) => {
+            itemKeys.remove(index);
+            emit(items.filter((_, i) => i !== index));
+          }}
+        />
+        {addButton}
+      </fieldset>
+    );
   }
 
   return (
@@ -158,20 +262,7 @@ export function ArrayInput(props: EditWidgetProps): ReactNode {
           </div>
         );
       })}
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        id={`${props.id}-add`}
-        disabled={props.disabled || atMax}
-        onClick={() => {
-          itemKeys.add();
-          emit([...items, item.meta.defaultValue]);
-        }}
-      >
-        <PlusIcon aria-hidden />
-        {atMax ? `Limit of ${meta.max} reached` : "Add item"}
-      </Button>
+      {addButton}
     </fieldset>
   );
 }

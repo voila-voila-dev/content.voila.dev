@@ -17,6 +17,7 @@ import {
   DetailView,
   type Doc,
   documentTitle,
+  formWidthFor,
   PageLayout,
   PublishControls,
   RevisionHistory,
@@ -197,6 +198,12 @@ function CollectionDocument({
           submitLabel="Save"
           activeGroup={activeGroup}
           onGroupChange={changeGroup}
+          // Structured fields (blocks, arrays, objects) nest rows that need
+          // the wider column; a plain scalar group keeps the reading measure.
+          width={formWidthFor(
+            collection.fields,
+            groups.find((g) => g.id === activeGroup)?.fieldKeys,
+          )}
           // Grouped collections save per field (each field patches itself);
           // ungrouped ones keep the single whole-form Save. `api.update` is a
           // PATCH, so a one-field partial is safe.

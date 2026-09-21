@@ -27,6 +27,41 @@ export function visibleKeys(fields: FieldsMap): string[] {
   return Object.keys(fields).filter((key) => fields[key]?.meta.hidden !== true);
 }
 
+/** Field kinds whose editor is a single short control, safe to sit side by side. */
+const SHORT_KINDS = new Set(["string", "slug", "number", "boolean", "select", "enum", "date"]);
+const SHORT_STRING_MAX = 200;
+
+export type NestedLayout = "stacked" | "inline";
+
+/**
+ * How a record's members are laid out. `inline` (a responsive grid, labels
+ * kept) when every visible member is a short scalar and there are at most
+ * six of them — the `{ label, href }` link or `{ icon, text }` chip that
+ * reads as one row, a call-to-action's six knobs as two; `stacked` (one
+ * member per line) as soon as a member is
+ * long-form (rich text, media, a nested array…) or the record is wide.
+ */
+export function layoutFor(fields: FieldsMap): NestedLayout {
+  const keys = visibleKeys(fields);
+  if (keys.length === 0 || keys.length > 6) return "stacked";
+  for (const key of keys) {
+    const meta = (fields[key] as Field).meta as { kind: string; max?: number; localized?: boolean };
+    if (!SHORT_KINDS.has(meta.kind) || meta.localized) return "stacked";
+    if (meta.kind === "string" && typeof meta.max === "number" && meta.max > SHORT_STRING_MAX)
+      return "stacked";
+  }
+  return "inline";
+}
+
+const INLINE_COLUMNS: Record<number, string> = {
+  1: "",
+  2: "sm:grid-cols-2",
+  3: "sm:grid-cols-3",
+  4: "sm:grid-cols-2 lg:grid-cols-4",
+  5: "sm:grid-cols-2 lg:grid-cols-3",
+  6: "sm:grid-cols-2 lg:grid-cols-3",
+};
+
 export interface NestedFieldsProps {
   readonly fields: FieldsMap;
   readonly value: Readonly<Doc> | undefined;
@@ -37,6 +72,8 @@ export interface NestedFieldsProps {
   /** Issues relative to this record. */
   readonly issues?: ReadonlyArray<FieldIssue>;
   readonly disabled?: boolean;
+  /** Defaults to `layoutFor(fields)`. */
+  readonly layout?: NestedLayout;
 }
 
 export function NestedFields({
@@ -46,12 +83,23 @@ export function NestedFields({
   idPrefix,
   issues,
   disabled,
+  layout,
 }: NestedFieldsProps): ReactNode {
   const registry = useEditRegistry();
   const record = value ?? {};
+  const keys = visibleKeys(fields);
+  const mode = layout ?? layoutFor(fields);
   return (
-    <div data-slot="nested-fields" className="space-y-4">
-      {visibleKeys(fields).map((key) => {
+    <div
+      data-slot="nested-fields"
+      data-layout={mode}
+      className={
+        mode === "inline"
+          ? `grid gap-3 ${INLINE_COLUMNS[keys.length] ?? "sm:grid-cols-2"}`
+          : "space-y-4"
+      }
+    >
+      {keys.map((key) => {
         const field = fields[key] as Field;
         const id = `${idPrefix}-${key}`;
         const Widget = resolveEditWidget(field.meta, registry);
@@ -59,6 +107,7 @@ export function NestedFields({
           <FieldRow
             key={key}
             id={id}
+            className={mode === "inline" ? "min-w-0" : undefined}
             label={getFieldLabel(key, field)}
             required={field.meta.required === true}
             count={charCount(record[key], field.meta as { max?: number })}

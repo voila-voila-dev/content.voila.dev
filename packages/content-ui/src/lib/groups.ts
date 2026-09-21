@@ -89,3 +89,21 @@ export function resolveFieldGroups(
   // an empty card and nav item would be noise.
   return out.filter((g) => g.fieldKeys.length > 0);
 }
+
+/** Field kinds whose editor is a list or a record — wide, nested forms. */
+const STRUCTURED_KINDS = new Set(["array", "blocks", "object"]);
+
+/**
+ * The body width an edit form deserves: `content` when the fields shown (the
+ * active group's, or all of them) include a structured editor whose nested
+ * rows need the room, `reading` for a plain column of scalars.
+ */
+export function formWidthFor(
+  fields: Readonly<Record<string, { readonly meta: { readonly kind: string } }>>,
+  keys?: ReadonlyArray<string>,
+): "reading" | "content" {
+  const shown = keys ?? Object.keys(fields);
+  return shown.some((key) => STRUCTURED_KINDS.has(fields[key]?.meta.kind ?? ""))
+    ? "content"
+    : "reading";
+}
