@@ -17,6 +17,7 @@ import {
   DetailView,
   type Doc,
   documentTitle,
+  type FocusPath,
   formWidthFor,
   PageLayout,
   PublishControls,
@@ -38,6 +39,7 @@ import { backToList } from "../lib/back";
 import { collectionClient } from "../lib/client-access";
 import { errorMessage, fieldErrors } from "../lib/field-errors";
 import { CustomScreenDispatcher } from "./custom-dispatcher";
+import { PreviewSplit, usePreviewAvailable } from "./preview-split";
 import { RecordPager } from "./record-pager";
 import { SingletonScreen } from "./singleton";
 import { StatusControl } from "./status-control";
@@ -82,6 +84,12 @@ function CollectionDocument({
   const navigate = useNavigate();
   const i18n = useI18n();
   const [editing, setEditing] = useState(false);
+  // Live preview: the form's current values (unsaved edits included) and the
+  // nested row the editor has open, relayed to the pane beside the document.
+  const previewTarget = admin.preview[slug];
+  const previewAvailable = usePreviewAvailable(previewTarget);
+  const [liveValues, setLiveValues] = useState<Doc | null>(null);
+  const [focusPath, setFocusPath] = useState<FocusPath | null>(null);
   const label = collection.label ?? slug;
   const singular = singularLabel(collection);
   // Which writes the collection offers; anything off is hidden here and
@@ -167,61 +175,73 @@ function CollectionDocument({
 
   if (editing && ops.update && doc.data) {
     const serverErrors = fieldErrors(update.error);
+    const form = (
+      <CollectionForm
+        collection={collection}
+        registry={admin.editWidgets}
+        locales={admin.config.i18n?.locales}
+        defaultLocale={admin.config.i18n?.defaultLocale}
+        onDirtyChange={guard.setDirty}
+        defaultValues={doc.data}
+        title={`Edit ${title}`}
+        back={back}
+        // Per-field (grouped) mode has no single Save to exit on, so Done returns
+        // to the read view; a whole-form save returns on its own, so it just
+        // needs Cancel.
+        actions={
+          <Button
+            type="button"
+            variant={grouped ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setEditing(false)}
+          >
+            {grouped ? "Done" : "Cancel"}
+          </Button>
+        }
+        error={!serverErrors ? errorMessage(update.error) : undefined}
+        serverErrors={serverErrors}
+        submitLabel="Save"
+        activeGroup={activeGroup}
+        onGroupChange={changeGroup}
+        // Structured fields (blocks, arrays, objects) nest rows that need
+        // the wider column; a plain scalar group keeps the reading measure.
+        width={formWidthFor(collection.fields, groups.find((g) => g.id === activeGroup)?.fieldKeys)}
+        // Grouped collections save per field (each field patches itself);
+        // ungrouped ones keep the single whole-form Save. `api.update` is a
+        // PATCH, so a one-field partial is safe.
+        saveMode={grouped ? "field" : "form"}
+        onSubmit={(values) =>
+          update.mutate(
+            { id, values: values as Doc },
+            // Per-field (grouped) edits stay in edit mode so other fields'
+            // unsaved edits aren't discarded; a whole-form save returns to read.
+            { onSuccess: grouped ? undefined : () => setEditing(false) },
+          )
+        }
+        onValuesChange={previewTarget ? setLiveValues : undefined}
+        onFocusPathChange={previewTarget ? setFocusPath : undefined}
+      />
+    );
     return (
       <>
         {guard.dialog}
-        <CollectionForm
-          collection={collection}
-          registry={admin.editWidgets}
-          displayRegistry={admin.displayWidgets}
-          locales={admin.config.i18n?.locales}
-          defaultLocale={admin.config.i18n?.defaultLocale}
-          onDirtyChange={guard.setDirty}
-          defaultValues={doc.data}
-          title={`Edit ${title}`}
-          back={back}
-          // Per-field (grouped) mode has no single Save to exit on, so Done returns
-          // to the read view; a whole-form save returns on its own, so it just
-          // needs Cancel.
-          actions={
-            <Button
-              type="button"
-              variant={grouped ? "default" : "ghost"}
-              size="sm"
-              onClick={() => setEditing(false)}
-            >
-              {grouped ? "Done" : "Cancel"}
-            </Button>
-          }
-          error={!serverErrors ? errorMessage(update.error) : undefined}
-          serverErrors={serverErrors}
-          submitLabel="Save"
-          activeGroup={activeGroup}
-          onGroupChange={changeGroup}
-          // Structured fields (blocks, arrays, objects) nest rows that need
-          // the wider column; a plain scalar group keeps the reading measure.
-          width={formWidthFor(
-            collection.fields,
-            groups.find((g) => g.id === activeGroup)?.fieldKeys,
-          )}
-          // Grouped collections save per field (each field patches itself);
-          // ungrouped ones keep the single whole-form Save. `api.update` is a
-          // PATCH, so a one-field partial is safe.
-          saveMode={grouped ? "field" : "form"}
-          onSubmit={(values) =>
-            update.mutate(
-              { id, values: values as Doc },
-              // Per-field (grouped) edits stay in edit mode so other fields'
-              // unsaved edits aren't discarded; a whole-form save returns to read.
-              { onSuccess: grouped ? undefined : () => setEditing(false) },
-            )
-          }
-        />
+        {previewAvailable && previewTarget ? (
+          <PreviewSplit
+            slug={slug}
+            target={previewTarget}
+            doc={liveValues ?? doc.data}
+            focus={focusPath}
+          >
+            {form}
+          </PreviewSplit>
+        ) : (
+          form
+        )}
       </>
     );
   }
 
-  return (
+  const view = (
     <DetailView.Root
       collection={collection}
       doc={doc.data}
@@ -276,6 +296,15 @@ function CollectionDocument({
         </>
       }
     />
+  );
+  // The read view previews the stored document, so the page is visible
+  // without entering edit mode.
+  return previewAvailable && previewTarget && doc.data ? (
+    <PreviewSplit slug={slug} target={previewTarget} doc={doc.data}>
+      {view}
+    </PreviewSplit>
+  ) : (
+    view
   );
 }
 

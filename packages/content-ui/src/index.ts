@@ -44,6 +44,12 @@ export {
 export { defaultCardFields } from "./lib/card-fields";
 export type { Doc } from "./lib/doc";
 export {
+  type FocusPath,
+  FocusPathProvider,
+  type FocusPathProviderProps,
+  useFocusPath,
+} from "./lib/focus-path";
+export {
   type DeclaredColumn,
   type GroupByOptions,
   type GroupColumn,
@@ -67,6 +73,7 @@ export {
 } from "./lib/i18n";
 export { type IconComponent, NamedIcon, resolveIcon } from "./lib/icons";
 export { DEFAULT_MAP_DARK_STYLE_URL, DEFAULT_MAP_STYLE_URL } from "./lib/map-style";
+export { useMediaQuery } from "./lib/media-query";
 export {
   type BuildNavOptions,
   buildNav,
@@ -135,6 +142,16 @@ export {
   visibleKeys,
 } from "./nested-fields";
 export { type BodyWidth, PageLayout, pageGutter } from "./page-layout";
+export {
+  PREVIEW_DEBOUNCE_MS,
+  PREVIEW_LISTENING,
+  PREVIEW_MESSAGE,
+  PREVIEW_READY,
+  type PreviewDevice,
+  PreviewPane,
+  type PreviewPaneProps,
+  usePreviewChannel,
+} from "./preview-pane";
 export { PublishControls, type PublishControlsProps } from "./publish-controls";
 export {
   DisplayRegistryProvider,

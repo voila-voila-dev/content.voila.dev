@@ -747,3 +747,49 @@ describe("CollectionForm — readOnly fields", () => {
     expect(screen.getByTestId("custom").textContent).toBe("AB-12");
   });
 });
+
+describe("CollectionForm live values and focus path", () => {
+  test("reports the whole document on mount and after every edit", () => {
+    const onValuesChange = mock();
+    render(
+      <CollectionForm
+        collection={posts}
+        defaultValues={{ title: "Hello", views: 3 }}
+        onSubmit={mock()}
+        onValuesChange={onValuesChange}
+      />,
+    );
+    expect(onValuesChange).toHaveBeenLastCalledWith({ title: "Hello", views: 3 });
+    fireEvent.change(screen.getByLabelText(/Title/), { target: { value: "Hello world" } });
+    expect(onValuesChange).toHaveBeenLastCalledWith({ title: "Hello world", views: 3 });
+  });
+
+  test("reports the expanded block's path, and null on collapse", () => {
+    const pages = defineCollection({
+      slug: "pages",
+      fields: {
+        title: fields.string(),
+        blocks: fields.blocks({ types: { hero: { fields: { heading: fields.string() } } } }),
+      },
+    });
+    const onFocusPathChange = mock();
+    render(
+      <CollectionForm
+        collection={pages}
+        defaultValues={{
+          title: "P",
+          blocks: [
+            { type: "hero", heading: "One" },
+            { type: "hero", heading: "Two" },
+          ],
+        }}
+        onSubmit={mock()}
+        onFocusPathChange={onFocusPathChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Expand block 2/ }));
+    expect(onFocusPathChange).toHaveBeenLastCalledWith(["blocks", 1]);
+    fireEvent.click(screen.getByRole("button", { name: /Collapse block 2/ }));
+    expect(onFocusPathChange).toHaveBeenLastCalledWith(null);
+  });
+});

@@ -26,6 +26,7 @@ import { AdminLink } from "../lib/admin-link";
 import { backToHome } from "../lib/back";
 import { singletonClient } from "../lib/client-access";
 import { errorMessage, fieldErrors } from "../lib/field-errors";
+import { PreviewSplit, usePreviewAvailable } from "./preview-split";
 
 export interface SingletonScreenProps {
   readonly slug: string;
@@ -37,6 +38,10 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
   const { admin } = useAdmin();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
+  // Live preview of the singleton (a settings page, a home page as one record).
+  const previewTarget = admin.preview[slug];
+  const previewAvailable = usePreviewAvailable(previewTarget);
+  const [liveValues, setLiveValues] = useState<Doc | null>(null);
   // A singleton shares the runtime shape DetailView/CollectionForm read
   // (`slug`/`label`/`titleField`/`fields`/`groups`), so it stands in for `Collection`.
   const singleton = admin.config.singletons[slug] as unknown as Collection;
@@ -84,7 +89,7 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
 
   if (editing || (doc.isSuccess && doc.data === null)) {
     const serverErrors = fieldErrors(save.error);
-    return (
+    const form = (
       <CollectionForm
         collection={singleton}
         registry={admin.editWidgets}
@@ -108,11 +113,19 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
         onGroupChange={changeGroup}
         width={formWidthFor(singleton.fields, groups.find((g) => g.id === activeGroup)?.fieldKeys)}
         onSubmit={(values) => save.mutate(values as Doc, { onSuccess: () => setEditing(false) })}
+        onValuesChange={previewTarget ? setLiveValues : undefined}
       />
+    );
+    return previewAvailable && previewTarget ? (
+      <PreviewSplit slug={slug} target={previewTarget} doc={liveValues ?? doc.data ?? {}}>
+        {form}
+      </PreviewSplit>
+    ) : (
+      form
     );
   }
 
-  return (
+  const view = (
     <DetailView.Root
       collection={singleton}
       doc={doc.data}
@@ -131,5 +144,12 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
         </Button>
       }
     />
+  );
+  return previewAvailable && previewTarget && doc.data ? (
+    <PreviewSplit slug={slug} target={previewTarget} doc={doc.data}>
+      {view}
+    </PreviewSplit>
+  ) : (
+    view
   );
 }
