@@ -26,7 +26,8 @@ import { AdminLink } from "../lib/admin-link";
 import { backToHome } from "../lib/back";
 import { singletonClient } from "../lib/client-access";
 import { errorMessage, fieldErrors } from "../lib/field-errors";
-import { PreviewSplit, usePreviewAvailable } from "./preview-split";
+import { PreviewSplit, usePreviewAvailable, usePreviewToggle } from "./preview-split";
+import { PreviewToggle } from "./preview-toggle";
 
 export interface SingletonScreenProps {
   readonly slug: string;
@@ -41,6 +42,10 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
   // Live preview of the singleton (a settings page, a home page as one record).
   const previewTarget = admin.preview[slug];
   const previewAvailable = usePreviewAvailable(previewTarget);
+  const preview = usePreviewToggle(slug);
+  const previewToggle = previewAvailable ? (
+    <PreviewToggle open={preview.open} onOpenChange={preview.setOpen} />
+  ) : null;
   const [liveValues, setLiveValues] = useState<Doc | null>(null);
   // A singleton shares the runtime shape DetailView/CollectionForm read
   // (`slug`/`label`/`titleField`/`fields`/`groups`), so it stands in for `Collection`.
@@ -100,11 +105,14 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
         // Only offer Cancel when there's an existing document to return to (a
         // not-yet-created singleton has nothing to read).
         actions={
-          doc.data ? (
-            <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
-              Cancel
-            </Button>
-          ) : undefined
+          <>
+            {previewToggle}
+            {doc.data ? (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
+                Cancel
+              </Button>
+            ) : null}
+          </>
         }
         error={!serverErrors ? errorMessage(save.error) : undefined}
         serverErrors={serverErrors}
@@ -117,7 +125,12 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
       />
     );
     return previewAvailable && previewTarget ? (
-      <PreviewSplit slug={slug} target={previewTarget} doc={liveValues ?? doc.data ?? {}}>
+      <PreviewSplit
+        slug={slug}
+        target={previewTarget}
+        open={preview.open}
+        doc={liveValues ?? doc.data ?? {}}
+      >
         {form}
       </PreviewSplit>
     ) : (
@@ -139,14 +152,17 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
       activeGroup={activeGroup}
       onGroupChange={changeGroup}
       actions={
-        <Button type="button" size="sm" onClick={() => setEditing(true)}>
-          Edit
-        </Button>
+        <>
+          {previewToggle}
+          <Button type="button" size="sm" onClick={() => setEditing(true)}>
+            Edit
+          </Button>
+        </>
       }
     />
   );
   return previewAvailable && previewTarget && doc.data ? (
-    <PreviewSplit slug={slug} target={previewTarget} doc={doc.data}>
+    <PreviewSplit slug={slug} target={previewTarget} open={preview.open} doc={doc.data}>
       {view}
     </PreviewSplit>
   ) : (
