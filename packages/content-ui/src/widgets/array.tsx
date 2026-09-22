@@ -19,10 +19,11 @@ import { type ReactNode, useRef } from "react";
 import type { Doc } from "../lib/doc";
 import { recordSummary } from "../lib/text";
 import { issueMessageAt, issuesUnder } from "../lib/validate";
-import { NestedFields, visibleKeys } from "../nested-fields";
+import { NestedDisplayRows, NestedFields, visibleKeys } from "../nested-fields";
 import { useDisplayRegistry, useEditRegistry } from "../registry/context";
 import { resolveEditWidget } from "../registry/edit";
 import { resolveDisplayWidget } from "../registry/registry";
+import { DisclosureRows } from "./disclosure-rows";
 import { type DisplayWidgetProps, Empty, isCompact, Preview } from "./display";
 import { type EditWidgetProps, UnsupportedInput } from "./edit";
 import { SortableList, type SortableListHandle } from "./sortable-list";
@@ -283,6 +284,28 @@ export function ArrayDisplay({ value, meta, context }: DisplayWidgetProps): Reac
           ].join(", ")
         : `${items.length} item${items.length === 1 ? "" : "s"}`;
     return <Preview slot="array-display" text={text} />;
+  }
+  // Records read as the editor's collapsed rows (summary + disclosure), so a
+  // list of links or steps is scannable; scalars stay a plain list.
+  const shape =
+    item.meta.kind === "object" ? (item.meta as { shape?: FieldsMap }).shape : undefined;
+  if (shape) {
+    return (
+      <DisclosureRows
+        slot="array-display"
+        rows={items.map((entry, index) => {
+          const record =
+            typeof entry === "object" && entry !== null && !Array.isArray(entry)
+              ? (entry as Readonly<Doc>)
+              : {};
+          return {
+            key: `${index}-${recordSummary(record, shape) ?? ""}`,
+            summary: recordSummary(record, shape) ?? `Item ${index + 1}`,
+            body: <NestedDisplayRows fields={shape} value={record} />,
+          };
+        })}
+      />
+    );
   }
   const Widget = resolveDisplayWidget(item.meta, registry);
   return (

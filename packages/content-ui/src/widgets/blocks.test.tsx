@@ -147,6 +147,23 @@ describe("BlocksInput", () => {
 });
 
 describe("BlocksDisplay", () => {
+  test("detail: one collapsed disclosure row per block, badge + summary, fields behind it", () => {
+    const { container } = render(
+      <BlocksDisplay value={twoBlocks} meta={page.meta} context="detail" />,
+    );
+    const rows = container.querySelectorAll("[data-slot=blocks-display] details");
+    expect(rows.length).toBe(2);
+    for (const row of rows) expect((row as HTMLDetailsElement).open).toBe(false);
+    const first = rows[0] as HTMLDetailsElement;
+    expect(first.querySelector("summary")?.textContent).toContain("Hero");
+    expect(first.querySelector("summary")?.textContent).toContain("Welcome home");
+    // The fields sit behind the disclosure, not in the summary line.
+    expect(first.querySelector("summary [data-slot=nested-display]")).toBeNull();
+    expect(first.querySelector("[data-slot=nested-display]")).not.toBeNull();
+    first.open = true;
+    expect(first.open).toBe(true);
+  });
+
   test("summarizes on compact surfaces and renders rows in detail", () => {
     const { container, rerender } = render(
       <BlocksDisplay value={twoBlocks} meta={page.meta} context="cell" />,

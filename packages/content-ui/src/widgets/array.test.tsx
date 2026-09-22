@@ -147,6 +147,27 @@ describe("ArrayInput of objects", () => {
 });
 
 describe("ArrayDisplay", () => {
+  test("detail: object items read as collapsed disclosure rows summarised by their text", () => {
+    const links = fields.array(fields.object({ label: fields.string(), href: fields.string() }));
+    const { container } = render(
+      <ArrayDisplay
+        value={[
+          { label: "Home", href: "/" },
+          { label: "", href: "/x" },
+        ]}
+        meta={links.meta}
+        context="detail"
+      />,
+    );
+    const rows = container.querySelectorAll("[data-slot=array-display] details");
+    expect(rows.length).toBe(2);
+    expect((rows[0] as HTMLDetailsElement).open).toBe(false);
+    expect(rows[0]?.querySelector("summary")?.textContent).toContain("Home");
+    // A record with no text still gets a readable label.
+    expect(rows[1]?.querySelector("summary")?.textContent).toContain("/x");
+    expect(rows[0]?.querySelector("[data-slot=nested-display]")).not.toBeNull();
+  });
+
   test("joins scalars compactly, counts objects, lists items in detail", () => {
     const { container, rerender } = render(
       <ArrayDisplay value={["a", "b", "c", "d"]} meta={tags.meta} context="cell" />,

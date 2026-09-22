@@ -20,6 +20,7 @@ import { recordSummary } from "../lib/text";
 import { issuesUnder } from "../lib/validate";
 import { NestedDisplayRows, NestedFields, visibleKeys } from "../nested-fields";
 import { arrayItems, moveItem, useItemKeys } from "./array";
+import { DisclosureRows } from "./disclosure-rows";
 import { type DisplayWidgetProps, Empty, isCompact, Preview } from "./display";
 import type { EditWidgetProps } from "./edit";
 import { SortableList, type SortableListHandle } from "./sortable-list";
@@ -237,21 +238,30 @@ export function BlocksDisplay({ value, meta, context }: DisplayWidgetProps): Rea
     const count = `${blocks.length} block${blocks.length === 1 ? "" : "s"}`;
     return <Preview slot="blocks-display" text={`${count}: ${shown.join(", ")}${more}`} />;
   }
+  // Detail: the editor's collapsed rows, read-only — a badge, the summary,
+  // and the block's fields behind a native disclosure.
   return (
-    <ol data-slot="blocks-display" className="space-y-3">
-      {blocks.map((block, index) => {
+    <DisclosureRows
+      slot="blocks-display"
+      rows={blocks.map((block, index) => {
         const type = blockType(block);
         const def = type === undefined ? undefined : types[type];
-        return (
-          <li key={`${index}-${labels[index]}`} className="rounded-md border p-3">
-            <Badge variant="secondary" className="mb-2 gap-1">
+        return {
+          key: `${index}-${labels[index]}`,
+          badge: (
+            <Badge variant="secondary" className="shrink-0 gap-1">
               {def?.icon ? <NamedIcon name={def.icon} className="size-3.5" /> : null}
               {labels[index]}
             </Badge>
-            {def ? <NestedDisplayRows fields={def.fields} value={block} /> : null}
-          </li>
-        );
+          ),
+          summary: recordSummary(block, def?.fields ?? {}),
+          body: def ? (
+            <NestedDisplayRows fields={def.fields} value={block} />
+          ) : (
+            <p className="text-muted-foreground text-sm">Unknown block type.</p>
+          ),
+        };
       })}
-    </ol>
+    />
   );
 }

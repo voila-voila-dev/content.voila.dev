@@ -39,7 +39,8 @@ import { backToList } from "../lib/back";
 import { collectionClient } from "../lib/client-access";
 import { errorMessage, fieldErrors } from "../lib/field-errors";
 import { CustomScreenDispatcher } from "./custom-dispatcher";
-import { PreviewSplit, usePreviewAvailable } from "./preview-split";
+import { PreviewSplit, usePreviewAvailable, usePreviewToggle } from "./preview-split";
+import { PreviewToggle } from "./preview-toggle";
 import { RecordPager } from "./record-pager";
 import { SingletonScreen } from "./singleton";
 import { StatusControl } from "./status-control";
@@ -88,6 +89,10 @@ function CollectionDocument({
   // nested row the editor has open, relayed to the pane beside the document.
   const previewTarget = admin.preview[slug];
   const previewAvailable = usePreviewAvailable(previewTarget);
+  const preview = usePreviewToggle(slug);
+  const previewToggle = previewAvailable ? (
+    <PreviewToggle open={preview.open} onOpenChange={preview.setOpen} />
+  ) : null;
   const [liveValues, setLiveValues] = useState<Doc | null>(null);
   const [focusPath, setFocusPath] = useState<FocusPath | null>(null);
   const label = collection.label ?? slug;
@@ -189,14 +194,17 @@ function CollectionDocument({
         // to the read view; a whole-form save returns on its own, so it just
         // needs Cancel.
         actions={
-          <Button
-            type="button"
-            variant={grouped ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setEditing(false)}
-          >
-            {grouped ? "Done" : "Cancel"}
-          </Button>
+          <>
+            {previewToggle}
+            <Button
+              type="button"
+              variant={grouped ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setEditing(false)}
+            >
+              {grouped ? "Done" : "Cancel"}
+            </Button>
+          </>
         }
         error={!serverErrors ? errorMessage(update.error) : undefined}
         serverErrors={serverErrors}
@@ -229,6 +237,7 @@ function CollectionDocument({
           <PreviewSplit
             slug={slug}
             target={previewTarget}
+            open={preview.open}
             doc={liveValues ?? doc.data}
             focus={focusPath}
           >
@@ -277,6 +286,7 @@ function CollectionDocument({
             />
           ) : null}
           {admin.slots.collection?.detailActions?.({ slug, id, client: admin.client })}
+          {previewToggle}
           {ops.update ? (
             <Button type="button" size="sm" onClick={() => setEditing(true)}>
               Edit
@@ -300,7 +310,7 @@ function CollectionDocument({
   // The read view previews the stored document, so the page is visible
   // without entering edit mode.
   return previewAvailable && previewTarget && doc.data ? (
-    <PreviewSplit slug={slug} target={previewTarget} doc={doc.data}>
+    <PreviewSplit slug={slug} target={previewTarget} open={preview.open} doc={doc.data}>
       {view}
     </PreviewSplit>
   ) : (
