@@ -8,6 +8,7 @@
 import { Button } from "@voila.dev/ui/button";
 import type { ReactNode } from "react";
 import type { Doc } from "./lib/doc";
+import { useMessages } from "./lib/messages";
 import { publishStatus } from "./lib/publish-status";
 import { StatusBadge } from "./widgets/status-badge";
 
@@ -28,6 +29,7 @@ export function PublishControls({
   disabled = false,
   now,
 }: PublishControlsProps): ReactNode {
+  const m = useMessages().shell;
   const state = publishStatus(doc, now);
   if (state === null) return null;
 
@@ -38,11 +40,11 @@ export function PublishControls({
       <StatusBadge doc={doc} now={now} />
       {isLive ? (
         <Button variant="outline" disabled={disabled} onClick={() => onUnpublish()}>
-          Unpublish
+          {m.unpublish}
         </Button>
       ) : (
         <Button disabled={disabled} onClick={() => onPublish()}>
-          Publish
+          {m.publish}
         </Button>
       )}
     </div>

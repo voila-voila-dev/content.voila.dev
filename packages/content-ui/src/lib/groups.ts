@@ -31,6 +31,8 @@ export interface ResolveFieldGroupsOptions {
    * `fields` path); when omitted, all non-hidden fields are eligible.
    */
   readonly fields?: readonly string[];
+  /** Label of the synthesized group holding ungrouped fields. Default "General". */
+  readonly generalLabel?: string;
 }
 
 /** The flat eligible keys — explicit `fields` (filtered to known keys) or every
@@ -47,13 +49,14 @@ export function resolveFieldGroups(
   opts?: ResolveFieldGroupsOptions,
 ): ResolvedGroup[] {
   const keys = eligibleFieldKeys(collection, opts?.fields);
+  const generalLabel = opts?.generalLabel ?? "General";
   const configGroups = collection.groups ?? [];
 
   // No declared groups → one implicit group with every eligible field. Callers
   // gate the grouped renderer on `collection.groups`, so this is just a
   // well-defined fallback (useful on its own + keeps the return type uniform).
   if (configGroups.length === 0) {
-    return [{ id: GENERAL_ID, label: "General", fieldKeys: keys }];
+    return [{ id: GENERAL_ID, label: generalLabel, fieldKeys: keys }];
   }
 
   const eligible = new Set(keys);
@@ -82,7 +85,7 @@ export function resolveFieldGroups(
       ? groups.map((g) =>
           g.id === GENERAL_ID ? { ...g, fieldKeys: [...g.fieldKeys, ...leftover] } : g,
         )
-      : [...groups, { id: GENERAL_ID, label: "General", fieldKeys: leftover }];
+      : [...groups, { id: GENERAL_ID, label: generalLabel, fieldKeys: leftover }];
   }
 
   // Drop groups that resolved to nothing (all keys hidden/unknown/duplicated) —

@@ -14,6 +14,7 @@ import { Popover } from "@voila.dev/ui/popover";
 import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useState } from "react";
 import { getFieldLabel } from "./lib/humanize";
+import { useMessages } from "./lib/messages";
 
 export interface ColumnPickerProps {
   readonly collection: Collection;
@@ -48,8 +49,10 @@ export function ColumnPicker({
   collection,
   value,
   onChange,
-  label = "Columns",
+  label: labelProp,
 }: ColumnPickerProps): ReactNode {
+  const m = useMessages();
+  const label = labelProp ?? m.list.columns;
   return (
     <Popover.Root>
       <Popover.Trigger className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
@@ -72,8 +75,10 @@ export function ColumnEditor({
   collection,
   value,
   onChange,
-  label = "Columns",
+  label: labelProp,
 }: ColumnPickerProps): ReactNode {
+  const m = useMessages();
+  const label = labelProp ?? m.list.columns;
   const available = availableKeys(collection);
   // Visible (in the caller's order), then the rest — so the menu lists chosen
   // columns first, unchosen below.
@@ -175,7 +180,7 @@ export function ColumnEditor({
                 <span className="flex items-center gap-0.5">
                   <button
                     type="button"
-                    aria-label={`Move ${fieldLabel} up`}
+                    aria-label={m.list.moveUp(fieldLabel)}
                     disabled={pos === 0}
                     onClick={() => move(key, -1)}
                     className="rounded p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
@@ -184,7 +189,7 @@ export function ColumnEditor({
                   </button>
                   <button
                     type="button"
-                    aria-label={`Move ${fieldLabel} down`}
+                    aria-label={m.list.moveDown(fieldLabel)}
                     disabled={pos === visible.length - 1}
                     onClick={() => move(key, 1)}
                     className="rounded p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"

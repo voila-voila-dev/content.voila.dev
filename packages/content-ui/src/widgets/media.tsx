@@ -34,6 +34,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { en, type Messages, useMessages } from "../lib/messages";
 import type { DisplayWidgetProps } from "./display";
 import { Empty, isCompact } from "./display";
 import type { EditWidget, EditWidgetProps } from "./edit";
@@ -63,11 +64,11 @@ function isImage(media: MediaValue): boolean {
  * stored before that existed (or a hand-written one) falls back to its alt text,
  * then to the mime — never to an empty accessible name on a table thumbnail.
  */
-export function mediaFilename(media: StoredMedia): string {
+export function mediaFilename(media: StoredMedia, messages: Messages = en): string {
   const name = typeof media.filename === "string" ? media.filename.trim() : "";
   if (name !== "") return name;
   const alt = typeof media.alt === "string" ? media.alt.trim() : "";
-  return alt !== "" ? alt : media.mime || "File";
+  return alt !== "" ? alt : media.mime || messages.form.file;
 }
 
 /** Compact human size (`1.2 MB`) for the file caption — never throws on junk. */
@@ -90,8 +91,8 @@ function formatDimensions(media: MediaValue): string | null {
 }
 
 /** The one sentence a rejected-for-size upload gets, on either side of the wire. */
-export function tooLargeMessage(maxBytes: number): string {
-  return `This file is larger than the ${formatBytes(maxBytes) ?? `${maxBytes} B`} limit.`;
+export function tooLargeMessage(maxBytes: number, messages: Messages = en): string {
+  return messages.form.tooLarge(formatBytes(maxBytes) ?? `${maxBytes} B`);
 }
 
 /**
@@ -109,12 +110,14 @@ export function tooLargeLimit(cause: unknown): number | null {
 }
 
 /** Turn a thrown upload failure into something a person can act on. */
-export function uploadErrorMessage(cause: unknown): string {
+export function uploadErrorMessage(cause: unknown, messages: Messages = en): string {
   const limit = tooLargeLimit(cause);
-  if (limit !== null) return tooLargeMessage(limit);
+  if (limit !== null) return tooLargeMessage(limit, messages);
   // A `TOO_LARGE` without a cap still shouldn't read as "TOO_LARGE (413)".
-  if (tooLargeIsh(cause)) return "This file is larger than the upload limit.";
-  return cause instanceof Error && cause.message !== "" ? cause.message : "Upload failed.";
+  if (tooLargeIsh(cause)) return messages.form.tooLargeUnknown;
+  return cause instanceof Error && cause.message !== ""
+    ? cause.message
+    : messages.form.uploadFailed;
 }
 
 function tooLargeIsh(cause: unknown): boolean {
@@ -176,7 +179,7 @@ function Thumb({
   readonly media: StoredMedia;
   readonly className: string;
 }): ReactNode {
-  const name = mediaFilename(media);
+  const name = mediaFilename(media, useMessages());
   if (isImage(media)) {
     // The filename is the accessible name: alt text describes the picture, but a
     // table row needs to know *which asset* the cell holds.
@@ -201,6 +204,8 @@ function Thumb({
  * more than a dead preview. Registered for the `media` kind by default.
  */
 export function MediaDisplay({ value, context }: DisplayWidgetProps): ReactNode {
+  const messages = useMessages();
+  const m = messages.form;
   const media = asMedia(value);
   const compact = isCompact(context);
   if (media === null) {
@@ -215,11 +220,11 @@ export function MediaDisplay({ value, context }: DisplayWidgetProps): ReactNode 
         className="inline-flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-muted-foreground text-sm"
       >
         <ImageIcon className="size-4" aria-hidden />
-        No image yet
+        {m.noImageYet}
       </span>
     );
   }
-  const name = mediaFilename(media);
+  const name = mediaFilename(media, messages);
   const size = formatBytes(media.size);
   const dimensions = formatDimensions(media);
   return (
@@ -293,6 +298,8 @@ export function createMediaInput(options: CreateMediaInputOptions): EditWidget {
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [dragging, setDragging] = useState(false);
     const [pickerOpen, setPickerOpen] = useState(false);
+    const messages = useMessages();
+    const m = messages.form;
 
     const accept =
       meta.accept !== undefined && meta.accept.length > 0 ? meta.accept.join(",") : undefined;
@@ -306,7 +313,7 @@ export function createMediaInput(options: CreateMediaInputOptions): EditWidget {
       // Enforce the field's byte cap before spending an upload round-trip; the
       // server enforces it too (413 TOO_LARGE), this is just a faster, clearer no.
       if (typeof meta.max === "number" && file.size > meta.max) {
-        setUploadError(tooLargeMessage(meta.max));
+        setUploadError(tooLargeMessage(meta.max, messages));
         return;
       }
       setBusy(true);
@@ -317,7 +324,7 @@ export function createMediaInput(options: CreateMediaInputOptions): EditWidget {
         const stored = await upload(file, size);
         onChange(stored);
       } catch (cause) {
-        setUploadError(uploadErrorMessage(cause));
+        setUploadError(uploadErrorMessage(cause, messages));
       } finally {
         setBusy(false);
       }
@@ -358,7 +365,7 @@ export function createMediaInput(options: CreateMediaInputOptions): EditWidget {
             <Thumb media={media} className="size-20 shrink-0 rounded-md border object-cover" />
             <div className="min-w-0 flex-1 space-y-1.5">
               <p className="truncate font-medium text-sm" data-slot="media-filename">
-                {mediaFilename(media)}
+                {mediaFilename(media, messages)}
               </p>
               <p className="text-muted-foreground text-xs">
                 {[formatDimensions(media), formatBytes(media.size), media.mime]
@@ -366,8 +373,8 @@ export function createMediaInput(options: CreateMediaInputOptions): EditWidget {
                   .join(" · ")}
               </p>
               <Input
-                aria-label="Alt text"
-                placeholder="Describe this media (alt text)"
+                aria-label={m.altText}
+                placeholder={m.altTextPlaceholder}
                 value={media.alt ?? ""}
                 disabled={disabled || busy}
                 onChange={(e) => onChange({ ...media, alt: e.target.value })}
@@ -380,7 +387,7 @@ export function createMediaInput(options: CreateMediaInputOptions): EditWidget {
                   disabled={disabled || busy}
                   onClick={browse}
                 >
-                  {busy ? "Uploading…" : "Replace"}
+                  {busy ? m.uploading : m.replace}
                 </Button>
                 {list ? (
                   <Button
@@ -390,7 +397,7 @@ export function createMediaInput(options: CreateMediaInputOptions): EditWidget {
                     disabled={disabled || busy}
                     onClick={() => setPickerOpen(true)}
                   >
-                    Choose existing
+                    {m.chooseExisting}
                   </Button>
                 ) : null}
                 <Button
@@ -404,7 +411,7 @@ export function createMediaInput(options: CreateMediaInputOptions): EditWidget {
                   }}
                 >
                   <XIcon aria-hidden />
-                  Remove
+                  {messages.common.remove}
                 </Button>
               </div>
             </div>
@@ -434,7 +441,7 @@ export function createMediaInput(options: CreateMediaInputOptions): EditWidget {
               )}
             >
               <UploadSimpleIcon className="size-5" aria-hidden />
-              <span>{busy ? "Uploading…" : "Drop a file here, paste it, or click to upload"}</span>
+              <span>{busy ? m.uploading : m.dropzone}</span>
               {accept ? <span className="text-xs">{accept}</span> : null}
             </button>
             {list ? (
@@ -446,7 +453,7 @@ export function createMediaInput(options: CreateMediaInputOptions): EditWidget {
                 onClick={() => setPickerOpen(true)}
               >
                 <ImagesSquareIcon aria-hidden />
-                Choose existing
+                {m.chooseExisting}
               </Button>
             ) : null}
           </div>
@@ -458,7 +465,7 @@ export function createMediaInput(options: CreateMediaInputOptions): EditWidget {
           <div
             data-slot="media-progress"
             role="progressbar"
-            aria-label="Uploading"
+            aria-label={m.uploadProgress}
             className="h-1 w-full overflow-hidden rounded-full bg-muted"
           >
             <span className="block h-full w-1/3 animate-pulse rounded-full bg-primary" />
@@ -528,6 +535,8 @@ function MediaLibraryDialog({
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
+  const messages = useMessages();
+  const m = messages.form;
 
   const load = useCallback(
     async (from?: string) => {
@@ -561,16 +570,16 @@ function MediaLibraryDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Content className="max-h-[85vh] max-w-2xl overflow-y-auto">
         <Dialog.Header>
-          <Dialog.Title>Choose existing</Dialog.Title>
-          <Dialog.Description>Pick a file already in the media library.</Dialog.Description>
+          <Dialog.Title>{m.chooseExisting}</Dialog.Title>
+          <Dialog.Description>{m.pickFromLibrary}</Dialog.Description>
         </Dialog.Header>
         {failed ? (
           <p role="alert" className="text-destructive text-sm">
-            Couldn't load the media library.
+            {m.libraryFailed}
           </p>
         ) : null}
         {items.length === 0 && !loading && !failed ? (
-          <p className="text-muted-foreground text-sm">Nothing uploaded yet.</p>
+          <p className="text-muted-foreground text-sm">{m.nothingUploaded}</p>
         ) : null}
         <div data-slot="media-library" className="grid grid-cols-3 gap-2 sm:grid-cols-4">
           {items.map((item) => (
@@ -581,14 +590,18 @@ function MediaLibraryDialog({
               className="group grid gap-1 rounded-md border p-1 text-left outline-none hover:border-ring focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Thumb media={item} className="h-20 w-full rounded object-cover" />
-              <span className="truncate text-muted-foreground text-xs">{mediaFilename(item)}</span>
+              <span className="truncate text-muted-foreground text-xs">
+                {mediaFilename(item, messages)}
+              </span>
             </button>
           ))}
         </div>
-        {loading ? <p className="text-muted-foreground text-sm">Loading…</p> : null}
+        {loading ? (
+          <p className="text-muted-foreground text-sm">{messages.common.loading}</p>
+        ) : null}
         {cursor !== null && !loading ? (
           <Button type="button" variant="outline" size="sm" onClick={() => void load(cursor)}>
-            Load more
+            {m.loadMore}
           </Button>
         ) : null}
       </Dialog.Content>

@@ -16,6 +16,7 @@ import { DropdownMenu } from "@voila.dev/ui/dropdown-menu";
 import { type ReactNode, useRef } from "react";
 import type { Doc } from "../lib/doc";
 import { NamedIcon } from "../lib/icons";
+import { useMessages } from "../lib/messages";
 import { recordSummary } from "../lib/text";
 import { issuesUnder } from "../lib/validate";
 import { NestedDisplayRows, NestedFields, visibleKeys } from "../nested-fields";
@@ -78,6 +79,7 @@ export function BlocksInput(props: EditWidgetProps): ReactNode {
   const blocks = blocksValue(props.value);
   const itemKeys = useItemKeys(blocks.length);
   const list = useRef<SortableListHandle>(null);
+  const m = useMessages().form;
 
   const atMax = meta.max !== undefined && blocks.length >= meta.max;
   const atMin = meta.min !== undefined && blocks.length <= meta.min;
@@ -98,7 +100,7 @@ export function BlocksInput(props: EditWidgetProps): ReactNode {
     }
   }
 
-  const addLabel = atMax ? `Limit of ${meta.max} reached` : "Add block";
+  const addLabel = atMax ? m.limitReached(meta.max ?? 0) : m.addBlock;
   const addDisabled = props.disabled || atMax || typeKeys.length === 0;
   const singleType = typeKeys.length === 1 ? typeKeys[0] : undefined;
 
@@ -127,7 +129,7 @@ export function BlocksInput(props: EditWidgetProps): ReactNode {
           const type = blockType(block);
           const def = type === undefined ? undefined : types[type];
           const label =
-            def?.label ?? (type === undefined ? "Block" : `Unknown block type “${type}”`);
+            def?.label ?? (type === undefined ? m.blockTitle : m.unknownBlockType(type));
           return {
             label,
             summary: blockSummary(block, def),
@@ -156,10 +158,7 @@ export function BlocksInput(props: EditWidgetProps): ReactNode {
               disabled={props.disabled}
             />
           ) : (
-            <p className="text-muted-foreground text-sm">
-              This block's type is no longer in the catalogue. Remove it or restore the type in the
-              config.
-            </p>
+            <p className="text-muted-foreground text-sm">{m.blockTypeRemoved}</p>
           );
         }}
         onMove={(from, to) => {
@@ -227,6 +226,7 @@ export function BlocksInput(props: EditWidgetProps): ReactNode {
 export function BlocksDisplay({ value, meta, context }: DisplayWidgetProps): ReactNode {
   const types = (meta as BlocksMetaShape).types ?? {};
   const blocks = blocksValue(value);
+  const m = useMessages().form;
   if (blocks.length === 0) return <Empty />;
   const labels = blocks.map((block) => {
     const type = blockType(block);
@@ -235,7 +235,7 @@ export function BlocksDisplay({ value, meta, context }: DisplayWidgetProps): Rea
   if (isCompact(context)) {
     const shown = labels.slice(0, 3);
     const more = labels.length > 3 ? `, +${labels.length - 3}` : "";
-    const count = `${blocks.length} block${blocks.length === 1 ? "" : "s"}`;
+    const count = m.blockCount(blocks.length);
     return <Preview slot="blocks-display" text={`${count}: ${shown.join(", ")}${more}`} />;
   }
   // Detail: the editor's collapsed rows, read-only — a badge, the summary,
@@ -258,7 +258,7 @@ export function BlocksDisplay({ value, meta, context }: DisplayWidgetProps): Rea
           body: def ? (
             <NestedDisplayRows fields={def.fields} value={block} />
           ) : (
-            <p className="text-muted-foreground text-sm">Unknown block type.</p>
+            <p className="text-muted-foreground text-sm">{m.unknownBlockTypeShort}</p>
           ),
         };
       })}

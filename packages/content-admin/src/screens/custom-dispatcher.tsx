@@ -9,7 +9,7 @@
 import { CompassIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
-import { homeHref, PageLayout } from "@voila/content-ui";
+import { homeHref, PageLayout, useMessages } from "@voila/content-ui";
 import { buttonVariants } from "@voila.dev/ui/button";
 import { Empty } from "@voila.dev/ui/empty";
 import { cn } from "@voila.dev/ui/utils";
@@ -21,10 +21,11 @@ import { matchScreen } from "../lib/match";
 /** The framed "nothing here" page. */
 export function NotFoundScreen({ path }: { readonly path?: string }): ReactNode {
   const { admin } = useAdmin();
+  const m = useMessages().admin;
   return (
     <PageLayout.Root data-slot="not-found">
       <PageLayout.Header>
-        <PageLayout.Title>Not found</PageLayout.Title>
+        <PageLayout.Title>{m.notFound}</PageLayout.Title>
       </PageLayout.Header>
       <PageLayout.Body width="content">
         <Empty.Root bordered className="py-16">
@@ -32,14 +33,14 @@ export function NotFoundScreen({ path }: { readonly path?: string }): ReactNode 
             <Empty.Media variant="icon">
               <CompassIcon />
             </Empty.Media>
-            <Empty.Title>There's nothing at this address</Empty.Title>
+            <Empty.Title>{m.nothingHere}</Empty.Title>
             <Empty.Description>
               {path ? (
                 <>
-                  No collection or screen is registered for <code className="text-xs">{path}</code>.
+                  {m.noScreenFor} <code className="text-xs">{path}</code>.
                 </>
               ) : (
-                "No collection or screen is registered for this path."
+                m.noScreenForThis
               )}
             </Empty.Description>
           </Empty.Header>
@@ -48,7 +49,7 @@ export function NotFoundScreen({ path }: { readonly path?: string }): ReactNode 
               href={homeHref(admin.basePath)}
               className={cn(buttonVariants({ size: "sm" }))}
             >
-              Back to overview
+              {m.backToOverview}
             </AdminLink>
           </Empty.Content>
         </Empty.Root>

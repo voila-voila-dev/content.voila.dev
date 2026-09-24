@@ -1,0 +1,56 @@
+// Words shared across every area of the admin chrome — see ./index.tsx. `fr`
+// is typed against `en`, so a key added to one catalog without the other is a
+// compile error.
+
+export const en = {
+  save: "Save",
+  saving: "Saving…",
+  saved: "Saved",
+  cancel: "Cancel",
+  delete: "Delete",
+  deleting: "Deleting…",
+  edit: "Edit",
+  close: "Close",
+  back: "Back",
+  add: "Add",
+  remove: "Remove",
+  create: "Create",
+  confirm: "Confirm",
+  search: "Search",
+  loading: "Loading…",
+  retry: "Try again",
+  none: "None",
+  yes: "Yes",
+  no: "No",
+  untitled: "Untitled",
+  more: "More",
+  /** "New Post" — `label` is the collection's singular label. */
+  newItem: (label: string) => `New ${label}`,
+  somethingWentWrong: "Something went wrong.",
+};
+
+export const fr: typeof en = {
+  save: "Enregistrer",
+  saving: "Enregistrement…",
+  saved: "Enregistré",
+  cancel: "Annuler",
+  delete: "Supprimer",
+  deleting: "Suppression…",
+  edit: "Modifier",
+  close: "Fermer",
+  back: "Retour",
+  add: "Ajouter",
+  remove: "Retirer",
+  create: "Créer",
+  confirm: "Confirmer",
+  search: "Rechercher",
+  loading: "Chargement…",
+  retry: "Réessayer",
+  none: "Aucun",
+  yes: "Oui",
+  no: "Non",
+  untitled: "Sans titre",
+  more: "Plus",
+  newItem: (label) => `Ajouter : ${label}`,
+  somethingWentWrong: "Une erreur est survenue.",
+};

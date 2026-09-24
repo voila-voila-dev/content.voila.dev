@@ -27,6 +27,7 @@ import {
   setTheme,
   singularLabel,
   useI18n,
+  useMessages,
 } from "@voila/content-ui";
 import { Command } from "@voila.dev/ui/command";
 import { type ReactNode, useEffect, useState } from "react";
@@ -60,10 +61,18 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
   const { admin } = useAdmin();
   const navigate = useNavigate();
   const i18n = useI18n();
+  const { admin: m, common } = useMessages();
   const [query, setQuery] = useState("");
   const term = useDebounced(query.trim(), 200);
 
-  const nav = buildNav(admin.config, { basePath: admin.basePath, groups: admin.nav?.groups });
+  const nav = buildNav(admin.config, {
+    basePath: admin.basePath,
+    groups: admin.nav?.groups,
+    groupLabels: {
+      collection: admin.messages.shell.groupCollections,
+      singleton: admin.messages.shell.groupSingletons,
+    },
+  });
   const extra = buildExtraGroups({
     screens: admin.screens,
     nav: admin.nav,
@@ -130,19 +139,19 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
     <Command.Dialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Search and jump"
-      description="Jump to a collection, create a record, or search documents."
+      title={m.paletteTitle}
+      description={m.paletteDescription}
     >
       {/* `Command.Dialog` is only the dialog chrome — the cmdk store lives on `Command.Root`. */}
       <Command.Root>
         <Command.Input
-          placeholder="Search or jump to…"
+          placeholder={m.palettePlaceholder}
           value={query}
           onValueChange={setQuery}
-          aria-label="Search or jump to"
+          aria-label={m.palettePlaceholder}
         />
         <Command.List>
-          <Command.Empty>No results.</Command.Empty>
+          <Command.Empty>{m.paletteNoResults}</Command.Empty>
 
           {term.length >= MIN_TERM
             ? collections.map((collection, index) => {
@@ -173,13 +182,13 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
               })
             : null}
 
-          <Command.Group heading="Go to">
+          <Command.Group heading={m.goTo}>
             <Command.Item
               value="overview home dashboard"
               onSelect={() => go(homeHref(admin.basePath))}
             >
               <NamedIcon name={DEFAULT_NAV_ICONS.home} />
-              Overview
+              {m.overview}
             </Command.Item>
             {[...nav.collections, ...nav.singletons].map((item) => (
               <Command.Item
@@ -205,7 +214,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
             )}
           </Command.Group>
 
-          <Command.Group heading="Actions">
+          <Command.Group heading={m.actions}>
             <Command.Item
               value="theme dark light appearance toggle"
               onSelect={() => {
@@ -215,12 +224,12 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
             >
               <SunIcon aria-hidden className="dark:hidden" />
               <MoonIcon aria-hidden className="hidden dark:block" />
-              Toggle theme
+              {m.toggleTheme}
             </Command.Item>
           </Command.Group>
 
           {creatable.length > 0 ? (
-            <Command.Group heading="Create">
+            <Command.Group heading={m.createGroup}>
               {creatable.map((item) => {
                 const collection = admin.config.collections[item.slug] as Collection | undefined;
                 const singular = collection ? singularLabel(collection) : item.label;
@@ -231,7 +240,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps): Rea
                     onSelect={() => go(`${item.href}/new`)}
                   >
                     <PlusIcon aria-hidden />
-                    New {singular.toLowerCase()}
+                    {common.newItem(singular.toLowerCase())}
                   </Command.Item>
                 );
               })}

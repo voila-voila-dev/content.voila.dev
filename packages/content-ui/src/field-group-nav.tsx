@@ -9,6 +9,7 @@ import { cn } from "@voila.dev/ui/utils";
 import type { ReactNode } from "react";
 import type { ResolvedGroup } from "./lib/groups";
 import { NamedIcon, resolveIcon } from "./lib/icons";
+import { useMessages } from "./lib/messages";
 
 /** Resolve a Phosphor icon by name (bare or `…Icon` suffixed); unknown → undefined. */
 export const resolveGroupIcon = resolveIcon;
@@ -34,9 +35,10 @@ export function FieldGroupNav({
   mobileOnly = true,
   className,
 }: FieldGroupNavProps): ReactNode {
+  const m = useMessages();
   return (
     <nav
-      aria-label={title ?? "Sections"}
+      aria-label={title ?? m.shell.sections}
       data-slot="field-group-nav"
       className={cn(
         "flex shrink-0 gap-1 overflow-x-auto overflow-y-hidden px-4 py-2 sm:px-6",

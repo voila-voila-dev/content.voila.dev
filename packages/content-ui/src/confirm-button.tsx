@@ -9,6 +9,7 @@ import { AlertDialog } from "@voila.dev/ui/alert-dialog";
 import { buttonVariants } from "@voila.dev/ui/button";
 import { cn } from "@voila.dev/ui/utils";
 import type { ReactNode } from "react";
+import { useMessages } from "./lib/messages";
 
 export interface ConfirmButtonProps {
   /** The trigger's content (e.g. "Delete"). */
@@ -34,16 +35,17 @@ export interface ConfirmButtonProps {
 
 export function ConfirmButton({
   children,
-  title = "Are you sure?",
+  title,
   description,
   confirmLabel,
-  cancelLabel = "Cancel",
+  cancelLabel,
   onConfirm,
   disabled,
   variant = "destructive",
   className,
 }: ConfirmButtonProps): ReactNode {
-  const confirmText = confirmLabel ?? (typeof children === "string" ? children : "Confirm");
+  const m = useMessages();
+  const confirmText = confirmLabel ?? (typeof children === "string" ? children : m.common.confirm);
   return (
     <AlertDialog.Root>
       <AlertDialog.Trigger
@@ -54,11 +56,11 @@ export function ConfirmButton({
       </AlertDialog.Trigger>
       <AlertDialog.Content>
         <AlertDialog.Header>
-          <AlertDialog.Title>{title}</AlertDialog.Title>
+          <AlertDialog.Title>{title ?? m.shell.areYouSure}</AlertDialog.Title>
           {description ? <AlertDialog.Description>{description}</AlertDialog.Description> : null}
         </AlertDialog.Header>
         <AlertDialog.Footer>
-          <AlertDialog.Cancel>{cancelLabel}</AlertDialog.Cancel>
+          <AlertDialog.Cancel>{cancelLabel ?? m.common.cancel}</AlertDialog.Cancel>
           <AlertDialog.Action variant={variant} onClick={onConfirm}>
             {confirmText}
           </AlertDialog.Action>

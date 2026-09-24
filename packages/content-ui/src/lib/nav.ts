@@ -56,6 +56,9 @@ export interface BuildNavOptions {
    * in declaration order. Omit to derive every group from the config.
    */
   readonly groups?: ReadonlyArray<NavLayoutGroup>;
+  /** Labels of the default groups for entities that declare no `group`.
+   *  Defaults to {@link DEFAULT_GROUP_LABELS} (English). */
+  readonly groupLabels?: { readonly collection: string; readonly singleton: string };
 }
 
 /** Default icons per entity kind, when the config declares none. */
@@ -168,19 +171,20 @@ function groupItems(entries: ReadonlyArray<{ item: NavItem; group: string }>): N
 export function buildNav(config: NormalizedConfig, options: BuildNavOptions = {}): NavGroups {
   const base = normalizeBase(options.basePath ?? "/admin");
   const { currentPath } = options;
+  const groupLabels = options.groupLabels ?? DEFAULT_GROUP_LABELS;
   const collectionDefs = Object.values(config.collections) as Collection[];
   const singletonDefs = Object.values(config.singletons) as Singleton[];
 
   const declared = [
     ...collectionDefs.map((c) => ({
       item: toItem("collection", c, base, currentPath),
-      group: c.group ?? DEFAULT_GROUP_LABELS.collection,
+      group: c.group ?? groupLabels.collection,
       href: `${base}/${c.slug}`,
       isActive: isNavActive(`${base}/${c.slug}`, currentPath),
     })),
     ...singletonDefs.map((s) => ({
       item: toItem("singleton", s, base, currentPath),
-      group: s.group ?? DEFAULT_GROUP_LABELS.singleton,
+      group: s.group ?? groupLabels.singleton,
       href: `${base}/${s.slug}`,
       isActive: isNavActive(`${base}/${s.slug}`, currentPath),
     })),

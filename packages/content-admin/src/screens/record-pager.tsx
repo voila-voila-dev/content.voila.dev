@@ -15,6 +15,7 @@
 import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { useMessages } from "@voila/content-ui";
 import { Button } from "@voila.dev/ui/button";
 import { type ReactNode, useEffect } from "react";
 import { useAdmin } from "../context";
@@ -47,6 +48,7 @@ export function siblingIds(
 export function RecordPager({ slug, id, keyboard = true }: RecordPagerProps): ReactNode {
   const { admin } = useAdmin();
   const navigate = useNavigate();
+  const m = useMessages().admin;
   const api = collectionClient(admin.client, slug);
 
   const siblings = useQuery({
@@ -81,12 +83,14 @@ export function RecordPager({ slug, id, keyboard = true }: RecordPagerProps): Re
   if (previous === undefined && next === undefined) return null;
 
   return (
-    <div data-slot="record-pager" className="flex items-center">
+    // Hidden on a phone: the header has no room for it beside the title and
+    // actions, and the list is one tap away.
+    <div data-slot="record-pager" className="hidden items-center sm:flex">
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label="Previous record (K)"
-        title="Previous record (K)"
+        aria-label={m.previousRecord}
+        title={m.previousRecord}
         disabled={previous === undefined}
         nativeButton={previous !== undefined ? false : undefined}
         render={previous !== undefined ? <AdminLink href={href(previous)} /> : undefined}
@@ -96,8 +100,8 @@ export function RecordPager({ slug, id, keyboard = true }: RecordPagerProps): Re
       <Button
         variant="ghost"
         size="icon-sm"
-        aria-label="Next record (J)"
-        title="Next record (J)"
+        aria-label={m.nextRecord}
+        title={m.nextRecord}
         disabled={next === undefined}
         nativeButton={next !== undefined ? false : undefined}
         render={next !== undefined ? <AdminLink href={href(next)} /> : undefined}

@@ -6,7 +6,7 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { useAdmin } from "../context";
-import { SIGN_IN_NETWORK_FAILURE, signInFailure } from "../lib/sign-in-error";
+import { signInFailure, signInNetworkFailure } from "../lib/sign-in-error";
 
 /** Carries the human message plus whether retrying the same address can help. */
 export class SignInError extends Error {
@@ -30,10 +30,11 @@ export function useSignIn() {
           body: JSON.stringify({ email, callbackURL: admin.basePath || "/" }),
         });
       } catch {
-        throw new SignInError(SIGN_IN_NETWORK_FAILURE.message, SIGN_IN_NETWORK_FAILURE.retryable);
+        const failure = signInNetworkFailure(admin.messages.admin);
+        throw new SignInError(failure.message, failure.retryable);
       }
       if (!res.ok) {
-        const failure = signInFailure(res.status);
+        const failure = signInFailure(res.status, admin.messages.admin);
         // The status belongs in the console, not in the person's way.
         console.warn(`[voila/auth] sign-in failed with ${res.status}`);
         throw new SignInError(failure.message, failure.retryable);

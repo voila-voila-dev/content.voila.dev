@@ -16,6 +16,7 @@ import {
   formWidthFor,
   PageLayout,
   resolveFieldGroups,
+  useMessages,
   useRegisterSidebarSection,
 } from "@voila/content-ui";
 import { Button } from "@voila.dev/ui/button";
@@ -39,6 +40,7 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
   const { admin } = useAdmin();
   const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
+  const { admin: m, common } = useMessages();
   // Live preview of the singleton (a settings page, a home page as one record).
   const previewTarget = admin.preview[slug];
   const previewAvailable = usePreviewAvailable(previewTarget);
@@ -53,7 +55,10 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
   const label = singleton.label ?? slug;
   const base = `${admin.basePath}/${slug}`;
 
-  const groups = (singleton.groups?.length ?? 0) > 0 ? resolveFieldGroups(singleton) : [];
+  const groups =
+    (singleton.groups?.length ?? 0) > 0
+      ? resolveFieldGroups(singleton, { generalLabel: admin.messages.shell.generalGroup })
+      : [];
   const activeGroup = groups.find((g) => g.id === group)?.id ?? groups[0]?.id;
   function changeGroup(id: string) {
     void navigate({ href: `${base}/${id}`, replace: true });
@@ -64,8 +69,8 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
     groups.length > 0
       ? {
           title: label,
-          subtitle: "Settings",
-          back: { href: backToHome(admin.basePath).href, label: "Overview" },
+          subtitle: m.settings,
+          back: { href: backToHome(admin.basePath, m).href, label: m.overview },
           items: groups.map((g) => ({
             id: g.id,
             label: g.label,
@@ -83,7 +88,7 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
   // The hook refreshes the singleton cache; this screen leaves edit mode per call.
   const { save } = useSingletonMutations(slug);
 
-  const home = backToHome(admin.basePath);
+  const home = backToHome(admin.basePath, m);
   const back = (
     <PageLayout.Back
       href={home.href}
@@ -100,7 +105,7 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
         registry={admin.editWidgets}
         locales={admin.config.i18n?.locales}
         defaultValues={doc.data ?? undefined}
-        title={doc.data ? `Edit ${label}` : label}
+        title={doc.data ? m.editTitle(label) : label}
         back={back}
         // Only offer Cancel when there's an existing document to return to (a
         // not-yet-created singleton has nothing to read).
@@ -109,14 +114,14 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
             {previewToggle}
             {doc.data ? (
               <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
-                Cancel
+                {common.cancel}
               </Button>
             ) : null}
           </>
         }
         error={!serverErrors ? errorMessage(save.error) : undefined}
         serverErrors={serverErrors}
-        submitLabel="Save"
+        submitLabel={common.save}
         activeGroup={activeGroup}
         onGroupChange={changeGroup}
         width={formWidthFor(singleton.fields, groups.find((g) => g.id === activeGroup)?.fieldKeys)}
@@ -145,7 +150,7 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
       registry={admin.displayWidgets}
       loading={doc.isLoading}
       error={errorMessage(doc.error)}
-      emptyMessage={`No ${label} yet.`}
+      emptyMessage={m.nothingYet(label)}
       title={label}
       back={back}
       hideMeta
@@ -155,7 +160,7 @@ export function SingletonScreen({ slug, group }: SingletonScreenProps): ReactNod
         <>
           {previewToggle}
           <Button type="button" size="sm" onClick={() => setEditing(true)}>
-            Edit
+            {common.edit}
           </Button>
         </>
       }

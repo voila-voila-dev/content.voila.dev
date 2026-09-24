@@ -23,6 +23,7 @@ import { Button } from "@voila.dev/ui/button";
 import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useEffect, useImperativeHandle, useState } from "react";
 import { FocusPathProvider, useFocusPath } from "../lib/focus-path";
+import { useMessages } from "../lib/messages";
 import { type FieldIssue, issuesUnder } from "../lib/validate";
 
 export interface SortableRowHeader {
@@ -43,7 +44,8 @@ export interface SortableListProps<T> {
   readonly items: ReadonlyArray<T>;
   /** Stable keys parallel to `items` (see `useItemKeys`). */
   readonly keys: ReadonlyArray<string>;
-  /** Noun for the aria-labels: "block", "item". */
+  /** What a row is — `"block"` or `"item"`. Names the `data-slot`s and, in the
+   *  admin's language, the aria-labels; any other noun is announced verbatim. */
   readonly noun: string;
   readonly idPrefix: string;
   readonly issues?: ReadonlyArray<FieldIssue>;
@@ -74,6 +76,8 @@ export function SortableList<T>({
   rowData,
   ref,
 }: SortableListProps<T>): ReactNode {
+  const m = useMessages().form;
+  const nounLabel = noun === "block" ? m.block : noun === "item" ? m.item : noun;
   // Which rows are expanded, by stable key.
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
   // The enclosing document path, when a form tracks focus for a live preview.
@@ -169,7 +173,7 @@ export function SortableList<T>({
                 type="button"
                 aria-expanded={expanded}
                 aria-controls={expanded ? panelId : undefined}
-                aria-label={`${expanded ? "Collapse" : "Expand"} ${noun} ${index + 1}: ${label}`}
+                aria-label={(expanded ? m.collapse : m.expand)(nounLabel, index + 1, label)}
                 onClick={() => toggle(key, !expanded)}
                 className="flex min-w-0 flex-1 items-center gap-2 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
@@ -181,7 +185,7 @@ export function SortableList<T>({
                 )}
                 {invalid ? (
                   <WarningCircleIcon
-                    aria-label="Has errors"
+                    aria-label={m.hasErrors}
                     className="size-4 shrink-0 text-destructive"
                   />
                 ) : null}
@@ -198,7 +202,7 @@ export function SortableList<T>({
                   type="button"
                   size="icon-xs"
                   variant="ghost"
-                  aria-label={`Move ${noun} ${index + 1} up`}
+                  aria-label={m.moveUp(nounLabel, index + 1)}
                   disabled={disabled || index === 0}
                   onClick={() => move(index, index - 1)}
                 >
@@ -208,7 +212,7 @@ export function SortableList<T>({
                   type="button"
                   size="icon-xs"
                   variant="ghost"
-                  aria-label={`Move ${noun} ${index + 1} down`}
+                  aria-label={m.moveDown(nounLabel, index + 1)}
                   disabled={disabled || index === items.length - 1}
                   onClick={() => move(index, index + 1)}
                 >
@@ -218,7 +222,7 @@ export function SortableList<T>({
                   type="button"
                   size="icon-xs"
                   variant="ghost"
-                  aria-label={`Remove ${noun} ${index + 1}`}
+                  aria-label={m.removeAt(nounLabel, index + 1)}
                   disabled={disabled || atMin}
                   onClick={() => onRemove(index)}
                 >

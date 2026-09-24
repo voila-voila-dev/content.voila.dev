@@ -12,29 +12,65 @@ export interface ResendMailerOptions {
   readonly from: string;
   /** Brand interpolated into the default subject. Default `"Voila"`. */
   readonly brand?: string;
-  /** Subject override; otherwise `Sign in to <brand>`. */
+  /** Subject override; otherwise `Sign in to <brand>` (or its `locale` wording). */
   readonly subject?: string;
+  /**
+   * Language of the default subject and body, as a BCP 47 locale: `"fr"` /
+   * `"fr-FR"` write the email in French; anything else in English.
+   */
+  readonly locale?: string;
   /** Injected fetch (tests / custom transport). Defaults to global `fetch`. */
   readonly fetch?: typeof fetch;
 }
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
-function renderBody(message: MagicLinkMessage): { html: string; text: string } {
+interface EmailCopy {
+  readonly subject: (brand: string) => string;
+  readonly intro: string;
+  readonly introHtml: string;
+  readonly button: string;
+  readonly ignore: string;
+}
+
+const COPY: Readonly<Record<string, EmailCopy>> = {
+  en: {
+    subject: (brand) => `Sign in to ${brand}`,
+    intro: "Sign in by opening this link:",
+    introHtml: "Sign in by clicking the link below:",
+    button: "Sign in",
+    ignore: "If you didn't request this, ignore this email.",
+  },
+  fr: {
+    subject: (brand) => `Connexion à ${brand}`,
+    intro: "Pour vous connecter, ouvrez ce lien :",
+    introHtml: "Pour vous connecter, cliquez sur le lien ci-dessous :",
+    button: "Me connecter",
+    ignore: "Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.",
+  },
+};
+
+function copyFor(locale: string | undefined): EmailCopy {
+  const language = locale?.toLowerCase().split(/[-_]/)[0] ?? "en";
+  return COPY[language] ?? (COPY.en as EmailCopy);
+}
+
+function renderBody(message: MagicLinkMessage, copy: EmailCopy): { html: string; text: string } {
   return {
-    text: `Sign in by opening this link:\n\n${message.url}\n\nIf you didn't request this, ignore this email.`,
-    html: `<p>Sign in by clicking the link below:</p><p><a href="${message.url}">Sign in</a></p><p>If you didn't request this, ignore this email.</p>`,
+    text: `${copy.intro}\n\n${message.url}\n\n${copy.ignore}`,
+    html: `<p>${copy.introHtml}</p><p><a href="${message.url}">${copy.button}</a></p><p>${copy.ignore}</p>`,
   };
 }
 
 /** Build a Resend `Mailer`. */
 export function resendMailer(options: ResendMailerOptions): Mailer {
   const doFetch = options.fetch ?? fetch;
-  const subject = options.subject ?? `Sign in to ${options.brand ?? "Voila"}`;
+  const copy = copyFor(options.locale);
+  const subject = options.subject ?? copy.subject(options.brand ?? "Voila");
   return {
     id: "resend",
     async send(message) {
-      const { html, text } = renderBody(message);
+      const { html, text } = renderBody(message, copy);
       const response = await doFetch(RESEND_ENDPOINT, {
         method: "POST",
         headers: {

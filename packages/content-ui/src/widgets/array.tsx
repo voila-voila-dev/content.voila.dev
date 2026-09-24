@@ -17,6 +17,7 @@ import { Button } from "@voila.dev/ui/button";
 import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useRef } from "react";
 import type { Doc } from "../lib/doc";
+import { useMessages } from "../lib/messages";
 import { recordSummary } from "../lib/text";
 import { issueMessageAt, issuesUnder } from "../lib/validate";
 import { NestedDisplayRows, NestedFields, visibleKeys } from "../nested-fields";
@@ -90,6 +91,7 @@ export function ArrayInput(props: EditWidgetProps): ReactNode {
   const items = arrayItems(props.value);
   const itemKeys = useItemKeys(items.length);
   const list = useRef<SortableListHandle>(null);
+  const m = useMessages().form;
   if (!meta.item) return <UnsupportedInput {...props} />;
   const item = meta.item;
   const shape = objectShape(item);
@@ -125,7 +127,7 @@ export function ArrayInput(props: EditWidgetProps): ReactNode {
       }}
     >
       <PlusIcon aria-hidden />
-      {atMax ? `Limit of ${meta.max} reached` : "Add item"}
+      {atMax ? m.limitReached(meta.max ?? 0) : m.addItem}
     </Button>
   );
 
@@ -150,7 +152,7 @@ export function ArrayInput(props: EditWidgetProps): ReactNode {
           disabled={props.disabled}
           atMin={atMin}
           header={(entry, index) => ({
-            label: `Item ${index + 1}`,
+            label: m.itemTitle(index + 1),
             summary: recordSummary(asRecord(entry), shape),
           })}
           body={(entry, index) => (
@@ -224,7 +226,7 @@ export function ArrayInput(props: EditWidgetProps): ReactNode {
                 type="button"
                 size="icon-xs"
                 variant="ghost"
-                aria-label={`Move item ${index + 1} up`}
+                aria-label={m.moveUp(m.item, index + 1)}
                 disabled={props.disabled || index === 0}
                 onClick={() => {
                   itemKeys.move(index, index - 1);
@@ -237,7 +239,7 @@ export function ArrayInput(props: EditWidgetProps): ReactNode {
                 type="button"
                 size="icon-xs"
                 variant="ghost"
-                aria-label={`Move item ${index + 1} down`}
+                aria-label={m.moveDown(m.item, index + 1)}
                 disabled={props.disabled || index === items.length - 1}
                 onClick={() => {
                   itemKeys.move(index, index + 1);
@@ -250,7 +252,7 @@ export function ArrayInput(props: EditWidgetProps): ReactNode {
                 type="button"
                 size="icon-xs"
                 variant="ghost"
-                aria-label={`Remove item ${index + 1}`}
+                aria-label={m.removeAt(m.item, index + 1)}
                 disabled={props.disabled || atMin}
                 onClick={() => {
                   itemKeys.remove(index);
@@ -273,6 +275,7 @@ export function ArrayDisplay({ value, meta, context }: DisplayWidgetProps): Reac
   const items = arrayItems(value);
   const item = (meta as ArrayMetaShape).item;
   const registry = useDisplayRegistry();
+  const m = useMessages().form;
   if (items.length === 0) return <Empty />;
   if (isCompact(context) || !item) {
     const scalars = items.filter((entry) => entry !== null && typeof entry !== "object");
@@ -282,7 +285,7 @@ export function ArrayDisplay({ value, meta, context }: DisplayWidgetProps): Reac
             ...scalars.slice(0, 3).map(String),
             ...(items.length > 3 ? [`+${items.length - 3}`] : []),
           ].join(", ")
-        : `${items.length} item${items.length === 1 ? "" : "s"}`;
+        : m.itemCount(items.length);
     return <Preview slot="array-display" text={text} />;
   }
   // Records read as the editor's collapsed rows (summary + disclosure), so a
@@ -300,7 +303,7 @@ export function ArrayDisplay({ value, meta, context }: DisplayWidgetProps): Reac
               : {};
           return {
             key: `${index}-${recordSummary(record, shape) ?? ""}`,
-            summary: recordSummary(record, shape) ?? `Item ${index + 1}`,
+            summary: recordSummary(record, shape) ?? m.itemTitle(index + 1),
             body: <NestedDisplayRows fields={shape} value={record} />,
           };
         })}

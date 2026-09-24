@@ -68,6 +68,24 @@ describe("resendMailer", () => {
     expect(subject).toBe("Your link");
   });
 
+  it("writes the subject and body in the locale's language", async () => {
+    let body: Record<string, string> | undefined;
+    const fetchStub: typeof fetch = async (_url, init) => {
+      body = JSON.parse(String(init?.body)) as Record<string, string>;
+      return new Response("{}", { status: 200 });
+    };
+    await resendMailer({
+      apiKey: "k",
+      from: "a@b.dev",
+      brand: "Acme",
+      locale: "fr-FR",
+      fetch: fetchStub,
+    }).send(message);
+    expect(body?.subject).toBe("Connexion à Acme");
+    expect(body?.text).toContain("Pour vous connecter");
+    expect(body?.html).toContain(message.url);
+  });
+
   it("throws when Resend returns a non-2xx", async () => {
     const fetchStub: typeof fetch = async () =>
       new Response("nope", { status: 422, statusText: "Unprocessable" });

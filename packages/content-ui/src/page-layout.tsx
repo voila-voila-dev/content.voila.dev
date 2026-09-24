@@ -8,11 +8,12 @@
 // lone overflow-y region with a `width` token so every screen shares the same
 // content measures instead of hand-rolled `max-w-*` wrappers.
 
-import { CaretLeftIcon } from "@phosphor-icons/react";
+import { CaretLeftIcon, SidebarSimpleIcon } from "@phosphor-icons/react";
 import { Sidebar } from "@voila.dev/ui/sidebar";
 import { cn } from "@voila.dev/ui/utils";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { cloneElement } from "react";
+import { useMessages } from "./lib/messages";
 import { useShell } from "./lib/shell-context";
 
 // Fills its parent (the shell's body slot) and clips, so the page is a fixed
@@ -46,6 +47,7 @@ export interface HeaderProps extends Omit<ComponentProps<"header">, "title"> {
 // cleanly embedded or under test.
 function Header({ className, back, actions, children, ...props }: HeaderProps) {
   const { inShell } = useShell();
+  const m = useMessages();
   return (
     <header
       data-slot="page-layout-header"
@@ -55,7 +57,12 @@ function Header({ className, back, actions, children, ...props }: HeaderProps) {
       )}
       {...props}
     >
-      {inShell ? <Sidebar.Trigger className="-ml-1 shrink-0" /> : null}
+      {inShell ? (
+        <Sidebar.Trigger className="-ml-1 shrink-0">
+          <SidebarSimpleIcon />
+          <span className="sr-only">{m.shell.toggleSidebar}</span>
+        </Sidebar.Trigger>
+      ) : null}
       {back}
       <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}

@@ -16,6 +16,7 @@ import type { Field } from "@voila/content";
 import { Badge } from "@voila.dev/ui/badge";
 import type { ReactNode } from "react";
 import { resolveLocalized, useI18n } from "./lib/i18n";
+import { useMessages } from "./lib/messages";
 import { DisplayRegistryProvider, useDisplayRegistry } from "./registry/context";
 import { type DisplayRegistry, resolveDisplayWidget } from "./registry/registry";
 import type { DisplayContext } from "./widgets/display";
@@ -62,6 +63,7 @@ function FieldRendererInner({
   readonly context: DisplayContext;
 }): ReactNode {
   const i18n = useI18n();
+  const m = useMessages().shell;
   if (field.meta.localized === true) {
     const inner = field.inner ?? field;
     const resolved = resolveLocalized(value, i18n);
@@ -74,7 +76,10 @@ function FieldRendererInner({
         <Badge
           variant="outline"
           className="shrink-0 px-1 py-0 font-mono text-[10px] uppercase"
-          title={`Shown in ${resolved.locale} (no ${i18n.displayLocale ?? i18n.i18n?.defaultLocale ?? "default"} value)`}
+          title={m.shownInLocale(
+            resolved.locale,
+            i18n.displayLocale ?? i18n.i18n?.defaultLocale ?? m.defaultLocale,
+          )}
         >
           {resolved.locale}
         </Badge>

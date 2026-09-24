@@ -16,7 +16,7 @@
 
 import { CaretDownIcon } from "@phosphor-icons/react";
 import type { Collection, Field } from "@voila/content";
-import { type Doc, EnumDisplay } from "@voila/content-ui";
+import { type Doc, EnumDisplay, useMessages } from "@voila/content-ui";
 import { Button } from "@voila.dev/ui/button";
 import { DropdownMenu } from "@voila.dev/ui/dropdown-menu";
 import type { ReactNode } from "react";
@@ -62,6 +62,7 @@ export function StatusControl({
   disabled,
   onChange,
 }: StatusControlProps): ReactNode {
+  const m = useMessages().admin;
   const status = statusField(collection);
   if (status === undefined) return null;
   const entries = enumEntries(status.field);
@@ -79,14 +80,14 @@ export function StatusControl({
             variant="ghost"
             size="sm"
             className="gap-1.5 px-1.5"
-            aria-label={label ? `Status: ${label}. Change it.` : "Set status"}
+            aria-label={label ? m.statusIs(label) : m.setStatus}
           />
         }
       >
         {label ? (
           <EnumDisplay value={value} meta={status.field.meta} />
         ) : (
-          <span className="text-muted-foreground">Set status</span>
+          <span className="text-muted-foreground">{m.setStatus}</span>
         )}
         <CaretDownIcon aria-hidden className="text-muted-foreground" />
       </DropdownMenu.Trigger>

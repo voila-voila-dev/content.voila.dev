@@ -11,6 +11,7 @@
 import { Badge } from "@voila.dev/ui/badge";
 import { Combobox } from "@voila.dev/ui/combobox";
 import type { ReactNode } from "react";
+import { useMessages } from "../lib/messages";
 import { type DisplayWidgetProps, Empty, isCompact } from "./display";
 import type { EditWidgetProps } from "./edit";
 
@@ -39,6 +40,7 @@ export function MultiSelectInput({
   // At the cap the picker still shows what's chosen but offers nothing more, so
   // the limit is felt in the UI rather than only at validation time.
   const atMax = meta.max !== undefined && selected.length >= meta.max;
+  const m = useMessages().form;
   const available = atMax ? [] : options;
   return (
     <Combobox.Root
@@ -58,13 +60,13 @@ export function MultiSelectInput({
         ))}
         <Combobox.ChipsInput
           id={id}
-          placeholder={atMax ? `Limit of ${meta.max} reached` : "Add…"}
+          placeholder={atMax ? m.limitReached(meta.max ?? 0) : m.multiSelectAdd}
           aria-invalid={error ? true : undefined}
           aria-required={field.meta.required === true ? true : undefined}
         />
       </Combobox.Chips>
       <Combobox.Content>
-        <Combobox.Empty>{atMax ? `Limit of ${meta.max} reached.` : "No match."}</Combobox.Empty>
+        <Combobox.Empty>{atMax ? `${m.limitReached(meta.max ?? 0)}.` : m.noMatch}</Combobox.Empty>
         <Combobox.List>
           {(option: string) => (
             <Combobox.Item key={option} value={option}>

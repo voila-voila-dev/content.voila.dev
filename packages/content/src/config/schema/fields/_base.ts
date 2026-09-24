@@ -46,6 +46,14 @@ export interface BaseFieldOpts<T = unknown> {
    * still quotes it and rejects collisions within a table.
    */
   readonly column?: string;
+  /**
+   * Name of the admin widget that edits and displays this field, looked up in
+   * the admin's widget registries before the field's kind. Lets a site plug a
+   * custom editor on ONE field (`fields.string({ widget: "cdnImage" })`)
+   * without replacing every field of that kind — inside arrays, objects and
+   * blocks too. Unknown names fall back to the kind's widget.
+   */
+  readonly widget?: string;
 }
 
 // Generic over `T` so a field's `BaseFieldOpts<T>` (whose `transform`/
@@ -64,6 +72,7 @@ function pickCommon<T>(opts: BaseFieldOpts<T>): Partial<FieldMetaBase> {
   if (opts.transform !== undefined) m.transform = opts.transform;
   if (opts.readOnly !== undefined) m.readOnly = opts.readOnly;
   if (opts.column !== undefined) m.column = opts.column;
+  if (opts.widget !== undefined) m.widget = opts.widget;
   // `m` carries `T`-typed transform/defaultValue; `FieldMeta` erases `T`, so
   // this single assertion is the metadata-bag boundary (not a field-level cast).
   return m as Partial<FieldMetaBase>;

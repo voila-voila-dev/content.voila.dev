@@ -23,6 +23,7 @@ import { documentTitle } from "./detail-view";
 import type { Doc } from "./lib/doc";
 import { getFieldLabel } from "./lib/humanize";
 import { type I18nContextValue, resolveLocalized, useI18n } from "./lib/i18n";
+import { en, type Messages, useMessages } from "./lib/messages";
 import { richTextToPlain, truncateText } from "./lib/text";
 
 export type { CalendarViewMode } from "@voila.dev/ui/event-calendar";
@@ -147,6 +148,7 @@ export function rowsToEvents(
   cardFields?: readonly string[],
   i18n?: I18nContextValue,
   colors?: Map<string, string>,
+  messages: Messages = en,
 ): { events: CalendarEvent[]; byId: Map<string, Doc> } {
   const byId = new Map<string, Doc>();
   const events: CalendarEvent[] = [];
@@ -165,7 +167,7 @@ export function rowsToEvents(
     byId.set(id, row);
     events.push({
       id,
-      title: documentTitle(collection, row, i18n) ?? "Untitled",
+      title: documentTitle(collection, row, i18n) ?? messages.common.untitled,
       start: start.date,
       end: endDate,
       allDay: start.dateOnly,
@@ -213,9 +215,10 @@ function Root({
   onViewChange,
   weekStartsOn = 1,
   onRowClick,
-  emptyMessage = "No records.",
+  emptyMessage,
 }: CalendarViewProps): ReactNode {
   const i18n = useI18n();
+  const m = useMessages();
   const colors = eventColors(collection, rows, colorField);
   const { events, byId } = rowsToEvents(
     collection,
@@ -225,12 +228,13 @@ function Root({
     cardFields,
     i18n,
     colors,
+    m,
   );
 
   if (events.length === 0) {
     return (
       <p data-slot="calendar-view" className="text-muted-foreground text-sm">
-        {emptyMessage}
+        {emptyMessage ?? m.list.noRecords}
       </p>
     );
   }

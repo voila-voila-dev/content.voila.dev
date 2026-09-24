@@ -17,6 +17,7 @@ import { NativeSelect } from "@voila.dev/ui/native-select";
 import { Skeleton } from "@voila.dev/ui/skeleton";
 import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useId, useState } from "react";
+import { useMessages } from "./lib/messages";
 
 export type { ViewType } from "@voila/content/client";
 
@@ -25,13 +26,6 @@ export interface FieldChoice {
   readonly value: string;
   readonly label: string;
 }
-
-const TYPE_LABELS: Record<ViewType, string> = {
-  table: "Table",
-  kanban: "Board",
-  calendar: "Calendar",
-  map: "Map",
-};
 
 /** A saved view, reduced to what the tab bar needs. */
 export interface ViewTabItem {
@@ -144,6 +138,7 @@ function CreateViewForm({
   const [calendarField, setCalendarField] = useState(fields.date[0]?.value ?? "");
   const [calendarEndField, setCalendarEndField] = useState("");
   const typeId = useId();
+  const m = useMessages();
 
   // A type is only submittable once its required field is chosen.
   const ready =
@@ -175,24 +170,24 @@ function CreateViewForm({
       }}
     >
       <Input
-        aria-label="View name"
-        placeholder="View name"
+        aria-label={m.list.viewName}
+        placeholder={m.list.viewName}
         value={name}
         onChange={(event) => setName(event.target.value)}
       />
       <div className="flex flex-col gap-1 text-sm">
         <label htmlFor={typeId} className="font-medium">
-          Type
+          {m.list.typeLabel}
         </label>
         <NativeSelect.Root
           id={typeId}
-          aria-label="View type"
+          aria-label={m.list.viewType}
           value={type}
           onChange={(event) => setType(event.target.value as ViewType)}
         >
           {types.map((t) => (
             <NativeSelect.Option key={t} value={t}>
-              {TYPE_LABELS[t]}
+              {m.list.viewTypes[t]}
             </NativeSelect.Option>
           ))}
         </NativeSelect.Root>
@@ -200,39 +195,39 @@ function CreateViewForm({
 
       {type === "kanban" ? (
         <Picker
-          label="Group by"
+          label={m.list.groupBy}
           value={kanbanField}
           options={fields.kanban}
           onChange={setKanbanField}
         />
       ) : null}
       {type === "map" ? (
-        <Picker label="Plot" value={geoField} options={fields.geo} onChange={setGeoField} />
+        <Picker label={m.list.plot} value={geoField} options={fields.geo} onChange={setGeoField} />
       ) : null}
       {type === "calendar" ? (
         <>
           <Picker
-            label="Start"
+            label={m.list.start}
             value={calendarField}
             options={fields.date}
             onChange={setCalendarField}
           />
           <Picker
-            label="End"
+            label={m.list.end}
             value={calendarEndField}
             options={fields.date}
             onChange={setCalendarEndField}
-            emptyLabel="No end"
+            emptyLabel={m.list.noEnd}
           />
         </>
       ) : null}
 
       <Dialog.Footer>
         <Dialog.Close className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-          Cancel
+          {m.common.cancel}
         </Dialog.Close>
         <button type="submit" disabled={!ready} className={cn(buttonVariants({ size: "sm" }))}>
-          Create view
+          {m.list.createView}
         </button>
       </Dialog.Footer>
     </form>
@@ -255,6 +250,7 @@ export function ViewTabs({
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState<ViewTabItem | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const m = useMessages();
 
   // Transient drag state: the id being dragged + the id it's hovering, for the
   // visual cues. The reorder reads the source from the drag's dataTransfer, so
@@ -294,7 +290,7 @@ export function ViewTabs({
     <div
       data-slot="view-tabs"
       role="tablist"
-      aria-label="Views"
+      aria-label={m.list.views}
       className="-mb-px flex flex-wrap items-center gap-1 overflow-x-auto"
     >
       {loading && views.length === 0 ? (
@@ -346,16 +342,16 @@ export function ViewTabs({
                   <StarIcon
                     weight="fill"
                     className="size-3 text-muted-foreground"
-                    aria-label="Default view"
+                    aria-label={m.list.defaultView}
                   />
                 ) : null}
                 {view.name}
               </button>
             </ContextMenu.Trigger>
             <ContextMenu.Content>
-              <ContextMenu.Item onClick={() => openEdit(view)}>Edit view</ContextMenu.Item>
+              <ContextMenu.Item onClick={() => openEdit(view)}>{m.list.editView}</ContextMenu.Item>
               <ContextMenu.Item onClick={() => onSetDefault(view.id, !view.isDefault)}>
-                {view.isDefault ? "Remove default" : "Set as default"}
+                {view.isDefault ? m.list.removeDefault : m.list.setDefault}
               </ContextMenu.Item>
               {view.seeded ? null : (
                 <>
@@ -364,7 +360,7 @@ export function ViewTabs({
                     className="text-destructive data-[highlighted]:text-destructive"
                     onClick={() => onDelete(view.id)}
                   >
-                    Delete
+                    {m.common.delete}
                   </ContextMenu.Item>
                 </>
               )}
@@ -378,14 +374,12 @@ export function ViewTabs({
           className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "text-muted-foreground")}
         >
           <PlusIcon aria-hidden />
-          Add view
+          {m.list.addView}
         </Dialog.Trigger>
         <Dialog.Content className="max-w-sm">
           <Dialog.Header>
-            <Dialog.Title>Add view</Dialog.Title>
-            <Dialog.Description>
-              Create a shared view — it's the same for everyone.
-            </Dialog.Description>
+            <Dialog.Title>{m.list.addView}</Dialog.Title>
+            <Dialog.Description>{m.list.addViewHint}</Dialog.Description>
           </Dialog.Header>
           <CreateViewForm fields={fields} onCreate={onCreate} onDone={() => setCreateOpen(false)} />
         </Dialog.Content>
@@ -394,8 +388,8 @@ export function ViewTabs({
       <Dialog.Root open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
         <Dialog.Content className="max-h-[85vh] max-w-sm overflow-y-auto">
           <Dialog.Header>
-            <Dialog.Title>Edit view</Dialog.Title>
-            <Dialog.Description>Rename this shared view.</Dialog.Description>
+            <Dialog.Title>{m.list.editView}</Dialog.Title>
+            <Dialog.Description>{m.list.editViewHint}</Dialog.Description>
           </Dialog.Header>
           <form
             className="space-y-3"
@@ -405,18 +399,18 @@ export function ViewTabs({
             }}
           >
             <Input
-              aria-label="View name"
-              placeholder="View name"
+              aria-label={m.list.viewName}
+              placeholder={m.list.viewName}
               value={renameValue}
               onChange={(event) => setRenameValue(event.target.value)}
             />
             {editor}
             <Dialog.Footer>
               <Dialog.Close className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-                Cancel
+                {m.common.cancel}
               </Dialog.Close>
               <button type="submit" className={cn(buttonVariants({ size: "sm" }))}>
-                Save
+                {m.common.save}
               </button>
             </Dialog.Footer>
           </form>

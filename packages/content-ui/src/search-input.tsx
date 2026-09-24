@@ -6,6 +6,7 @@
 
 import { Input } from "@voila.dev/ui/input";
 import type { ReactNode } from "react";
+import { useMessages } from "./lib/messages";
 
 export interface SearchInputProps {
   readonly value: string;
@@ -20,9 +21,10 @@ export function SearchInput({
   value,
   onChange,
   onSubmit,
-  placeholder = "Search…",
+  placeholder,
   disabled = false,
 }: SearchInputProps): ReactNode {
+  const m = useMessages();
   return (
     // biome-ignore lint/a11y/useSemanticElements: a search <form> is the role-bearing landmark here; the native <search> element wouldn't carry the submit semantics.
     <form
@@ -35,9 +37,9 @@ export function SearchInput({
       <Input
         type="search"
         value={value}
-        placeholder={placeholder}
+        placeholder={placeholder ?? m.shell.searchEllipsis}
         disabled={disabled}
-        aria-label="Search"
+        aria-label={m.common.search}
         onChange={(event) => onChange(event.target.value)}
       />
     </form>

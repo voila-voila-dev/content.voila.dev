@@ -17,6 +17,7 @@ import type { Doc } from "./lib/doc";
 import { type DeclaredColumn, groupBy } from "./lib/group-by";
 import { getFieldLabel } from "./lib/humanize";
 import { useI18n } from "./lib/i18n";
+import { useMessages } from "./lib/messages";
 import type { DisplayRegistry } from "./registry/registry";
 import { selectOptions } from "./widgets/edit";
 
@@ -65,17 +66,21 @@ function Root({
   registry,
   onMove,
   onRowClick,
-  emptyMessage = "No records.",
+  emptyMessage,
 }: KanbanViewProps): ReactNode {
   const i18n = useI18n();
-  const columns = groupBy(rows, groupField, { columns: declaredColumns(collection, groupField) });
+  const m = useMessages();
+  const columns = groupBy(rows, groupField, {
+    columns: declaredColumns(collection, groupField),
+    noneLabel: m.common.none,
+  });
   const fields =
     cardFields && cardFields.length > 0 ? cardFields : defaultCardFields(collection, [groupField]);
 
   if (rows.length === 0) {
     return (
       <p data-slot="kanban-view" className="text-muted-foreground text-sm">
-        {emptyMessage}
+        {emptyMessage ?? m.list.noRecords}
       </p>
     );
   }
@@ -119,7 +124,9 @@ function Root({
                   onRowClick ? "hover:bg-accent" : undefined,
                 )}
               >
-                <p className="font-medium">{documentTitle(collection, row, i18n) ?? "Untitled"}</p>
+                <p className="font-medium">
+                  {documentTitle(collection, row, i18n) ?? m.common.untitled}
+                </p>
                 <dl className="mt-1 space-y-0.5">
                   {fields.map((key) => {
                     const field = collection.fields[key];

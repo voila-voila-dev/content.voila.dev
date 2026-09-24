@@ -5,7 +5,7 @@
 // per call via `mutate(vars, { onSuccess })`.
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Doc } from "@voila/content-ui";
+import { type Doc, useMessages } from "@voila/content-ui";
 import { toast } from "@voila.dev/ui/sonner";
 import { useAdmin } from "../context";
 import { collectionClient } from "../lib/client-access";
@@ -20,34 +20,35 @@ export function useCollectionMutations(slug: string) {
   const { admin } = useAdmin();
   const api = collectionClient(admin.client, slug);
   const queryClient = useQueryClient();
+  const { admin: m, common } = useMessages();
   const invalidateList = () => queryClient.invalidateQueries({ queryKey: [slug, "list"] });
 
   const create = useMutation({
     mutationFn: (values: Doc) => api.create(values),
     onSuccess: () => {
-      toast.success("Created");
+      toast.success(m.created);
       return invalidateList();
     },
-    onError: (error) => toastError(error, "Could not create the record."),
+    onError: (error) => toastError(error, m.couldNotCreate),
   });
 
   const update = useMutation({
     mutationFn: (input: { id: string; values: Doc }) => api.update(input.id, input.values),
     onSuccess: (updated, input) => {
       queryClient.setQueryData([slug, input.id], updated);
-      toast.success("Saved");
+      toast.success(common.saved);
       return invalidateList();
     },
-    onError: (error) => toastError(error, "Could not save the changes."),
+    onError: (error) => toastError(error, m.couldNotSave),
   });
 
   const remove = useMutation({
     mutationFn: (id: string) => api.delete(id),
     onSuccess: () => {
-      toast.success("Deleted");
+      toast.success(m.deleted);
       return invalidateList();
     },
-    onError: (error) => toastError(error, "Could not delete the record."),
+    onError: (error) => toastError(error, m.couldNotDelete),
   });
 
   // Bulk soft-delete: one request per id, settled together; partial failures
@@ -62,11 +63,11 @@ export function useCollectionMutations(slug: string) {
     },
     onSuccess: ({ deleted, failed }) => {
       const n = deleted.length;
-      if (failed > 0) toast.error(`Deleted ${n}, ${failed} failed.`);
+      if (failed > 0) toast.error(m.deletedSomeFailed(n, failed));
       else {
-        toast.success(`Deleted ${n} ${n === 1 ? "record" : "records"}`, {
+        toast.success(m.deletedCount(n), {
           action: {
-            label: "Undo",
+            label: m.undo,
             onClick: () => restoreMany.mutate(deleted),
           },
         });
@@ -83,11 +84,11 @@ export function useCollectionMutations(slug: string) {
       return { restored: ids.length - failed, failed };
     },
     onSuccess: ({ restored, failed }) => {
-      if (failed > 0) toast.error(`Restored ${restored}, ${failed} failed.`);
-      else toast.success(`Restored ${restored} ${restored === 1 ? "record" : "records"}`);
+      if (failed > 0) toast.error(m.restoredSomeFailed(restored, failed));
+      else toast.success(m.restoredCount(restored));
       return invalidateList();
     },
-    onError: (error) => toastError(error, "Could not undo the delete."),
+    onError: (error) => toastError(error, m.couldNotUndoDelete),
   });
 
   /**
@@ -107,44 +108,44 @@ export function useCollectionMutations(slug: string) {
       return { updated: input.ids.length - failed, failed, label: input.label };
     },
     onSuccess: ({ updated, failed, label }) => {
-      if (failed > 0) toast.error(`${label}: ${updated} updated, ${failed} failed.`);
-      else toast.success(`${label} · ${updated} ${updated === 1 ? "record" : "records"}`);
+      if (failed > 0) toast.error(m.updatedSomeFailed(label, updated, failed));
+      else toast.success(m.updatedCount(label, updated));
       return invalidateList();
     },
-    onError: (error) => toastError(error, "Could not apply the change."),
+    onError: (error) => toastError(error, m.couldNotApply),
   });
 
   const publish = useMutation({
     mutationFn: (id: string) => api.publish(id),
     onSuccess: (updated, id) => {
       queryClient.setQueryData([slug, id], updated);
-      toast.success("Published");
+      toast.success(m.published);
       return invalidateList();
     },
-    onError: (error) => toastError(error, "Could not publish."),
+    onError: (error) => toastError(error, m.couldNotPublish),
   });
 
   const unpublish = useMutation({
     mutationFn: (id: string) => api.unpublish(id),
     onSuccess: (updated, id) => {
       queryClient.setQueryData([slug, id], updated);
-      toast.success("Unpublished");
+      toast.success(m.unpublished);
       return invalidateList();
     },
-    onError: (error) => toastError(error, "Could not unpublish."),
+    onError: (error) => toastError(error, m.couldNotUnpublish),
   });
 
   const restoreRevision = useMutation({
     mutationFn: (input: { id: string; rev: number }) => api.restoreRevision(input.id, input.rev),
     onSuccess: (updated, input) => {
       queryClient.setQueryData([slug, input.id], updated);
-      toast.success(`Restored revision ${input.rev}`);
+      toast.success(m.restoredRevision(input.rev));
       return Promise.all([
         invalidateList(),
         queryClient.invalidateQueries({ queryKey: [slug, input.id, "revisions"] }),
       ]);
     },
-    onError: (error) => toastError(error, "Could not restore the revision."),
+    onError: (error) => toastError(error, m.couldNotRestoreRevision),
   });
 
   return {

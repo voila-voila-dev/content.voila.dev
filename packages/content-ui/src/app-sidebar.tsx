@@ -18,6 +18,7 @@ import { cn } from "@voila.dev/ui/utils";
 import { cloneElement, type ReactElement, type ReactNode } from "react";
 import { useI18n } from "./lib/i18n";
 import { NamedIcon } from "./lib/icons";
+import { useMessages } from "./lib/messages";
 import {
   buildNav,
   DEFAULT_NAV_ICONS,
@@ -231,9 +232,18 @@ export function AppSidebar({
   counts,
   section,
   onSearch,
-  homeLabel = "Overview",
+  homeLabel: homeLabelProp,
 }: AppSidebarProps): ReactNode {
-  const nav = buildNav(config, { basePath, currentPath, groups: navGroups });
+  const messages = useMessages();
+  const m = messages.shell;
+  const search = messages.common.search;
+  const homeLabel = homeLabelProp ?? m.overview;
+  const nav = buildNav(config, {
+    basePath,
+    currentPath,
+    groups: navGroups,
+    groupLabels: { collection: m.groupCollections, singleton: m.groupSingletons },
+  });
   const home = homeHref(basePath);
   const name = config.branding.name;
 
@@ -270,7 +280,12 @@ export function AppSidebar({
   return (
     // `inset` floats the content area as a rounded, bordered panel (see
     // `AdminShell`); `icon` collapses to a rail (tooltips on every item).
-    <Sidebar.Root variant="inset" collapsible="icon">
+    <Sidebar.Root
+      variant="inset"
+      collapsible="icon"
+      sheetTitle={m.sidebarSheetTitle}
+      sheetDescription={m.sidebarSheetDescription}
+    >
       <Sidebar.Header>
         {brandLink}
         {onSearch ? (
@@ -278,13 +293,13 @@ export function AppSidebar({
             <Sidebar.MenuItem>
               <Sidebar.MenuButton
                 type="button"
-                tooltip="Search"
+                tooltip={search}
                 onClick={onSearch}
                 data-slot="sidebar-search"
                 className="border border-sidebar-border bg-background/60 text-muted-foreground shadow-xs hover:bg-background"
               >
                 <MagnifyingGlassIcon aria-hidden />
-                <span className="flex-1">Search…</span>
+                <span className="flex-1">{m.searchEllipsis}</span>
                 <Kbd.Root className="ml-auto group-data-[collapsible=icon]:hidden">⌘K</Kbd.Root>
               </Sidebar.MenuButton>
             </Sidebar.MenuItem>

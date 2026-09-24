@@ -7,6 +7,8 @@ import type { ContentClient, Fetch, MediaClient } from "@voila/content/client";
 import type {
   DisplayRegistry,
   EditRegistry,
+  MessageOverrides,
+  Messages,
   NavItem,
   NavLayoutGroup,
   ThemeDensity,
@@ -205,8 +207,13 @@ export interface DefineAdminOptions<C extends NormalizedConfig = NormalizedConfi
    * BCP 47 locale used by Intl to format dates, numbers and relative times in
    * the admin chrome; defaults to the browser's. Distinct from the content
    * `i18n` locales, which pick WHICH translation of a localized field to show.
+   *
+   * Also picks the language of the admin chrome ("Save", "Sign out", …):
+   * `"fr"` / `"fr-FR"` render it in French; anything else in English.
    */
   readonly locale?: string;
+  /** Reword any chrome message, per area (`{ common: { save: "Publish" } }`). */
+  readonly messages?: MessageOverrides;
   /**
    * Live preview, per collection or singleton slug. When set, the document's
    * detail and edit screens split into the form and an iframe on the site's
@@ -258,6 +265,8 @@ export interface AdminInstance<C extends NormalizedConfig = NormalizedConfig> {
    * `i18n` locales, which pick WHICH translation of a localized field to show.
    */
   readonly locale?: string;
+  /** The chrome's messages: the `locale`'s catalog with overrides applied. */
+  readonly messages: Messages;
   /** Live-preview targets by slug (see {@link DefineAdminOptions.preview}). */
   readonly preview: PreviewConfig;
 }

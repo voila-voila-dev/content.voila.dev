@@ -75,6 +75,17 @@ export { type IconComponent, NamedIcon, resolveIcon } from "./lib/icons";
 export { DEFAULT_MAP_DARK_STYLE_URL, DEFAULT_MAP_STYLE_URL } from "./lib/map-style";
 export { useMediaQuery } from "./lib/media-query";
 export {
+  catalogs,
+  en as messagesEn,
+  fr as messagesFr,
+  type MessageOverrides,
+  type Messages,
+  MessagesProvider,
+  type MessagesProviderProps,
+  resolveMessages,
+  useMessages,
+} from "./lib/messages";
+export {
   type BuildNavOptions,
   buildNav,
   DEFAULT_GROUP_LABELS,

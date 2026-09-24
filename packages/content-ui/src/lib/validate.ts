@@ -8,6 +8,7 @@
 import type { Field } from "@voila/content";
 import { isBlank } from "./blank";
 import type { Doc } from "./doc";
+import { en, type Messages } from "./messages";
 
 /**
  * One validation issue below a field: `path` is relative to the field
@@ -150,7 +151,9 @@ export function localizedFieldErrors(
   value: unknown,
   locales: ReadonlyArray<string>,
   defaultLocale?: string,
+  messages: Messages = en,
 ): Readonly<Record<string, string>> {
+  const m = messages.form;
   const inner = field.inner ?? field;
   // Only the default locale carries `required` — see `pruneEmptyLocales`.
   const requiredLocale = defaultLocale ?? locales[0];
@@ -162,15 +165,15 @@ export function localizedFieldErrors(
   for (const locale of locales) {
     const v = record[locale];
     if (isBlank(inner, v)) {
-      if (field.meta.required === true && locale === requiredLocale) out[locale] = "Required.";
+      if (field.meta.required === true && locale === requiredLocale) out[locale] = m.required;
       continue;
     }
     const result = inner["~standard"].validate(v);
     if (result instanceof Promise) {
-      out[locale] = "Validation did not complete.";
+      out[locale] = m.validationIncomplete;
       continue;
     }
-    if (result.issues) out[locale] = result.issues[0]?.message ?? "Invalid value.";
+    if (result.issues) out[locale] = result.issues[0]?.message ?? m.invalidValue;
   }
   return out;
 }
@@ -179,8 +182,14 @@ export function validateFields(
   fields: Readonly<Record<string, Field>>,
   values: Readonly<Doc>,
   keys?: ReadonlyArray<string>,
-  opts?: { readonly locales?: ReadonlyArray<string>; readonly defaultLocale?: string },
+  opts?: {
+    readonly locales?: ReadonlyArray<string>;
+    readonly defaultLocale?: string;
+    /** The chrome messages the errors are worded in (English by default). */
+    readonly messages?: Messages;
+  },
 ): FormValidation {
+  const m = (opts?.messages ?? en).form;
   const out: Doc = {};
   const errors: Record<string, string> = {};
   const issues: Record<string, ReadonlyArray<FieldIssue>> = {};
@@ -193,7 +202,7 @@ export function validateFields(
     // translation is never persisted as `""` and never fails validation.
     const value = localized ? pruneEmptyLocales(field, values[name]) : values[name];
     if (localized ? isLocalizedBlank(value) : isFieldBlank(field, value)) {
-      if (field.meta.required === true) errors[name] = "Required.";
+      if (field.meta.required === true) errors[name] = m.required;
       continue;
     }
     // A localized field whose DEFAULT locale is blank fails as "Required." even
@@ -204,14 +213,14 @@ export function validateFields(
       requiredLocale !== undefined &&
       !(requiredLocale in (value as Record<string, unknown>))
     ) {
-      errors[name] = "Required.";
+      errors[name] = m.required;
       continue;
     }
     const result = field["~standard"].validate(value);
     if (result instanceof Promise) {
       // voila fields validate synchronously; an async result is a bug, not an
       // expected state — surface it rather than awaiting in a sync helper.
-      errors[name] = "Validation did not complete.";
+      errors[name] = m.validationIncomplete;
       continue;
     }
     if (result.issues) {
@@ -221,7 +230,7 @@ export function validateFields(
       }));
       issues[name] = list;
       const first = list[0];
-      errors[name] = first ? formatFieldIssue(first) : "Invalid value.";
+      errors[name] = first ? formatFieldIssue(first) : m.invalidValue;
     } else {
       out[name] = result.value;
     }
