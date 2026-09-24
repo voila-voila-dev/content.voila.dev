@@ -12,6 +12,7 @@ import { Button } from "@voila.dev/ui/button";
 import type { ReactNode } from "react";
 import type { Doc } from "./lib/doc";
 import { useI18n } from "./lib/i18n";
+import { useMessages } from "./lib/messages";
 import { StatusBadge } from "./widgets/status-badge";
 
 /** One history entry, as the typed client returns it. */
@@ -47,20 +48,22 @@ export function RevisionHistory({
   disabled = false,
   loading = false,
   error,
-  emptyMessage = "No revisions yet.",
+  emptyMessage,
   nextCursor,
   onLoadMore,
-  loadMoreLabel = "Load more",
+  loadMoreLabel,
   now,
 }: RevisionHistoryProps): ReactNode {
   // The admin's formatting locale, for the snapshot timestamps.
   const { locale } = useI18n();
+  const messages = useMessages();
+  const m = messages.shell;
   const canLoadMore = Boolean(nextCursor) && onLoadMore !== undefined;
   const newest = revisions[0]?.rev;
 
   return (
     <section className="space-y-4">
-      <h3 className="text-sm font-semibold">Revision history</h3>
+      <h3 className="text-sm font-semibold">{m.revisionHistory}</h3>
 
       {error ? (
         <p role="alert" className="text-sm text-destructive">
@@ -69,19 +72,19 @@ export function RevisionHistory({
       ) : null}
 
       {revisions.length === 0 && !loading ? (
-        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+        <p className="text-sm text-muted-foreground">{emptyMessage ?? m.noRevisions}</p>
       ) : (
         <ol className="divide-y divide-border">
           {revisions.map((revision) => (
             <li key={revision.rev} className="flex items-center gap-3 py-2">
-              <span className="text-sm font-medium">Revision {revision.rev}</span>
+              <span className="text-sm font-medium">{m.revision(revision.rev)}</span>
               <span className="text-sm text-muted-foreground">
                 {new Date(revision.createdAt).toLocaleString(locale)}
               </span>
               <StatusBadge doc={revision.doc} now={now} />
               <span className="ml-auto">
                 {revision.rev === newest ? (
-                  <Badge variant="secondary">Current</Badge>
+                  <Badge variant="secondary">{m.current}</Badge>
                 ) : onRestore !== undefined ? (
                   <Button
                     variant="outline"
@@ -89,7 +92,7 @@ export function RevisionHistory({
                     disabled={disabled}
                     onClick={() => onRestore(revision.rev)}
                   >
-                    Restore
+                    {m.restore}
                   </Button>
                 ) : null}
               </span>
@@ -98,11 +101,11 @@ export function RevisionHistory({
         </ol>
       )}
 
-      {loading ? <p className="text-sm text-muted-foreground">Loading…</p> : null}
+      {loading ? <p className="text-sm text-muted-foreground">{messages.common.loading}</p> : null}
 
       {canLoadMore ? (
         <Button variant="outline" onClick={onLoadMore} disabled={loading}>
-          {loadMoreLabel}
+          {loadMoreLabel ?? m.loadMore}
         </Button>
       ) : null}
     </section>

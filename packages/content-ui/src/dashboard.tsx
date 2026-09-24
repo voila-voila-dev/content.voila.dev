@@ -15,6 +15,7 @@ import { cn } from "@voila.dev/ui/utils";
 import { cloneElement, type ReactElement, type ReactNode } from "react";
 import { useI18n } from "./lib/i18n";
 import { NamedIcon } from "./lib/icons";
+import { useMessages } from "./lib/messages";
 import { buildNav, DEFAULT_NAV_ICONS, type NavItem, type NavLayoutGroup } from "./lib/nav";
 import { collectionOperations } from "./lib/operations";
 import { PageLayout } from "./page-layout";
@@ -118,6 +119,7 @@ function CollectionTile({
   readonly canCreate: boolean;
   readonly renderLink: (href: string, children: ReactNode) => ReactElement;
 }): ReactNode {
+  const m = useMessages().shell;
   const titleLink = cloneElement(
     renderLink(item.href, item.label) as ReactElement<Record<string, unknown>>,
     {
@@ -131,7 +133,7 @@ function CollectionTile({
           `${item.href}/new`,
           <>
             <PlusIcon aria-hidden />
-            New
+            {m.newShort}
           </>,
         ) as ReactElement<Record<string, unknown>>,
         {
@@ -139,7 +141,7 @@ function CollectionTile({
             buttonVariants({ variant: "ghost", size: "xs" }),
             "relative z-10 -mr-1 text-muted-foreground",
           ),
-          title: "Create new",
+          title: m.createNew,
         },
       )
     : null;
@@ -175,22 +177,27 @@ function Root({
   navGroups,
   renderLink = defaultRenderLink,
   title,
-  emptyMessage = "No collections configured.",
+  emptyMessage,
   recent,
   recentLoading = false,
 }: DashboardProps): ReactNode {
-  const { collections } = buildNav(config, { basePath, groups: navGroups });
+  const m = useMessages().shell;
+  const { collections } = buildNav(config, {
+    basePath,
+    groups: navGroups,
+    groupLabels: { collection: m.groupCollections, singleton: m.groupSingletons },
+  });
   // The admin's formatting locale for the counts and the feed's times.
   const { locale } = useI18n();
 
   return (
     <PageLayout.Root data-slot="dashboard">
       <PageLayout.Header>
-        <PageLayout.Title>{title ?? "Overview"}</PageLayout.Title>
+        <PageLayout.Title>{title ?? m.overview}</PageLayout.Title>
       </PageLayout.Header>
       <PageLayout.Body width="content" className="space-y-8">
         {collections.length === 0 ? (
-          <p className="text-muted-foreground text-sm">{emptyMessage}</p>
+          <p className="text-muted-foreground text-sm">{emptyMessage ?? m.noCollections}</p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {collections.map((item) => (
@@ -207,11 +214,11 @@ function Root({
 
         {recent !== undefined || recentLoading ? (
           <section data-slot="dashboard-recent" className="space-y-3">
-            <h2 className="font-medium text-muted-foreground text-sm">Recently edited</h2>
+            <h2 className="font-medium text-muted-foreground text-sm">{m.recentlyEdited}</h2>
             {recentLoading && (recent === undefined || recent.length === 0) ? (
               <RecentSkeleton />
             ) : recent === undefined || recent.length === 0 ? (
-              <p className="text-muted-foreground text-sm">Nothing edited yet.</p>
+              <p className="text-muted-foreground text-sm">{m.nothingEdited}</p>
             ) : (
               <ul className="divide-y rounded-lg border">
                 {recent.map((item) => {

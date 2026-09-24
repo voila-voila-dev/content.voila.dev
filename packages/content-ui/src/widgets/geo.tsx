@@ -16,6 +16,7 @@ import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { accentColor } from "../lib/accent";
 import { activeMapStyleUrl, followThemeStyle } from "../lib/map-style";
+import { useMessages } from "../lib/messages";
 import { hasWebGL } from "../lib/webgl";
 import { type DisplayWidgetProps, Empty } from "./display";
 import type { EditWidget, EditWidgetProps } from "./edit";
@@ -41,6 +42,7 @@ function formatCoord(n: number): string {
  * falls through to the raw-JSON display.
  */
 export function GeoDisplay({ value }: DisplayWidgetProps): ReactNode {
+  const m = useMessages().form;
   const { lat, lng } = readGeoValue(value);
   if (lat === undefined || lng === undefined) return <Empty />;
   return (
@@ -49,7 +51,7 @@ export function GeoDisplay({ value }: DisplayWidgetProps): ReactNode {
       href={`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=12/${lat}/${lng}`}
       target="_blank"
       rel="noopener noreferrer"
-      title="Open in OpenStreetMap"
+      title={m.openInOsm}
       className="text-primary hover:underline"
     >
       {formatCoord(lat)}, {formatCoord(lng)}
@@ -92,6 +94,7 @@ export function GeoInput({
   const required = field.meta.required === true;
   const latHintId = `${id}-lat-hint`;
   const lngHintId = `${id}-lng-hint`;
+  const m = useMessages().form;
   // Each input's accessible name composes the field's own label (the form's
   // `labelId`, e.g. "Location") with its coordinate hint → "Location latitude".
   const labelledBy = (hintId: string) => [labelId, hintId].filter(Boolean).join(" ");
@@ -106,7 +109,7 @@ export function GeoInput({
     <div data-slot="geo-input" className="flex gap-2">
       <div className="flex-1 space-y-1">
         <span id={latHintId} className="block font-medium text-muted-foreground text-xs">
-          Latitude
+          {m.latitude}
         </span>
         <Input
           id={id}
@@ -123,7 +126,7 @@ export function GeoInput({
       </div>
       <div className="flex-1 space-y-1">
         <span id={lngHintId} className="block font-medium text-muted-foreground text-xs">
-          Longitude
+          {m.longitude}
         </span>
         <Input
           id={`${id}-lng`}
@@ -218,6 +221,7 @@ function GeoMapPicker({
   onChange,
 }: GeoMapPickerProps): ReactNode {
   const containerRef = useRef<HTMLElement>(null);
+  const m = useMessages().form;
   const mapRef = useRef<import("maplibre-gl").Map | undefined>(undefined);
   const markerRef = useRef<import("maplibre-gl").Marker | undefined>(undefined);
   const maplibreRef = useRef<typeof import("maplibre-gl") | undefined>(undefined);
@@ -314,7 +318,7 @@ function GeoMapPicker({
         disabled && "pointer-events-none opacity-60",
       )}
     >
-      <section ref={containerRef} aria-label="Location picker" className="h-full w-full" />
+      <section ref={containerRef} aria-label={m.locationPicker} className="h-full w-full" />
     </div>
   );
 }

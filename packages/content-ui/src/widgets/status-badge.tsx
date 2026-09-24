@@ -6,17 +6,21 @@
 import { Badge } from "@voila.dev/ui/badge";
 import type { ReactNode } from "react";
 import type { Doc } from "../lib/doc";
+import { useMessages } from "../lib/messages";
 import { type PublishState, publishStatus } from "../lib/publish-status";
 
 type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
 
 const PRESENTATION: Record<
   PublishState,
-  { readonly label: string; readonly variant: BadgeVariant }
+  {
+    readonly label: "statusDraft" | "statusPublished" | "statusScheduled";
+    readonly variant: BadgeVariant;
+  }
 > = {
-  draft: { label: "Draft", variant: "secondary" },
-  published: { label: "Published", variant: "default" },
-  scheduled: { label: "Scheduled", variant: "outline" },
+  draft: { label: "statusDraft", variant: "secondary" },
+  published: { label: "statusPublished", variant: "default" },
+  scheduled: { label: "statusScheduled", variant: "outline" },
 };
 
 export interface StatusBadgeProps {
@@ -26,12 +30,13 @@ export interface StatusBadgeProps {
 }
 
 export function StatusBadge({ doc, now }: StatusBadgeProps): ReactNode {
+  const m = useMessages().shell;
   const state = publishStatus(doc, now);
   if (state === null) return null;
   const { label, variant } = PRESENTATION[state];
   return (
     <Badge data-slot="status-badge" variant={variant}>
-      {label}
+      {m[label]}
     </Badge>
   );
 }

@@ -21,6 +21,7 @@ import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import type { Doc } from "./lib/doc";
 import type { FocusPath } from "./lib/focus-path";
+import { useMessages } from "./lib/messages";
 
 export const PREVIEW_MESSAGE = "voila:preview";
 export const PREVIEW_LISTENING = `${PREVIEW_MESSAGE}:listening`;
@@ -151,6 +152,7 @@ export function PreviewPane({ src, doc, focus, origin, className }: PreviewPaneP
   const [generation, setGeneration] = useState(0);
   const { pending, listening } = usePreviewChannel(frame, doc, focus, origin);
   const width = PREVIEW_DEVICE_WIDTH[device];
+  const m = useMessages().shell;
 
   return (
     <div
@@ -162,10 +164,10 @@ export function PreviewPane({ src, doc, focus, origin, className }: PreviewPaneP
         className="flex h-14 shrink-0 items-center gap-1 border-b border-border bg-background px-3"
       >
         <span className="mr-auto text-muted-foreground text-sm">
-          Preview
+          {m.preview}
           {listening && pending ? (
             <span data-slot="preview-pending" className="ml-2 text-xs">
-              Updating…
+              {m.updating}
             </span>
           ) : null}
         </span>
@@ -173,7 +175,7 @@ export function PreviewPane({ src, doc, focus, origin, className }: PreviewPaneP
           type="button"
           size="icon-xs"
           variant={device === "desktop" ? "secondary" : "ghost"}
-          aria-label="Desktop width"
+          aria-label={m.desktopWidth}
           aria-pressed={device === "desktop"}
           onClick={() => setDevice("desktop")}
         >
@@ -183,7 +185,7 @@ export function PreviewPane({ src, doc, focus, origin, className }: PreviewPaneP
           type="button"
           size="icon-xs"
           variant={device === "mobile" ? "secondary" : "ghost"}
-          aria-label="Mobile width"
+          aria-label={m.mobileWidth}
           aria-pressed={device === "mobile"}
           onClick={() => setDevice("mobile")}
         >
@@ -193,7 +195,7 @@ export function PreviewPane({ src, doc, focus, origin, className }: PreviewPaneP
           type="button"
           size="icon-xs"
           variant="ghost"
-          aria-label="Reload preview"
+          aria-label={m.reloadPreview}
           onClick={() => setGeneration((g) => g + 1)}
         >
           <ArrowsClockwiseIcon aria-hidden />
@@ -201,7 +203,7 @@ export function PreviewPane({ src, doc, focus, origin, className }: PreviewPaneP
         <Button
           size="icon-xs"
           variant="ghost"
-          aria-label="Open preview in a new tab"
+          aria-label={m.openPreviewInTab}
           nativeButton={false}
           // biome-ignore lint/a11y/useAnchorContent: the icon child and aria-label are injected by the button
           render={<a href={src} target="_blank" rel="noreferrer" />}
@@ -215,7 +217,7 @@ export function PreviewPane({ src, doc, focus, origin, className }: PreviewPaneP
           ref={frame}
           data-slot="preview-frame"
           src={src}
-          title="Preview"
+          title={m.preview}
           sandbox="allow-scripts allow-same-origin allow-forms"
           className={cn(
             "h-full border-0 bg-background",

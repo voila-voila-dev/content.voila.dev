@@ -12,6 +12,7 @@
 // map exactly onto Discard / Keep editing.
 
 import { useBlocker } from "@tanstack/react-router";
+import { useMessages } from "@voila/content-ui";
 import { AlertDialog } from "@voila.dev/ui/alert-dialog";
 import { Button } from "@voila.dev/ui/button";
 import { type ReactNode, useCallback, useRef, useState } from "react";
@@ -35,6 +36,7 @@ export interface UseUnsavedGuardOptions {
 export function useUnsavedGuard(options: UseUnsavedGuardOptions = {}): UnsavedGuard {
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const { admin: m, common } = useMessages();
 
   // `useBlocker` lists `shouldBlockFn` in its effect deps, so a fresh closure
   // each render would tear the blocker down and re-register it on every
@@ -69,8 +71,6 @@ export function useUnsavedGuard(options: UseUnsavedGuardOptions = {}): UnsavedGu
     }
   }, [options.onSave, proceed]);
 
-  const what = options.label === undefined ? "this record" : `this ${options.label}`;
-
   const dialog = blocked ? (
     <AlertDialog.Root
       open
@@ -80,18 +80,16 @@ export function useUnsavedGuard(options: UseUnsavedGuardOptions = {}): UnsavedGu
     >
       <AlertDialog.Content>
         <AlertDialog.Header>
-          <AlertDialog.Title>Leave without saving?</AlertDialog.Title>
-          <AlertDialog.Description>
-            Your changes to {what} have not been saved. Leaving now discards them.
-          </AlertDialog.Description>
+          <AlertDialog.Title>{m.leaveTitle}</AlertDialog.Title>
+          <AlertDialog.Description>{m.leaveDescription(options.label)}</AlertDialog.Description>
         </AlertDialog.Header>
         <AlertDialog.Footer>
           <Button variant="ghost" size="sm" onClick={() => reset?.()}>
-            Keep editing
+            {m.keepEditing}
           </Button>
           {options.onSave ? (
             <Button size="sm" disabled={saving} onClick={handleSave}>
-              {saving ? "Saving…" : "Save and leave"}
+              {saving ? common.saving : m.saveAndLeave}
             </Button>
           ) : null}
           <Button
@@ -102,7 +100,7 @@ export function useUnsavedGuard(options: UseUnsavedGuardOptions = {}): UnsavedGu
               proceed?.();
             }}
           >
-            Discard changes
+            {m.discardChanges}
           </Button>
         </AlertDialog.Footer>
       </AlertDialog.Content>

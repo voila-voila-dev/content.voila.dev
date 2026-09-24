@@ -22,6 +22,7 @@ import { FieldRenderer } from "./field-renderer";
 import type { Doc } from "./lib/doc";
 import { getFieldLabel } from "./lib/humanize";
 import { useI18n } from "./lib/i18n";
+import { useMessages } from "./lib/messages";
 import type { DisplayRegistry } from "./registry/registry";
 
 export type TableDensity = "compact" | "comfortable";
@@ -173,14 +174,15 @@ function Root({
   density = "compact",
   stickyHeader = false,
   loading = false,
-  emptyMessage = "No records.",
+  emptyMessage,
   empty,
-  loadingMessage = "Loading…",
+  loadingMessage,
   skeletonRows = 5,
   rowActions,
   caption,
 }: DataTableProps): ReactNode {
   const i18n = useI18n();
+  const m = useMessages();
   const cols = resolveColumns(collection, columns);
   const colCount = (cols.length || 1) + (selectable ? 1 : 0) + (rowActions ? 1 : 0);
   const clickable = onRowClick !== undefined || rowHref !== undefined;
@@ -218,7 +220,7 @@ function Root({
             <Table.Head role="columnheader" scope="col" className={cn(head, "w-9 pr-0")}>
               <Checkbox
                 size="sm"
-                aria-label="Select all rows"
+                aria-label={m.list.selectAll}
                 checked={allSelected}
                 indeterminate={someSelected}
                 onCheckedChange={(checked) => toggleAll(checked === true)}
@@ -272,7 +274,7 @@ function Root({
           })}
           {rowActions ? (
             <Table.Head className={cn(head, "w-0")}>
-              <span className="sr-only">Actions</span>
+              <span className="sr-only">{m.list.actions}</span>
             </Table.Head>
           ) : null}
         </Table.Row>
@@ -295,7 +297,7 @@ function Root({
               ))}
               <Table.Row role="row" className="sr-only">
                 <Table.Cell role="cell" colSpan={colCount}>
-                  {loadingMessage}
+                  {loadingMessage ?? m.common.loading}
                 </Table.Cell>
               </Table.Row>
             </>
@@ -306,7 +308,7 @@ function Root({
                 colSpan={colCount}
                 className={cn(empty ? "p-0" : "py-10 text-center text-muted-foreground")}
               >
-                {empty ?? emptyMessage}
+                {empty ?? emptyMessage ?? m.list.noRecords}
               </Table.Cell>
             </Table.Row>
           )
@@ -315,7 +317,7 @@ function Root({
             const key = keys[index] as string;
             const href = rowHref?.(row, index);
             const isSelected = selected?.has(key) === true;
-            const name = documentTitle(collection, row, i18n) ?? `row ${index + 1}`;
+            const name = documentTitle(collection, row, i18n) ?? m.list.rowN(index + 1);
             return (
               <Table.Row
                 key={key}
@@ -340,7 +342,7 @@ function Root({
                   <Table.Cell role="cell" className={cn(cell, "w-9 pr-0")}>
                     <Checkbox
                       size="sm"
-                      aria-label={`Select ${name}`}
+                      aria-label={m.list.selectRow(name)}
                       checked={isSelected}
                       onCheckedChange={(checked) => toggleOne(key, checked === true)}
                     />
@@ -374,7 +376,7 @@ function Root({
                           renderLink(href) as ReactElement<Record<string, unknown>>,
                           {
                             "data-slot": "row-link",
-                            "aria-label": `Open ${name}`,
+                            "aria-label": m.list.openRow(name),
                             className:
                               "block rounded-sm outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring",
                           },
@@ -390,7 +392,7 @@ function Root({
                             className="sr-only"
                             onClick={() => onRowClick(row, index)}
                           >
-                            Open {name}
+                            {m.list.openRow(name)}
                           </button>
                           {content}
                         </>

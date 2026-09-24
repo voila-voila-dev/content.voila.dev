@@ -11,6 +11,7 @@ import { Select } from "@voila.dev/ui/select";
 import { Switch } from "@voila.dev/ui/switch";
 import { Textarea } from "@voila.dev/ui/textarea";
 import type { ReactNode } from "react";
+import { useMessages } from "../lib/messages";
 import type { FieldIssue } from "../lib/validate";
 
 export interface EditWidgetProps {
@@ -146,11 +147,12 @@ export function ColorInput({
   // The swatch only accepts `#rrggbb`; fall back to black when the field is
   // empty or holds a partial/named color so the picker still opens on a hue.
   const swatch = HEX_COLOR.test(text) ? text : "#000000";
+  const m = useMessages().form;
   return (
     <div data-slot="color-input" className="flex items-center gap-2">
       <input
         type="color"
-        aria-label="Color picker"
+        aria-label={m.colorPicker}
         value={swatch}
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
@@ -311,10 +313,8 @@ export function SelectInput({
  */
 export function UnsupportedInput({ id, field }: EditWidgetProps): ReactNode {
   // richText advertises its own fix: the registry item that vends a real editor.
-  const message =
-    field.meta.kind === "richText"
-      ? "Rich text — run `voila add rich-text-editor`"
-      : `No editor for "${field.meta.kind}" yet`;
+  const m = useMessages().form;
+  const message = field.meta.kind === "richText" ? m.richTextMissing : m.noEditor(field.meta.kind);
   // An inert note, not a borrowed `<Input readOnly>`: a text input exposes the
   // message to assistive tech as editable form content. A `<p>` reads it as the
   // static hint it is. Keeps `id` so the field `<label htmlFor>` still resolves.

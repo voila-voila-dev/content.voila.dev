@@ -25,6 +25,7 @@ import {
   resolveFieldGroups,
   singularLabel,
   useI18n,
+  useMessages,
   useRegisterSidebarSection,
 } from "@voila/content-ui";
 import { AlertDialog } from "@voila.dev/ui/alert-dialog";
@@ -84,6 +85,7 @@ function CollectionDocument({
   const { admin } = useAdmin();
   const navigate = useNavigate();
   const i18n = useI18n();
+  const { admin: m, common } = useMessages();
   const [editing, setEditing] = useState(false);
   // Live preview: the form's current values (unsaved edits included) and the
   // nested row the editor has open, relayed to the pane beside the document.
@@ -103,13 +105,15 @@ function CollectionDocument({
   // Grouped collections save per field, so a blocked navigation there has no
   // single Save to offer — only Discard / Keep editing.
   const guard = useUnsavedGuard({ label: singular.toLowerCase() });
-  const listBack = backToList(admin.basePath, slug, label);
+  const listBack = backToList(admin.basePath, slug, label, m);
   const docBase = `${admin.basePath}/${slug}/${id}`;
 
   // Grouped collections edit per field (each field saves itself); ungrouped ones
   // use a single whole-form Save.
   const grouped = (collection.groups?.length ?? 0) > 0;
-  const groups = grouped ? resolveFieldGroups(collection) : [];
+  const groups = grouped
+    ? resolveFieldGroups(collection, { generalLabel: admin.messages.shell.generalGroup })
+    : [];
   const showHistory = collection.revisions === true;
   const historyActive = group === HISTORY_SECTION && showHistory;
   const activeGroup = groups.find((g) => g.id === group)?.id ?? groups[0]?.id;
@@ -140,7 +144,7 @@ function CollectionDocument({
               ? [
                   {
                     id: HISTORY_SECTION,
-                    label: "History",
+                    label: m.history,
                     href: `${docBase}/${HISTORY_SECTION}`,
                     icon: "ClockCounterClockwise",
                     isActive: historyActive,
@@ -188,7 +192,7 @@ function CollectionDocument({
         defaultLocale={admin.config.i18n?.defaultLocale}
         onDirtyChange={guard.setDirty}
         defaultValues={doc.data}
-        title={`Edit ${title}`}
+        title={m.editTitle(title)}
         back={back}
         // Per-field (grouped) mode has no single Save to exit on, so Done returns
         // to the read view; a whole-form save returns on its own, so it just
@@ -202,13 +206,13 @@ function CollectionDocument({
               size="sm"
               onClick={() => setEditing(false)}
             >
-              {grouped ? "Done" : "Cancel"}
+              {grouped ? m.done : common.cancel}
             </Button>
           </>
         }
         error={!serverErrors ? errorMessage(update.error) : undefined}
         serverErrors={serverErrors}
-        submitLabel="Save"
+        submitLabel={common.save}
         activeGroup={activeGroup}
         onGroupChange={changeGroup}
         // Structured fields (blocks, arrays, objects) nest rows that need
@@ -257,7 +261,7 @@ function CollectionDocument({
       registry={admin.displayWidgets}
       loading={doc.isLoading}
       error={errorMessage(doc.error)}
-      emptyMessage="Not found."
+      emptyMessage={m.notFoundShort}
       back={back}
       activeGroup={activeGroup}
       onGroupChange={changeGroup}
@@ -289,7 +293,7 @@ function CollectionDocument({
           {previewToggle}
           {ops.update ? (
             <Button type="button" size="sm" onClick={() => setEditing(true)}>
-              Edit
+              {common.edit}
             </Button>
           ) : null}
           {ops.delete ? (
@@ -329,33 +333,32 @@ function DocumentMenu({
   readonly onDelete: () => void;
 }): ReactNode {
   const [confirming, setConfirming] = useState(false);
+  const { admin: m, common } = useMessages();
   return (
     <>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger
-          render={<Button variant="outline" size="icon-sm" aria-label="More actions" />}
+          render={<Button variant="outline" size="icon-sm" aria-label={m.moreActions} />}
         >
           <DotsThreeIcon weight="bold" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Content align="end">
           <DropdownMenu.Item variant="destructive" onClick={() => setConfirming(true)}>
             <TrashIcon aria-hidden />
-            Delete
+            {common.delete}
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Root>
       <AlertDialog.Root open={confirming} onOpenChange={setConfirming}>
         <AlertDialog.Content>
           <AlertDialog.Header>
-            <AlertDialog.Title>Delete this {singular.toLowerCase()}?</AlertDialog.Title>
-            <AlertDialog.Description>
-              It's a soft delete — the record is hidden but recoverable through the API.
-            </AlertDialog.Description>
+            <AlertDialog.Title>{m.deleteThis(singular.toLowerCase())}</AlertDialog.Title>
+            <AlertDialog.Description>{m.deleteDescription}</AlertDialog.Description>
           </AlertDialog.Header>
           <AlertDialog.Footer>
-            <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+            <AlertDialog.Cancel>{common.cancel}</AlertDialog.Cancel>
             <AlertDialog.Action variant="destructive" disabled={deleting} onClick={onDelete}>
-              {deleting ? "Deleting…" : "Delete"}
+              {deleting ? common.deleting : common.delete}
             </AlertDialog.Action>
           </AlertDialog.Footer>
         </AlertDialog.Content>
@@ -382,6 +385,7 @@ function HistorySection({
   readonly restoring: boolean;
 }): ReactNode {
   const { admin } = useAdmin();
+  const m = useMessages().admin;
   const api = collectionClient(admin.client, slug);
   const revisions = useInfiniteQuery({
     queryKey: [slug, id, "revisions"],
@@ -395,7 +399,7 @@ function HistorySection({
     <PageLayout.Root data-slot="revision-history-page">
       <PageLayout.Header back={back}>
         <PageLayout.Title>{title}</PageLayout.Title>
-        <PageLayout.Description>History</PageLayout.Description>
+        <PageLayout.Description>{m.history}</PageLayout.Description>
       </PageLayout.Header>
       <PageLayout.Body width="content">
         <RevisionHistory

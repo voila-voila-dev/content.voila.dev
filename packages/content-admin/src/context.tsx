@@ -3,6 +3,7 @@
 // slots. Provided once at the app root by `<AdminProvider>`.
 
 import type { NormalizedConfig } from "@voila/content";
+import { MessagesProvider } from "@voila/content-ui";
 import { createContext, type ReactNode, useContext } from "react";
 import type { AdminBrandSource, AdminInstance, AdminUser } from "./types";
 
@@ -41,7 +42,11 @@ export function AdminProvider<C extends NormalizedConfig>({
     user: user ?? inherited?.user,
     brand: brand ?? inherited?.brand,
   };
-  return <AdminContext.Provider value={value}>{children}</AdminContext.Provider>;
+  return (
+    <AdminContext.Provider value={value}>
+      <MessagesProvider messages={admin.messages}>{children}</MessagesProvider>
+    </AdminContext.Provider>
+  );
 }
 
 /** Read the admin instance, current user and resolved brand. Throws outside an

@@ -19,6 +19,7 @@ import { accentColor } from "./lib/accent";
 import type { Doc } from "./lib/doc";
 import { getFieldLabel } from "./lib/humanize";
 import { activeMapStyleUrl, followThemeStyle } from "./lib/map-style";
+import { useMessages } from "./lib/messages";
 import { hasWebGL } from "./lib/webgl";
 
 export interface MapViewProps {
@@ -85,6 +86,7 @@ function Root({
   className,
 }: MapViewProps): ReactNode {
   const containerRef = useRef<HTMLElement>(null);
+  const m = useMessages();
   // Read rows/handlers live so a re-init isn't forced by the host re-creating the
   // `rows` array each render; the marker set only refreshes on the signature.
   const liveRef = useRef({ collection, rows, geoField, cardFields, onRowClick });
@@ -199,7 +201,7 @@ function Root({
         className,
       )}
     >
-      <section ref={containerRef} aria-label="Map" className="h-full w-full" />
+      <section ref={containerRef} aria-label={m.list.map} className="h-full w-full" />
     </div>
   );
 }

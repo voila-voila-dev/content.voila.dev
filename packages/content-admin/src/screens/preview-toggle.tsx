@@ -4,6 +4,7 @@
 // slug (`usePreviewToggle`).
 
 import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
+import { useMessages } from "@voila/content-ui";
 import { Button } from "@voila.dev/ui/button";
 import type { ReactNode } from "react";
 
@@ -13,7 +14,8 @@ export interface PreviewToggleProps {
 }
 
 export function PreviewToggle({ open, onOpenChange }: PreviewToggleProps): ReactNode {
-  const label = open ? "Hide preview" : "Show preview";
+  const m = useMessages().admin;
+  const label = open ? m.hidePreview : m.showPreview;
   return (
     <Button
       type="button"

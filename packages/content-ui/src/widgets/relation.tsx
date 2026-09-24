@@ -20,6 +20,7 @@ import { Combobox } from "@voila.dev/ui/combobox";
 import { Input } from "@voila.dev/ui/input";
 import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useMessages } from "../lib/messages";
 import { type DisplayWidgetProps, Empty, isCompact } from "./display";
 import type { EditWidget, EditWidgetProps } from "./edit";
 
@@ -125,12 +126,13 @@ export function RelationIdInput({
   error,
 }: EditWidgetProps): ReactNode {
   const ids = relationIds(value);
+  const m = useMessages().form;
   return (
     <Input
       data-slot="relation-id-input"
       id={id}
       value={ids.join(", ")}
-      placeholder="Document id"
+      placeholder={m.documentId}
       disabled={disabled}
       aria-invalid={error ? true : undefined}
       onChange={(e) => {
@@ -153,10 +155,11 @@ export function createRelationInput(config: RelationWidgetOptions): EditWidget {
     const many = meta.many === true;
     const { options, loading, failed } = useRelationOptions(target, config.load, limit);
     const ids = relationIds(props.value);
+    const messages = useMessages();
 
     if (target === undefined || failed) return <RelationIdInput {...props} />;
 
-    const placeholder = loading ? "Loading…" : `Search ${target}…`;
+    const placeholder = loading ? messages.common.loading : messages.form.searchIn(target);
 
     if (many) {
       const selected = ids.map((v) => ({ value: v, label: optionLabel(options, v) }));
@@ -181,7 +184,7 @@ export function createRelationInput(config: RelationWidgetOptions): EditWidget {
           </Combobox.Chips>
           <Combobox.Content>
             <Combobox.Empty>
-              {loading ? "Loading…" : `Nothing in ${target} matches.`}
+              {loading ? messages.common.loading : messages.form.nothingMatches(target)}
             </Combobox.Empty>
             <Combobox.List>
               {(option: RelationOption) => (
@@ -215,7 +218,7 @@ export function createRelationInput(config: RelationWidgetOptions): EditWidget {
           />
           <Combobox.Content>
             <Combobox.Empty>
-              {loading ? "Loading…" : `Nothing in ${target} matches.`}
+              {loading ? messages.common.loading : messages.form.nothingMatches(target)}
             </Combobox.Empty>
             <Combobox.List>
               {(option: RelationOption) => (
@@ -232,9 +235,9 @@ export function createRelationInput(config: RelationWidgetOptions): EditWidget {
             size="xs"
             variant="ghost"
             onClick={() => props.onChange(undefined)}
-            aria-label="Clear selection"
+            aria-label={messages.form.clearSelection}
           >
-            Clear
+            {messages.form.clear}
           </Button>
         ) : null}
       </div>

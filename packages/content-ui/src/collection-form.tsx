@@ -28,6 +28,7 @@ import type { Doc } from "./lib/doc";
 import { type FocusPath, FocusPathProvider } from "./lib/focus-path";
 import { resolveFieldGroups } from "./lib/groups";
 import { getFieldLabel, humanize } from "./lib/humanize";
+import { useMessages } from "./lib/messages";
 import { type FieldIssue, localizedFieldErrors, validateFields } from "./lib/validate";
 import { type LocaleProgress, LocaleSwitcher } from "./locale-switcher";
 import { LocalizedFieldEditor } from "./localized-field";
@@ -235,7 +236,7 @@ export function CollectionForm<C extends Collection = Collection>({
   mode,
   locales,
   onSubmit,
-  submitLabel = "Save",
+  submitLabel: submitLabelProp,
   title,
   description,
   back,
@@ -253,6 +254,8 @@ export function CollectionForm<C extends Collection = Collection>({
   saveMode = "form",
 }: CollectionFormProps<C>): ReactNode {
   const perField = saveMode === "field";
+  const messages = useMessages();
+  const submitLabel = submitLabelProp ?? messages.common.save;
   const formId = useId();
   const creating = (mode ?? (defaultValues === undefined ? "create" : "edit")) === "create";
   const keys = resolveFieldKeys(collection, fields, creating);
@@ -367,7 +370,9 @@ export function CollectionForm<C extends Collection = Collection>({
   // Create shows every group at once — see `groupLayout`.
   const stacked = grouped && groupLayout === "all";
   // Groups partition the KEPT keys (a create drops its readOnly fields).
-  const resolvedGroups = grouped ? resolveFieldGroups(collection, { fields: keys }) : [];
+  const resolvedGroups = grouped
+    ? resolveFieldGroups(collection, { fields: keys, generalLabel: messages.shell.generalGroup })
+    : [];
   const firstGroupId = resolvedGroups[0]?.id;
   const [internalGroup, setInternalGroup] = useState<string | undefined>(
     activeGroup ?? firstGroupId,
@@ -479,6 +484,7 @@ export function CollectionForm<C extends Collection = Collection>({
     const result = validateFields(collection.fields, values, editableKeys, {
       locales,
       defaultLocale,
+      messages,
     });
     if (Object.keys(result.errors).length > 0) {
       setErrors(result.errors);
@@ -507,7 +513,11 @@ export function CollectionForm<C extends Collection = Collection>({
   // the field's unsaved flag and flashes "Saved".
   async function submitField(key: string) {
     if (readOnlyKeys.has(key)) return;
-    const result = validateFields(collection.fields, values, [key], { locales, defaultLocale });
+    const result = validateFields(collection.fields, values, [key], {
+      locales,
+      defaultLocale,
+      messages,
+    });
     if (result.errors[key] !== undefined) {
       setErrors((prev) => ({ ...prev, [key]: result.errors[key] as string }));
       setFieldIssues((prev) => ({ ...prev, [key]: result.issues[key] ?? [] }));
@@ -569,7 +579,7 @@ export function CollectionForm<C extends Collection = Collection>({
     // that actually failed so the error doesn't repeat under every locale.
     const localeErrors =
       localized && fieldError !== undefined
-        ? localizedFieldErrors(field, values[key], locales ?? [], defaultLocale)
+        ? localizedFieldErrors(field, values[key], locales ?? [], defaultLocale, messages)
         : undefined;
     const hasLocaleErrors = localeErrors !== undefined && Object.keys(localeErrors).length > 0;
     const help = field.meta.description;
@@ -588,17 +598,17 @@ export function CollectionForm<C extends Collection = Collection>({
           className="flex items-center justify-end gap-2 text-muted-foreground text-xs"
         >
           {justSaved && !isDirty ? (
-            <span role="status">Saved</span>
+            <span role="status">{messages.common.saved}</span>
           ) : (
             <>
-              <span>Unsaved changes</span>
+              <span>{messages.form.unsavedChanges}</span>
               <Button
                 type="button"
                 size="xs"
                 disabled={saving || !isDirty}
                 onClick={() => submitField(key)}
               >
-                {saving ? "Saving…" : submitLabel}
+                {saving ? messages.common.saving : submitLabel}
               </Button>
             </>
           )}

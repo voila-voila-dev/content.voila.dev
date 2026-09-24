@@ -18,6 +18,7 @@ import { Popover } from "@voila.dev/ui/popover";
 import { cn } from "@voila.dev/ui/utils";
 import { type ReactNode, useRef, useState } from "react";
 import { getFieldLabel } from "./lib/humanize";
+import { useMessages } from "./lib/messages";
 import { selectOptions } from "./widgets/edit";
 
 export interface FilterBuilderProps {
@@ -37,16 +38,6 @@ const NUMERIC = new Set(["number", "position", "duration"]);
 const TEMPORAL = new Set(["date", "datetime", "time"]);
 const ENUMERATED = new Set(["enum", "select"]);
 const FILTERABLE = new Set([...TEXTUAL, ...NUMERIC, ...TEMPORAL, ...ENUMERATED, "boolean"]);
-
-const OP_LABELS: Record<FilterOp, string> = {
-  eq: "is",
-  ne: "is not",
-  contains: "contains",
-  gt: ">",
-  gte: "≥",
-  lt: "<",
-  lte: "≤",
-};
 
 /** The operators that make sense for a field kind. */
 function opsForKind(kind: string): FilterOp[] {
@@ -126,8 +117,10 @@ export function FilterBuilder({
   collection,
   value,
   onChange,
-  label = "Filters",
+  label: labelProp,
 }: FilterBuilderProps): ReactNode {
+  const m = useMessages();
+  const label = labelProp ?? m.list.filters;
   const triggerLabel = value.length > 0 ? `${label} (${value.length})` : label;
 
   return (
@@ -158,8 +151,10 @@ export function FilterEditor({
   collection,
   value,
   onChange,
-  label = "Filters",
+  label: labelProp,
 }: FilterBuilderProps): ReactNode {
+  const m = useMessages();
+  const label = labelProp ?? m.list.filters;
   const fields = filterableFields(collection);
   const idRef = useRef(0);
   const mintId = () => `f${idRef.current++}`;
@@ -216,13 +211,13 @@ export function FilterEditor({
     <>
       <p className="font-medium text-sm">{label}</p>
       {rows.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No filters yet.</p>
+        <p className="text-muted-foreground text-sm">{m.list.noFilters}</p>
       ) : (
         <ul className="space-y-2">
           {rows.map((row, index) => (
             <li key={row.id} className="flex items-center gap-1.5">
               <select
-                aria-label="Filter field"
+                aria-label={m.list.filterField}
                 className={cn(NATIVE_SELECT_CLASS, "min-w-0 flex-1")}
                 value={row.field}
                 onChange={(event) => changeField(index, event.target.value)}
@@ -234,14 +229,14 @@ export function FilterEditor({
                 ))}
               </select>
               <select
-                aria-label="Filter operator"
+                aria-label={m.list.filterOperator}
                 className={NATIVE_SELECT_CLASS}
                 value={row.op}
                 onChange={(event) => updateRow(index, { op: event.target.value as FilterOp })}
               >
                 {opsForKind(kindOf(collection, row.field)).map((op) => (
                   <option key={op} value={op}>
-                    {OP_LABELS[op]}
+                    {m.list.ops[op]}
                   </option>
                 ))}
               </select>
@@ -253,7 +248,7 @@ export function FilterEditor({
               />
               <button
                 type="button"
-                aria-label="Remove filter"
+                aria-label={m.list.removeFilter}
                 onClick={() => removeRow(index)}
                 className="rounded p-1 text-muted-foreground hover:text-foreground"
               >
@@ -270,7 +265,7 @@ export function FilterEditor({
         className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1.5")}
       >
         <PlusIcon className="size-4" aria-hidden />
-        Add filter
+        {m.list.addFilter}
       </button>
     </>
   );
@@ -290,8 +285,9 @@ function FilterValueInput({
 }): ReactNode {
   const field = collection.fields[fieldKey];
   const kind = field?.meta.kind ?? "string";
+  const m = useMessages();
   const common = {
-    "aria-label": "Filter value",
+    "aria-label": m.list.filterValue,
     className: cn(NATIVE_SELECT_CLASS, "min-w-0 flex-1"),
     value,
     onChange: (event: { target: { value: string } }) => onChange(event.target.value),
@@ -300,8 +296,8 @@ function FilterValueInput({
   if (kind === "boolean") {
     return (
       <select {...common}>
-        <option value="true">true</option>
-        <option value="false">false</option>
+        <option value="true">{m.list.booleanTrue}</option>
+        <option value="false">{m.list.booleanFalse}</option>
       </select>
     );
   }

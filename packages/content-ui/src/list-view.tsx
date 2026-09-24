@@ -22,6 +22,7 @@ import type { Doc } from "./lib/doc";
 import { humanize } from "./lib/humanize";
 import { useI18n } from "./lib/i18n";
 import { NamedIcon } from "./lib/icons";
+import { useMessages } from "./lib/messages";
 import { PageLayout, pageGutter } from "./page-layout";
 import type { DisplayRegistry } from "./registry/registry";
 import { SearchInput } from "./search-input";
@@ -127,7 +128,7 @@ function Root({
   emptyAction,
   nextCursor,
   onLoadMore,
-  loadMoreLabel = "Load more",
+  loadMoreLabel,
   total,
   pageSize,
   onPageSizeChange,
@@ -147,6 +148,7 @@ function Root({
   const heading = title ?? collection.label ?? humanize(collection.slug);
   // The admin's formatting locale, for the footer counts.
   const { locale } = useI18n();
+  const m = useMessages();
   const canLoadMore = Boolean(nextCursor) && onLoadMore !== undefined;
   // The search box is always offered when the host wires it. A collection
   // without full-text search still gets a box — the host narrows the loaded
@@ -155,8 +157,8 @@ function Root({
   const fullText = searchEnabled(collection.search);
   const showSearch = onSearchChange !== undefined;
   const searchPlaceholder = fullText
-    ? `Search ${String(heading).toLowerCase()}…`
-    : "Filter by title…";
+    ? m.list.searchIn(String(heading).toLowerCase())
+    : m.list.filterByTitle;
   const showStatusFilter = collection.drafts === true && onStatusChange !== undefined;
   const [internalDensity, setInternalDensity] = useState<TableDensity>("compact");
   const activeDensity = density ?? internalDensity;
@@ -178,19 +180,17 @@ function Root({
   // region, so screen readers stay silent on load, empty, and page changes
   // without this. Mirrors the load → empty/results progression below.
   const liveMessage = loading
-    ? "Loading…"
+    ? m.common.loading
     : rows.length === 0
-      ? (emptyMessage ?? "No records.")
-      : rows.length === 1
-        ? "1 result"
-        : `${rows.length} results`;
+      ? (emptyMessage ?? m.list.noRecords)
+      : m.list.results(rows.length);
 
   const countLine =
     rows.length === 0
       ? null
       : typeof total === "number" && total >= rows.length
-        ? `Showing ${rows.length.toLocaleString(locale)} of ${total.toLocaleString(locale)} ${total === 1 ? "record" : "records"}`
-        : `Showing ${rows.length.toLocaleString(locale)} ${rows.length === 1 ? "record" : "records"}${canLoadMore ? " — more available" : ""}`;
+        ? m.list.showingOf(rows.length, total, locale)
+        : m.list.showing(rows.length, canLoadMore, locale);
 
   const emptyState = (
     <Empty.Root className="py-12">
@@ -198,13 +198,15 @@ function Root({
         <Empty.Media variant="icon">
           <NamedIcon name={collection.icon} fallback="StackSimple" />
         </Empty.Media>
-        <Empty.Title>{emptyMessage ?? `No ${String(heading).toLowerCase()} yet`}</Empty.Title>
+        <Empty.Title>
+          {emptyMessage ?? m.list.emptyTitle(String(heading).toLowerCase())}
+        </Empty.Title>
         <Empty.Description>
           {searchValue
             ? fullText
-              ? "Nothing matches this search. Try another term or clear the filters."
-              : "No loaded record has a matching title. Clear the filter, or load more records."
-            : "Records you create will show up here."}
+              ? m.list.emptySearch
+              : m.list.emptyTitleFilter
+            : m.list.emptyHint}
         </Empty.Description>
       </Empty.Header>
       {emptyAction ? <Empty.Content>{emptyAction}</Empty.Content> : null}
@@ -252,9 +254,11 @@ function Root({
                 type="button"
                 variant="outline"
                 size="icon-sm"
-                aria-label={activeDensity === "compact" ? "Comfortable rows" : "Compact rows"}
+                aria-label={
+                  activeDensity === "compact" ? m.list.comfortableRows : m.list.compactRows
+                }
                 aria-pressed={activeDensity === "comfortable"}
-                title={activeDensity === "compact" ? "Comfortable rows" : "Compact rows"}
+                title={activeDensity === "compact" ? m.list.comfortableRows : m.list.compactRows}
                 onClick={toggleDensity}
               >
                 {activeDensity === "compact" ? <RowsPlusBottomIcon /> : <RowsIcon />}
@@ -270,14 +274,14 @@ function Root({
               pageGutter,
             )}
           >
-            <span className="font-medium tabular-nums">{selectedCount} selected</span>
+            <span className="font-medium tabular-nums">{m.list.selected(selectedCount)}</span>
             <Button
               type="button"
               variant="ghost"
               size="xs"
               onClick={() => changeSelected(new Set())}
             >
-              Clear
+              {m.list.clearSelection}
             </Button>
             <div className="ml-auto flex items-center gap-2">{bulkActions?.(selectedSet)}</div>
           </div>
@@ -318,13 +322,13 @@ function Root({
 
       <PageLayout.Footer className="min-h-12 py-2 text-muted-foreground text-xs">
         <div className="flex items-center gap-3">
-          {loading && rows.length > 0 ? <span>Loading…</span> : <span>{countLine}</span>}
+          {loading && rows.length > 0 ? <span>{m.common.loading}</span> : <span>{countLine}</span>}
           {pageSize !== undefined && onPageSizeChange ? (
             <div className="flex items-center gap-1.5">
-              <span aria-hidden>Per page</span>
+              <span aria-hidden>{m.list.perPage}</span>
               <NativeSelect.Root
                 size="sm"
-                aria-label="Rows per page"
+                aria-label={m.list.rowsPerPage}
                 value={String(pageSize)}
                 onChange={(event) => onPageSizeChange(Number(event.target.value))}
                 wrapperClassName="w-20"
@@ -340,7 +344,7 @@ function Root({
         </div>
         {canLoadMore ? (
           <Button variant="outline" size="sm" onClick={onLoadMore} disabled={loading}>
-            {loadMoreLabel}
+            {loadMoreLabel ?? m.list.loadMore}
           </Button>
         ) : null}
       </PageLayout.Footer>

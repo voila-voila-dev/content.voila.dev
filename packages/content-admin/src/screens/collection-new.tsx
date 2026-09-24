@@ -17,6 +17,7 @@ import {
   type Doc,
   PageLayout,
   singularLabel,
+  useMessages,
 } from "@voila/content-ui";
 import { Button } from "@voila.dev/ui/button";
 import type { ReactNode } from "react";
@@ -34,6 +35,7 @@ export function CollectionNewScreen(): ReactNode {
   const { collection: slug } = useParams({ strict: false }) as { collection: string };
   const collection = admin.config.collections[slug] as Collection | undefined;
 
+  const { admin: m, common } = useMessages();
   const { create } = useCollectionMutations(slug);
   const guard = useUnsavedGuard({
     label: collection ? singularLabel(collection).toLowerCase() : undefined,
@@ -46,7 +48,7 @@ export function CollectionNewScreen(): ReactNode {
 
   const serverErrors = fieldErrors(create.error);
   const label = collection.label ?? slug;
-  const back = backToList(admin.basePath, slug, label);
+  const back = backToList(admin.basePath, slug, label, m);
 
   return (
     <>
@@ -59,7 +61,7 @@ export function CollectionNewScreen(): ReactNode {
         defaultLocale={admin.config.i18n?.defaultLocale}
         groupLayout="all"
         onDirtyChange={guard.setDirty}
-        title={`New ${singularLabel(collection).toLowerCase()}`}
+        title={m.newTitle(singularLabel(collection).toLowerCase())}
         back={
           <PageLayout.Back
             href={back.href}
@@ -74,12 +76,12 @@ export function CollectionNewScreen(): ReactNode {
             nativeButton={false}
             render={<AdminLink href={back.href} />}
           >
-            Cancel
+            {common.cancel}
           </Button>
         }
         error={!serverErrors ? errorMessage(create.error) : undefined}
         serverErrors={serverErrors}
-        submitLabel="Create"
+        submitLabel={common.create}
         onSubmit={(values) =>
           create.mutate(values as Doc, {
             onSuccess: (doc) => navigate({ href: `${admin.basePath}/${slug}/${doc.id}` }),

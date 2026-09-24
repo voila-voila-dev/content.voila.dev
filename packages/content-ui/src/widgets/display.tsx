@@ -10,6 +10,7 @@ import { Badge } from "@voila.dev/ui/badge";
 import { cn } from "@voila.dev/ui/utils";
 import type { ReactNode } from "react";
 import { useI18n } from "../lib/i18n";
+import { useMessages } from "../lib/messages";
 import { markdownToPlain, richTextToPlain, truncateText } from "../lib/text";
 
 /** Where a value is being rendered — widgets adapt size and density to it. */
@@ -200,6 +201,7 @@ export function NumberDisplay({ value, meta }: DisplayWidgetProps): ReactNode {
 
 /** A boolean as a check / dash glyph (with a text label for assistive tech). */
 export function BooleanDisplay({ value }: DisplayWidgetProps): ReactNode {
+  const m = useMessages().common;
   if (value === null || value === undefined) return <Empty />;
   const on = value === true;
   return (
@@ -216,7 +218,7 @@ export function BooleanDisplay({ value }: DisplayWidgetProps): ReactNode {
       ) : (
         <MinusIcon className="size-3.5" aria-hidden />
       )}
-      <span className="sr-only">{on ? "Yes" : "No"}</span>
+      <span className="sr-only">{on ? m.yes : m.no}</span>
     </span>
   );
 }

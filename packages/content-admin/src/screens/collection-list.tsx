@@ -42,6 +42,7 @@ import {
   searchEnabled,
   singularLabel,
   useI18n,
+  useMessages,
   ViewTabs,
 } from "@voila/content-ui";
 import { AlertDialog } from "@voila.dev/ui/alert-dialog";
@@ -311,6 +312,7 @@ export function CollectionListScreen(): ReactNode {
 
   const { create, update: updateRow, removeMany, updateMany } = useCollectionMutations(slug);
   const i18n = useI18n();
+  const { admin: m, common } = useMessages();
 
   /**
    * Copy a record into a new draft. Server-owned columns are stripped (a new id
@@ -329,7 +331,7 @@ export function CollectionListScreen(): ReactNode {
       const value = row[key];
       if (value === undefined || value === null) continue;
       if (key === collection.titleField) {
-        copy[key] = suffixTitle(value, " (copy)");
+        copy[key] = suffixTitle(value, m.copySuffix);
       } else if (field?.meta.kind === "slug" && typeof value === "string") {
         copy[key] = `${value}-copy`;
       } else {
@@ -342,7 +344,12 @@ export function CollectionListScreen(): ReactNode {
   }
 
   function selectView(id: string) {
-    navigate({ to: ".", search: (prev: Record<string, unknown>) => ({ ...prev, view: id }) });
+    // `as never`: the host's registered router types its own search params
+    // (a site route may declare `{ ville?: string }`); the admin only adds `view`.
+    navigate({
+      to: ".",
+      search: ((prev: Record<string, unknown>) => ({ ...prev, view: id })) as never,
+    });
   }
 
   // View CRUD; the hook invalidates the views query. Creating selects the new
@@ -445,7 +452,7 @@ export function CollectionListScreen(): ReactNode {
   // The visible toolbar: filters always; columns on the table view, card fields
   // on a board/map/calendar; the map's default position on a map. Each is a
   // popover over the active view's config (writes through on change).
-  const fieldsLabel = viewType === "table" ? "Columns" : "Card fields";
+  const fieldsLabel = viewType === "table" ? m.columns : m.cardFields;
   const fieldsValue = viewType === "table" ? visibleColumns : cardFields;
   const onFieldsChange =
     viewType === "table" ? changeColumns : (next: string[]) => patchConfig({ cardFields: next });
@@ -460,7 +467,7 @@ export function CollectionListScreen(): ReactNode {
           )}
         >
           <FunnelIcon aria-hidden />
-          {filterCount > 0 ? `Filters (${filterCount})` : "Filter"}
+          {filterCount > 0 ? m.filters(filterCount) : m.filter}
         </Popover.Trigger>
         <Popover.Content align="end" className="w-[26rem] max-w-[calc(100vw-2rem)]">
           <FilterEditor
@@ -488,7 +495,7 @@ export function CollectionListScreen(): ReactNode {
       {viewType === "map" ? (
         <Popover.Root>
           <Popover.Trigger className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
-            Map position
+            {m.mapPosition}
           </Popover.Trigger>
           <Popover.Content align="end" className="w-80">
             <MapDefaultsEditor
@@ -522,7 +529,7 @@ export function CollectionListScreen(): ReactNode {
   const newButton = ops.create ? (
     <Button size="sm" nativeButton={false} render={<AdminLink href={newHref} />}>
       <PlusIcon aria-hidden />
-      New {singular.toLowerCase()}
+      {common.newItem(singular.toLowerCase())}
     </Button>
   ) : null;
   const controls = (
@@ -531,7 +538,7 @@ export function CollectionListScreen(): ReactNode {
       {newButton}
     </>
   );
-  const home = backToHome(admin.basePath);
+  const home = backToHome(admin.basePath, m);
   const back = (
     <PageLayout.Back
       href={home.href}
@@ -561,9 +568,7 @@ export function CollectionListScreen(): ReactNode {
         </PageLayout.Toolbar>
         <PageLayout.Body className="space-y-4">
           {cappedOut ? (
-            <p className="text-muted-foreground text-sm">
-              Showing the first {rows.length} records. Narrow the set with a filter to see more.
-            </p>
+            <p className="text-muted-foreground text-sm">{m.showingFirst(rows.length)}</p>
           ) : null}
           {viewType === "kanban" && kanbanField ? (
             <KanbanView.Root
@@ -715,6 +720,7 @@ function RowActions({
   readonly onDuplicate?: () => void;
   readonly onDelete?: () => void;
 }): ReactNode {
+  const { admin: m, common } = useMessages();
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
@@ -722,7 +728,7 @@ function RowActions({
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={`Actions for this ${singular}`}
+            aria-label={m.rowActions(singular)}
             // The row is a click target; this menu is not a way into it.
             onClick={(event) => event.stopPropagation()}
           />
@@ -734,13 +740,13 @@ function RowActions({
         {onDuplicate ? (
           <DropdownMenu.Item onClick={onDuplicate}>
             <CopyIcon aria-hidden />
-            Duplicate
+            {m.duplicate}
           </DropdownMenu.Item>
         ) : null}
         {onDelete ? (
           <DropdownMenu.Item variant="destructive" onClick={onDelete}>
             <TrashIcon aria-hidden />
-            Delete
+            {common.delete}
           </DropdownMenu.Item>
         ) : null}
       </DropdownMenu.Content>
@@ -786,6 +792,7 @@ function BulkActions({
   readonly onDelete: () => void;
 }): ReactNode {
   const count = ids.size;
+  const m = useMessages().admin;
   // Enum fields are the ones with a closed, human-labelled value set, which is
   // exactly what a bulk "move to…" needs. None when updates are off.
   const enumFields = canUpdate
@@ -813,14 +820,14 @@ function BulkActions({
               disabled={applying}
               className={cn(buttonVariants({ variant: "outline", size: "xs" }))}
             >
-              Set {humanizeFieldName(name)}
+              {m.setField(humanizeFieldName(name))}
             </DropdownMenu.Trigger>
             <DropdownMenu.Content align="end">
               {entries.map(([label, raw]) => (
                 <DropdownMenu.Item
                   key={label}
                   onClick={() =>
-                    onSetField({ [name]: raw } as Doc, `Set ${humanizeFieldName(name)} to ${label}`)
+                    onSetField({ [name]: raw } as Doc, m.setFieldTo(humanizeFieldName(name), label))
                   }
                 >
                   {label}
@@ -832,7 +839,7 @@ function BulkActions({
       })}
       <Button variant="outline" size="xs" onClick={exportSelected}>
         <DownloadSimpleIcon aria-hidden />
-        Export CSV
+        {m.exportCsv}
       </Button>
       {canDelete ? <BulkDelete count={count} pending={deleting} onConfirm={onDelete} /> : null}
     </>
@@ -855,6 +862,7 @@ function BulkDelete({
   readonly pending: boolean;
   readonly onConfirm: () => void;
 }): ReactNode {
+  const { admin: m, common } = useMessages();
   return (
     <AlertDialog.Root>
       <AlertDialog.Trigger
@@ -862,22 +870,17 @@ function BulkDelete({
         className={cn(buttonVariants({ variant: "destructive", size: "xs" }))}
       >
         <TrashIcon aria-hidden />
-        {pending ? "Deleting…" : `Delete ${count}`}
+        {pending ? common.deleting : m.deleteCount(count)}
       </AlertDialog.Trigger>
       <AlertDialog.Content>
         <AlertDialog.Header>
-          <AlertDialog.Title>
-            Delete {count} {count === 1 ? "record" : "records"}?
-          </AlertDialog.Title>
-          <AlertDialog.Description>
-            It's a soft delete. You'll get an Undo in the confirmation toast, and the records stay
-            recoverable through the API after that.
-          </AlertDialog.Description>
+          <AlertDialog.Title>{m.deleteCountTitle(count)}</AlertDialog.Title>
+          <AlertDialog.Description>{m.bulkDeleteDescription}</AlertDialog.Description>
         </AlertDialog.Header>
         <AlertDialog.Footer>
-          <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+          <AlertDialog.Cancel>{common.cancel}</AlertDialog.Cancel>
           <AlertDialog.Action variant="destructive" onClick={onConfirm}>
-            Delete
+            {common.delete}
           </AlertDialog.Action>
         </AlertDialog.Footer>
       </AlertDialog.Content>
@@ -904,6 +907,7 @@ function MapDefaultsEditor({
   const [lng, setLng] = useState(center ? String(center.lng) : "");
   const [zoomText, setZoomText] = useState(zoom !== undefined ? String(zoom) : "");
   const id = useId();
+  const m = useMessages().admin;
 
   function commit(nextLat: string, nextLng: string, nextZoom: string) {
     const latNum = Number.parseFloat(nextLat.replace(",", "."));
@@ -927,10 +931,10 @@ function MapDefaultsEditor({
 
   return (
     <div className="space-y-3">
-      <p className="font-medium text-sm">Map position</p>
+      <p className="font-medium text-sm">{m.mapPosition}</p>
       <div className="grid grid-cols-3 gap-2">
         <div className="flex flex-col gap-1 text-muted-foreground text-xs">
-          <label htmlFor={`${id}-lat`}>Latitude</label>
+          <label htmlFor={`${id}-lat`}>{m.latitude}</label>
           <Input
             id={`${id}-lat`}
             type="text"
@@ -943,7 +947,7 @@ function MapDefaultsEditor({
           />
         </div>
         <div className="flex flex-col gap-1 text-muted-foreground text-xs">
-          <label htmlFor={`${id}-lng`}>Longitude</label>
+          <label htmlFor={`${id}-lng`}>{m.longitude}</label>
           <Input
             id={`${id}-lng`}
             type="text"
@@ -956,7 +960,7 @@ function MapDefaultsEditor({
           />
         </div>
         <div className="flex flex-col gap-1 text-muted-foreground text-xs">
-          <label htmlFor={`${id}-zoom`}>Zoom</label>
+          <label htmlFor={`${id}-zoom`}>{m.zoom}</label>
           <Input
             id={`${id}-zoom`}
             type="text"
@@ -970,7 +974,7 @@ function MapDefaultsEditor({
         </div>
       </div>
       <Button type="button" variant="ghost" size="sm" onClick={reset}>
-        Reset to auto-fit
+        {m.resetAutoFit}
       </Button>
     </div>
   );

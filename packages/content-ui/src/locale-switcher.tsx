@@ -10,6 +10,7 @@
 import { SegmentedControl } from "@voila.dev/ui/segmented-control";
 import { cn } from "@voila.dev/ui/utils";
 import type { ReactNode } from "react";
+import { useMessages } from "./lib/messages";
 
 /** How translated one locale is across the form's localized fields. */
 export interface LocaleProgress {
@@ -52,6 +53,7 @@ export function LocaleSwitcher({
   progress,
   disabled,
 }: LocaleSwitcherProps): ReactNode {
+  const m = useMessages().shell;
   // One locale is not a choice — showing a switcher for it is pure noise.
   if (locales.length < 2) return null;
   return (
@@ -66,7 +68,7 @@ export function LocaleSwitcher({
         onValueChange={(next) => {
           if (typeof next === "string") onChange(next);
         }}
-        aria-label="Editing language"
+        aria-label={m.editingLanguage}
       >
         {locales.map((locale) => {
           const state = completionState(progress?.[locale]);
@@ -75,9 +77,7 @@ export function LocaleSwitcher({
             <SegmentedControl.Item
               key={locale}
               value={locale}
-              aria-label={
-                stats ? `${locale}, ${stats.filled} of ${stats.total} fields translated` : locale
-              }
+              aria-label={stats ? m.localeProgress(locale, stats.filled, stats.total) : locale}
             >
               <span className="flex items-center gap-1.5">
                 {progress ? (
@@ -95,7 +95,9 @@ export function LocaleSwitcher({
       </SegmentedControl.Root>
       {defaultLocale !== undefined && value !== defaultLocale ? (
         <span className="text-muted-foreground text-xs">
-          Untranslated fields fall back to <span className="font-mono">{defaultLocale}</span>.
+          {m.fallbackBefore}
+          <span className="font-mono">{defaultLocale}</span>
+          {m.fallbackAfter}
         </span>
       ) : null}
     </div>

@@ -18,6 +18,7 @@ import { resolveBrandLogo } from "../lib/brand-logo";
 
 export function LoginScreen(): ReactNode {
   const { admin, brand } = useAdmin();
+  const m = admin.messages.admin;
   const [email, setEmail] = useState("");
   const signIn = useSignIn();
   const emailId = useId();
@@ -62,10 +63,8 @@ export function LoginScreen(): ReactNode {
 
         <Card.Root>
           <Card.Header>
-            <Card.Title>Sign in</Card.Title>
-            <Card.Description>
-              We'll email you a magic link. The first account to sign in becomes the admin.
-            </Card.Description>
+            <Card.Title>{m.signInTitle}</Card.Title>
+            <Card.Description>{m.signInDescription}</Card.Description>
           </Card.Header>
           <Card.Content>
             {sent ? (
@@ -79,16 +78,15 @@ export function LoginScreen(): ReactNode {
                   aria-hidden
                 />
                 <div className="space-y-1">
-                  <p className="font-medium">Check your inbox</p>
+                  <p className="font-medium">{m.checkInbox}</p>
                   {/* Deliberately says nothing about where the link comes from.
                       A sign-in page is read by whoever is trying to get in, and
                       "check the server terminal" is an instruction only the
                       person running it locally could act on — on a deployed
                       admin it is noise at best and a leaked internal at worst. */}
                   <p className="text-muted-foreground">
-                    We sent a sign-in link to{" "}
-                    <span className="font-medium text-foreground">{email}</span>. It expires
-                    shortly, so open it soon.
+                    {m.sentLinkBefore} <span className="font-medium text-foreground">{email}</span>
+                    {m.sentLinkAfter}
                   </p>
                   <Button
                     type="button"
@@ -97,14 +95,14 @@ export function LoginScreen(): ReactNode {
                     className="h-auto p-0"
                     onClick={() => signIn.reset()}
                   >
-                    Use a different email
+                    {m.useDifferentEmail}
                   </Button>
                 </div>
               </div>
             ) : (
               <form onSubmit={submit} className="space-y-4" noValidate>
                 <div className="space-y-1.5">
-                  <Label htmlFor={emailId}>Email</Label>
+                  <Label htmlFor={emailId}>{m.emailLabel}</Label>
                   <Input
                     id={emailId}
                     type="email"
@@ -115,7 +113,7 @@ export function LoginScreen(): ReactNode {
                     autoFocus
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
+                    placeholder={m.emailPlaceholder}
                     aria-invalid={error ? true : undefined}
                     aria-describedby={error ? `${emailId}-error` : undefined}
                   />
@@ -130,7 +128,7 @@ export function LoginScreen(): ReactNode {
                   className="w-full"
                   disabled={pending || email.trim() === "" || !retryable}
                 >
-                  {pending ? "Sending…" : "Send magic link"}
+                  {pending ? m.sending : m.sendMagicLink}
                 </Button>
               </form>
             )}

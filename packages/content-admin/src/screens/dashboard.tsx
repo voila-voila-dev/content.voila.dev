@@ -27,7 +27,7 @@ export function DashboardScreen(): ReactNode {
   const { admin } = useAdmin();
   const i18n = useI18n();
   const counts = (useLoaderData({ strict: false }) as Record<string, number> | undefined) ?? {};
-  const title = admin.branding.title ?? "Overview";
+  const title = admin.branding.title ?? admin.messages.admin.overview;
   const collections = Object.values(admin.config.collections) as Collection[];
 
   // Newest documents per collection, merged and cut to one short feed.

@@ -19,6 +19,7 @@ import type { Doc } from "./lib/doc";
 import { resolveFieldGroups } from "./lib/groups";
 import { getFieldLabel, humanize } from "./lib/humanize";
 import { type I18nContextValue, resolveLocalized, useI18n } from "./lib/i18n";
+import { useMessages } from "./lib/messages";
 import { PageLayout } from "./page-layout";
 import type { DisplayRegistry } from "./registry/registry";
 import { formatDate, relativeDate } from "./widgets/display";
@@ -116,6 +117,8 @@ function EntityMeta({ collection, doc }: { collection: Collection; doc: Doc }): 
   const id = typeof doc.id === "string" || typeof doc.id === "number" ? String(doc.id) : undefined;
   const updated = toDate(doc.updatedAt) ?? toDate(doc.createdAt);
   const showStatus = collection.drafts === true;
+  const { locale } = useI18n();
+  const m = useMessages().form;
   if (!id && !updated && !showStatus) return null;
   return (
     <div
@@ -124,8 +127,10 @@ function EntityMeta({ collection, doc }: { collection: Collection; doc: Doc }): 
     >
       {showStatus ? <StatusBadge doc={doc} /> : null}
       {updated ? (
-        <span title={formatDate(updated, "datetime")}>
-          Updated {relativeDate(updated) ?? formatDate(updated, "datetime")}
+        <span title={formatDate(updated, "datetime", locale)}>
+          {m.updated(
+            relativeDate(updated, undefined, locale) ?? formatDate(updated, "datetime", locale),
+          )}
         </span>
       ) : null}
       {id ? (
@@ -133,8 +138,8 @@ function EntityMeta({ collection, doc }: { collection: Collection; doc: Doc }): 
           value={id}
           label={id.length > 14 ? `${id.slice(0, 8)}…${id.slice(-4)}` : id}
           muted
-          copyLabel="Copy id"
-          copiedLabel="Copied"
+          copyLabel={m.copyId}
+          copiedLabel={m.copied}
           className="text-xs"
         />
       ) : null}
@@ -160,6 +165,7 @@ function Root({
   onGroupChange,
 }: DetailViewProps): ReactNode {
   const i18n = useI18n();
+  const messages = useMessages();
   const hasDoc = doc !== null && doc !== undefined;
   const heading =
     title ??
@@ -172,7 +178,9 @@ function Root({
   // group is controlled by `activeGroup` when given, else tracked internally;
   // either way it's clamped to a real group (falling back to the first).
   const grouped = (collection.groups?.length ?? 0) > 0;
-  const resolvedGroups = grouped ? resolveFieldGroups(collection, { fields }) : [];
+  const resolvedGroups = grouped
+    ? resolveFieldGroups(collection, { fields, generalLabel: messages.shell.generalGroup })
+    : [];
   const [internalGroup, setInternalGroup] = useState<string | undefined>(undefined);
   const currentGroupId = activeGroup ?? internalGroup;
   const activeResolved = resolvedGroups.find((g) => g.id === currentGroupId) ?? resolvedGroups[0];
@@ -188,7 +196,10 @@ function Root({
     const field = collection.fields[key];
     if (!field) return null;
     return (
-      <div key={key} className="contents">
+      <div
+        key={key}
+        className="contents [&:not(:first-child)>dt]:pt-3 sm:[&:not(:first-child)>dt]:pt-0.5"
+      >
         <dt className="pt-0.5 font-medium text-muted-foreground text-xs leading-5 sm:text-sm">
           {getFieldLabel(key, field)}
         </dt>
@@ -205,9 +216,9 @@ function Root({
   const liveMessage = error
     ? error
     : loading && !hasDoc
-      ? "Loading…"
+      ? messages.common.loading
       : !hasDoc
-        ? (emptyMessage ?? "Not found.")
+        ? (emptyMessage ?? messages.form.notFound)
         : "";
 
   // The read card's body: an optional group description over the field list.
@@ -221,7 +232,9 @@ function Root({
           {groupDescription ? (
             <FieldCard.Description className="my-0">{groupDescription}</FieldCard.Description>
           ) : null}
-          <dl className="grid grid-cols-[minmax(7rem,11rem)_1fr] items-start gap-x-6 gap-y-3">
+          {/* Label above value on a phone (a 7rem label column leaves the value a
+              sliver at 390px), side by side from `sm` up. */}
+          <dl className="grid grid-cols-1 items-start gap-x-6 gap-y-1 sm:grid-cols-[minmax(7rem,11rem)_1fr] sm:gap-y-3">
             {fieldKeys.map((key) => fieldRow(key, doc as Doc))}
           </dl>
         </FieldCard.Card>
@@ -271,7 +284,7 @@ function Root({
       ) : (
         <PageLayout.Body width="content">
           <p className="text-muted-foreground text-sm">
-            {loading ? "Loading…" : (emptyMessage ?? "Not found.")}
+            {loading ? messages.common.loading : (emptyMessage ?? messages.form.notFound)}
           </p>
         </PageLayout.Body>
       )}

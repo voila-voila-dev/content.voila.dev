@@ -7,14 +7,16 @@
 import { MoonIcon, SunIcon } from "@phosphor-icons/react";
 import { Button } from "@voila.dev/ui/button";
 import type { ReactNode } from "react";
+import { useMessages } from "./lib/messages";
 import { resolvedTheme, setTheme } from "./lib/theme";
 
 export function ThemeToggle(): ReactNode {
+  const m = useMessages();
   return (
     <Button
       variant="ghost"
       size="icon"
-      aria-label="Toggle theme"
+      aria-label={m.shell.toggleTheme}
       onClick={() => setTheme(resolvedTheme() === "dark" ? "light" : "dark")}
     >
       <SunIcon className="dark:hidden" />

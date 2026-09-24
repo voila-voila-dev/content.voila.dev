@@ -14,6 +14,7 @@ import {
   DEFAULT_MAP_STYLE_URL,
   mergeDisplayRegistry,
   mergeEditRegistry,
+  resolveMessages,
 } from "@voila/content-ui";
 import { makeAuthedFetch } from "./lib/authed-fetch";
 import { makeRelationLoader } from "./lib/relation-source";
@@ -98,6 +99,7 @@ export function defineAdmin<C extends NormalizedConfig>(
     mapDarkStyleUrl,
     counts: options.counts,
     locale: options.locale,
+    messages: resolveMessages(options.locale, options.messages),
     preview: options.preview ?? {},
   };
 }

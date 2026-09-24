@@ -22,6 +22,7 @@ import { Kbd } from "@voila.dev/ui/kbd";
 import { Sidebar } from "@voila.dev/ui/sidebar";
 import { getInitials } from "@voila.dev/ui/user-avatar";
 import { type ReactNode, useEffect, useState } from "react";
+import { en, type Messages, useMessages } from "./lib/messages";
 import { setThemeChoice, type ThemeChoice, themeChoice, watchSystemTheme } from "./lib/theme";
 
 /** One row of the keyboard-shortcut sheet. */
@@ -37,22 +38,28 @@ export interface ShortcutHint {
  * the admin layout, ⌘B by the kit's `Sidebar.Provider`, and the arrow/enter/
  * escape behaviour comes from the command palette and dialog primitives.
  */
-export const DEFAULT_SHORTCUTS: ReadonlyArray<ShortcutHint> = [
-  { keys: ["⌘", "K"], description: "Open the command palette (search, jump, create)" },
-  { keys: ["⌘", "B"], description: "Show or hide the sidebar" },
-  { keys: ["↑", "↓"], description: "Move through command palette results" },
-  { keys: ["↵"], description: "Open the highlighted result" },
-  { keys: ["Esc"], description: "Close the palette or an open dialog" },
-];
+export function defaultShortcuts(messages: Messages = en): ReadonlyArray<ShortcutHint> {
+  const m = messages.shell;
+  return [
+    { keys: ["⌘", "K"], description: m.shortcutPalette },
+    { keys: ["⌘", "B"], description: m.shortcutSidebar },
+    { keys: ["↑", "↓"], description: m.shortcutMove },
+    { keys: ["↵"], description: m.shortcutOpen },
+    { keys: ["Esc"], description: m.shortcutClose },
+  ];
+}
+
+/** {@link defaultShortcuts} in English. */
+export const DEFAULT_SHORTCUTS: ReadonlyArray<ShortcutHint> = defaultShortcuts();
 
 const THEME_OPTIONS: ReadonlyArray<{
   readonly value: ThemeChoice;
-  readonly label: string;
+  readonly label: "themeSystem" | "themeLight" | "themeDark";
   readonly Icon: typeof SunIcon;
 }> = [
-  { value: "system", label: "System", Icon: DesktopIcon },
-  { value: "light", label: "Light", Icon: SunIcon },
-  { value: "dark", label: "Dark", Icon: MoonIcon },
+  { value: "system", label: "themeSystem", Icon: DesktopIcon },
+  { value: "light", label: "themeLight", Icon: SunIcon },
+  { value: "dark", label: "themeDark", Icon: MoonIcon },
 ];
 
 export interface UserMenuProps {
@@ -78,10 +85,13 @@ export function UserMenu({
   email,
   avatarUrl,
   onSignOut,
-  shortcuts = DEFAULT_SHORTCUTS,
+  shortcuts: shortcutsProp,
   children,
 }: UserMenuProps): ReactNode {
-  const primary = name?.trim() || email || "Signed in";
+  const messages = useMessages();
+  const m = messages.shell;
+  const shortcuts = shortcutsProp ?? defaultShortcuts(messages);
+  const primary = name?.trim() || email || m.signedIn;
   const secondary = name?.trim() && email ? email : undefined;
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   // The stored choice only exists in the browser, and the server renders no
@@ -133,7 +143,7 @@ export function UserMenu({
             </DropdownMenu.Label>
             <DropdownMenu.Separator />
             <DropdownMenu.Label className="font-normal text-muted-foreground text-xs">
-              Theme
+              {m.theme}
             </DropdownMenu.Label>
             <DropdownMenu.RadioGroup
               value={choice ?? "system"}
@@ -148,14 +158,14 @@ export function UserMenu({
                   closeOnClick={false}
                 >
                   <Icon aria-hidden />
-                  {label}
+                  {m[label]}
                 </DropdownMenu.RadioItem>
               ))}
             </DropdownMenu.RadioGroup>
             <DropdownMenu.Separator />
             <DropdownMenu.Item onClick={() => setShortcutsOpen(true)}>
               <KeyboardIcon aria-hidden />
-              Keyboard shortcuts
+              {m.keyboardShortcuts}
             </DropdownMenu.Item>
             {children ? (
               <>
@@ -168,7 +178,7 @@ export function UserMenu({
                 <DropdownMenu.Separator />
                 <DropdownMenu.Item onClick={onSignOut}>
                   <SignOutIcon aria-hidden />
-                  Sign out
+                  {m.signOut}
                 </DropdownMenu.Item>
               </>
             ) : null}
@@ -180,8 +190,8 @@ export function UserMenu({
         <Dialog.Root open={shortcutsOpen} onOpenChange={setShortcutsOpen}>
           <Dialog.Content className="max-w-md">
             <Dialog.Header>
-              <Dialog.Title>Keyboard shortcuts</Dialog.Title>
-              <Dialog.Description>Everything the admin listens for.</Dialog.Description>
+              <Dialog.Title>{m.keyboardShortcuts}</Dialog.Title>
+              <Dialog.Description>{m.keyboardShortcutsDescription}</Dialog.Description>
             </Dialog.Header>
             <dl data-slot="shortcut-list" className="grid gap-2 text-sm">
               {shortcuts.map((shortcut) => (

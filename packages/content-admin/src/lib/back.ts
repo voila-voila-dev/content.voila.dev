@@ -2,7 +2,7 @@
 // (detail / new) returns to its list; a list returns home. One place so every
 // header agrees (the sidebar's section back row uses the same target).
 
-import { homeHref } from "@voila/content-ui";
+import { homeHref, type Messages, messagesEn } from "@voila/content-ui";
 
 export interface BackTarget {
   readonly href: string;
@@ -15,11 +15,16 @@ export function listHref(basePath: string, slug: string): string {
 }
 
 /** Back from an entity page (detail / new / edit) → its list. */
-export function backToList(basePath: string, slug: string, label: string): BackTarget {
-  return { href: listHref(basePath, slug), label: `Back to ${label}` };
+export function backToList(
+  basePath: string,
+  slug: string,
+  label: string,
+  m: Messages["admin"] = messagesEn.admin,
+): BackTarget {
+  return { href: listHref(basePath, slug), label: m.backTo(label) };
 }
 
 /** Back from a list page → the dashboard. */
-export function backToHome(basePath: string): BackTarget {
-  return { href: homeHref(basePath), label: "Back to overview" };
+export function backToHome(basePath: string, m: Messages["admin"] = messagesEn.admin): BackTarget {
+  return { href: homeHref(basePath), label: m.backToOverview };
 }

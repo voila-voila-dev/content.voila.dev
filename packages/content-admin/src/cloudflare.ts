@@ -51,6 +51,13 @@ export interface CreateWorkerAdminOptions
    * production build, so the deployed Worker still pins its origin.
    */
   readonly dev?: boolean;
+  /**
+   * Language of the magic-link email (`"fr-FR"` → French). Pass the same
+   * value as `defineAdmin({ locale })`. Default English.
+   */
+  readonly locale?: string;
+  /** Brand named in the email subject. Defaults to the config's `branding.name`. */
+  readonly brand?: string;
 }
 
 /**
@@ -76,7 +83,12 @@ export function createWorkerAdmin(
 
   const mailer =
     env.RESEND_API_KEY && env.VOILA_AUTH_FROM
-      ? resendMailer({ apiKey: env.RESEND_API_KEY, from: env.VOILA_AUTH_FROM })
+      ? resendMailer({
+          apiKey: env.RESEND_API_KEY,
+          from: env.VOILA_AUTH_FROM,
+          brand: options.brand ?? config.branding.name,
+          locale: options.locale,
+        })
       : undefined;
 
   return createAdminRuntime(config, {
