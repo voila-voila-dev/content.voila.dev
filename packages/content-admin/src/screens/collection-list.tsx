@@ -344,7 +344,12 @@ export function CollectionListScreen(): ReactNode {
   }
 
   function selectView(id: string) {
-    navigate({ to: ".", search: (prev: Record<string, unknown>) => ({ ...prev, view: id }) });
+    // `as never`: the host's registered router types its own search params
+    // (a site route may declare `{ ville?: string }`); the admin only adds `view`.
+    navigate({
+      to: ".",
+      search: ((prev: Record<string, unknown>) => ({ ...prev, view: id })) as never,
+    });
   }
 
   // View CRUD; the hook invalidates the views query. Creating selects the new
