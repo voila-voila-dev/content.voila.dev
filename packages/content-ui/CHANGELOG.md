@@ -1,5 +1,35 @@
 # @voila/content-ui
 
+## 0.5.0
+
+### Minor Changes
+
+- [#53](https://github.com/voila-voila-dev/content.voila.dev/pull/53) [`9a1f1ea`](https://github.com/voila-voila-dev/content.voila.dev/commit/9a1f1ea2ea38070f2e1cc5a1bf80fd1131e36624) Thanks [@emilienbidet](https://github.com/emilienbidet)! - Admin in French, phone layout fixes, and a per-field widget option.
+
+  - **Chrome messages.** Every visible string of the admin ("Save", "Showing 3 of
+    12", "Sign out", validation, toasts, the login screen) now comes from a
+    message catalog. `defineAdmin({ locale: "fr-FR" })` switches the whole admin
+    to French, not just the dates and numbers; `defineAdmin({ messages })`
+    rewords any key (`{ common: { save: "Publier" } }`). `MessagesProvider`,
+    `useMessages`, `resolveMessages` and the `en`/`fr` catalogs are exported
+    from `@voila/content-ui`; components outside a provider stay in English.
+  - **Magic-link email.** `resendMailer({ locale })` writes the subject and body
+    in French; `createWorkerAdmin` takes `locale` (pass the same value as
+    `defineAdmin`) and now names the site in the subject (`brand`, defaulting
+    to the config's `branding.name`, where it said "Voila" before).
+  - **Phone.** The read view stacks each label above its value below 640px,
+    and the previous/next record arrows are hidden there so the header keeps
+    room for the title and actions.
+  - **`widget` on every field.** `fields.string({ widget: "cdnImage" })` picks
+    the admin widget for that one field, looked up in the registries before
+    the field's kind — inside arrays, objects and blocks too. Register it with
+    `defineAdmin({ widgets: { edit: { cdnImage }, display: { cdnImage } } })`.
+
+### Patch Changes
+
+- Updated dependencies [[`9a1f1ea`](https://github.com/voila-voila-dev/content.voila.dev/commit/9a1f1ea2ea38070f2e1cc5a1bf80fd1131e36624)]:
+  - @voila/content@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

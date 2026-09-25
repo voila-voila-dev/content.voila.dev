@@ -1,5 +1,12 @@
 # create-content-voila
 
+## 0.1.6
+
+### Patch Changes
+
+- Updated dependencies [[`9a1f1ea`](https://github.com/voila-voila-dev/content.voila.dev/commit/9a1f1ea2ea38070f2e1cc5a1bf80fd1131e36624)]:
+  - @voila/content@0.5.0
+
 ## 0.1.5
 
 ### Patch Changes
