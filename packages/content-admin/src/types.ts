@@ -212,6 +212,12 @@ export interface DefineAdminOptions<C extends NormalizedConfig = NormalizedConfi
    * `"fr"` / `"fr-FR"` render it in French; anything else in English.
    */
   readonly locale?: string;
+  /**
+   * Sign-in screen options. `firstAccountIsAdmin` (default `true`) keeps the
+   * "the first account to sign in becomes the admin" line; set it to `false`
+   * when an access policy (e.g. `allowlistAccess()`) decides who gets in.
+   */
+  readonly signIn?: { readonly firstAccountIsAdmin?: boolean };
   /** Reword any chrome message, per area (`{ common: { save: "Publish" } }`). */
   readonly messages?: MessageOverrides;
   /**
@@ -265,6 +271,8 @@ export interface AdminInstance<C extends NormalizedConfig = NormalizedConfig> {
    * `i18n` locales, which pick WHICH translation of a localized field to show.
    */
   readonly locale?: string;
+  /** Sign-in screen options, defaults applied. */
+  readonly signIn: { readonly firstAccountIsAdmin: boolean };
   /** The chrome's messages: the `locale`'s catalog with overrides applied. */
   readonly messages: Messages;
   /** Live-preview targets by slug (see {@link DefineAdminOptions.preview}). */

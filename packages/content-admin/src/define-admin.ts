@@ -100,6 +100,7 @@ export function defineAdmin<C extends NormalizedConfig>(
     counts: options.counts,
     locale: options.locale,
     messages: resolveMessages(options.locale, options.messages),
+    signIn: { firstAccountIsAdmin: options.signIn?.firstAccountIsAdmin ?? true },
     preview: options.preview ?? {},
   };
 }

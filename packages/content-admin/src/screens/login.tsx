@@ -1,7 +1,8 @@
 // The magic-link login screen. Mounted by the host's `login.tsx` shim
 // (un-nested from the guard so a signed-out visitor isn't bounced in a loop).
 // Submitting emails a sign-in link; in dev it prints to the server console. The
-// first account to sign in becomes the admin. Branded from `admin.branding` +
+// first account to sign in becomes the admin (said on screen unless
+// `signIn.firstAccountIsAdmin` is false, e.g. behind an allowlist). Branded from `admin.branding` +
 // the config's `branding.name`, built on the kit's form primitives, with an
 // explicit "check your inbox" state and an inline error state.
 
@@ -64,7 +65,10 @@ export function LoginScreen(): ReactNode {
         <Card.Root>
           <Card.Header>
             <Card.Title>{m.signInTitle}</Card.Title>
-            <Card.Description>{m.signInDescription}</Card.Description>
+            <Card.Description>
+              {m.signInDescription}
+              {admin.signIn.firstAccountIsAdmin ? ` ${m.signInFirstAccount}` : null}
+            </Card.Description>
           </Card.Header>
           <Card.Content>
             {sent ? (

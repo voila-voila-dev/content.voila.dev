@@ -8,8 +8,9 @@ const fiches = (n: number) => (n > 1 ? "fiches" : "fiche");
 export const en = {
   // Login
   signInTitle: "Sign in",
-  signInDescription:
-    "We'll email you a magic link. The first account to sign in becomes the admin.",
+  signInDescription: "We'll email you a magic link.",
+  /** Shown after `signInDescription` unless `defineAdmin({ signIn: { firstAccountIsAdmin: false } })`. */
+  signInFirstAccount: "The first account to sign in becomes the admin.",
   checkInbox: "Check your inbox",
   sentLinkBefore: "We sent a sign-in link to",
   sentLinkAfter: ". It expires shortly, so open it soon.",
@@ -128,8 +129,8 @@ export const en = {
 
 export const fr: typeof en = {
   signInTitle: "Connexion",
-  signInDescription:
-    "Nous vous envoyons un lien de connexion par e-mail. Le premier compte connecté devient administrateur.",
+  signInDescription: "Nous vous envoyons un lien de connexion par e-mail.",
+  signInFirstAccount: "Le premier compte connecté devient administrateur.",
   checkInbox: "Consultez votre boîte mail",
   sentLinkBefore: "Nous avons envoyé un lien de connexion à",
   sentLinkAfter: ". Il expire vite : ouvrez-le rapidement.",
