@@ -1,5 +1,12 @@
 # create-content-voila
 
+## 0.1.7
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @voila/content@0.5.1
+
 ## 0.1.6
 
 ### Patch Changes

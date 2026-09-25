@@ -1,5 +1,17 @@
 # @voila/content-admin
 
+## 0.5.1
+
+### Patch Changes
+
+- [#55](https://github.com/voila-voila-dev/content.voila.dev/pull/55) [`d6ccd59`](https://github.com/voila-voila-dev/content.voila.dev/commit/d6ccd597210d395b5c67ae22a7929acdf4cb2da2) Thanks [@emilienbidet](https://github.com/emilienbidet)! - The sign-in screen's "the first account to sign in becomes the admin" line is
+  now its own message (`admin.signInFirstAccount`) and can be turned off with
+  `defineAdmin({ signIn: { firstAccountIsAdmin: false } })` — for admins behind
+  an access policy such as `allowlistAccess()`, where it isn't true.
+- Updated dependencies [[`d6ccd59`](https://github.com/voila-voila-dev/content.voila.dev/commit/d6ccd597210d395b5c67ae22a7929acdf4cb2da2)]:
+  - @voila/content-ui@0.5.1
+  - @voila/content@0.5.1
+
 ## 0.5.0
 
 ### Minor Changes
