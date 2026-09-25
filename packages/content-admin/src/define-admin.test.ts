@@ -56,4 +56,11 @@ describe("defineAdmin — formatting locale", () => {
   it("carries the configured locale onto the instance", () => {
     expect(defineAdmin({ config, locale: "fr-FR" }).locale).toBe("fr-FR");
   });
+
+  it("says the first account becomes admin unless told otherwise", () => {
+    expect(defineAdmin({ config }).signIn.firstAccountIsAdmin).toBe(true);
+    expect(
+      defineAdmin({ config, signIn: { firstAccountIsAdmin: false } }).signIn.firstAccountIsAdmin,
+    ).toBe(false);
+  });
 });
