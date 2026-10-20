@@ -33,4 +33,9 @@
   // Secrets are NOT committed. Set them on the Worker with:
   //   wrangler secret put VOILA_AUTH_SECRET   (the value is in .env)
   //   wrangler secret put RESEND_API_KEY      (optional, for real email)
+  //
+  // Or send magic links with Cloudflare Email Service instead of Resend (no API
+  // key): `wrangler email sending enable {{clientDomain}}`, then add
+  //   "send_email": [{ "name": "EMAIL" }],
+  //   "vars": { "VOILA_AUTH_FROM": "Admin <admin@{{clientDomain}}>" }
 }
