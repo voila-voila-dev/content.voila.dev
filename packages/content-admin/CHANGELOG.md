@@ -1,5 +1,22 @@
 # @voila/content-admin
 
+## 0.6.0
+
+### Minor Changes
+
+- [#57](https://github.com/voila-voila-dev/content.voila.dev/pull/57) [`cba153a`](https://github.com/voila-voila-dev/content.voila.dev/commit/cba153a093abc70b71aacc3d9cf65599bf642672) Thanks [@emilienbidet](https://github.com/emilienbidet)! - Send magic links with Cloudflare Email Service as an alternative to Resend.
+  `@voila/content/better-auth` exports `cloudflareMailer({ binding, from })` over the
+  Workers `send_email` binding. `createWorkerAdmin` picks it up from an `EMAIL`
+  binding (with `VOILA_AUTH_FROM`) when no `RESEND_API_KEY` is set, and takes a new
+  `mailer` option — `"cloudflare"`, `"resend"`, `"console"` or a custom `Mailer` — to
+  choose explicitly.
+
+### Patch Changes
+
+- Updated dependencies [[`cba153a`](https://github.com/voila-voila-dev/content.voila.dev/commit/cba153a093abc70b71aacc3d9cf65599bf642672)]:
+  - @voila/content@0.6.0
+  - @voila/content-ui@0.6.0
+
 ## 0.5.1
 
 ### Patch Changes
