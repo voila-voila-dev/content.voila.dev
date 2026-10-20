@@ -11,7 +11,8 @@ VOILA_AUTH_SECRET=
 # in dev. In production set it as a var, e.g.:
 # VOILA_BASE_URL=https://admin.example.com
 
-# Real email via Resend (else magic links print to the dev console):
-# On the Worker: wrangler secret put RESEND_API_KEY
+# Real email (else magic links print to the dev console): VOILA_AUTH_FROM plus
+# either Resend (wrangler secret put RESEND_API_KEY) or Cloudflare Email Service
+# (the `send_email` binding in wrangler.jsonc, no key needed).
 # RESEND_API_KEY=re_...
 # VOILA_AUTH_FROM="Acme <admin@acme.dev>"

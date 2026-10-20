@@ -74,12 +74,18 @@ with all three protections out of the box (`app/lib/server.ts`):
 # .env (create-content-voila writes one with a generated secret; .env is git-ignored)
 VOILA_AUTH_SECRET=…        # signs sessions, magic-link tokens, and the CSRF token
 VOILA_BASE_URL=http://localhost:3000
-# RESEND_API_KEY + VOILA_AUTH_FROM → real email; otherwise links print to the terminal
+# VOILA_AUTH_FROM + RESEND_API_KEY (or the EMAIL send_email binding) → real email;
+# otherwise links print to the terminal
 ```
 
 In dev, magic links are printed to the server terminal (`[voila/auth] magic
-link …`) — no mail provider needed. Set `RESEND_API_KEY` and `VOILA_AUTH_FROM`
-to send real email in production. `voila migrate generate --auth` (the default
+link …`) — no mail provider needed. To send real email in production, set
+`VOILA_AUTH_FROM` plus either `RESEND_API_KEY` (Resend) or a Cloudflare Email
+Service binding — `"send_email": [{ "name": "EMAIL" }]` in `wrangler.jsonc`, the
+sender's domain onboarded with `wrangler email sending enable <domain>`, no API
+key. With both, Resend wins; pick one explicitly with
+`createWorkerAdmin(config, { mailer: "cloudflare" })` (`"resend"`, `"console"`, or
+your own `Mailer` object). `voila migrate generate --auth` (the default
 `migrate:generate` script) provisions the Better Auth tables alongside your
 content tables.
 

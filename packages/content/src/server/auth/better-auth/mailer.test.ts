@@ -1,8 +1,10 @@
 // Mailer unit tests: the console default logs the link; the Resend mailer POSTs
-// the expected request and surfaces transport failures. `fetch` is injected so
-// no network call happens.
+// the expected request and the Cloudflare mailer calls its `send_email` binding;
+// both surface transport failures. `fetch` and the binding are injected so no
+// network call happens.
 
 import { describe, expect, it } from "bun:test";
+import { cloudflareMailer, parseFromAddress, type SendEmailBindingLike } from "./cloudflare-mailer";
 import { consoleMailer, type MagicLinkMessage } from "./mailer";
 import { resendMailer } from "./resend-mailer";
 
@@ -91,5 +93,77 @@ describe("resendMailer", () => {
       new Response("nope", { status: 422, statusText: "Unprocessable" });
     const mailer = resendMailer({ apiKey: "k", from: "a@b.dev", fetch: fetchStub });
     await expect(mailer.send(message)).rejects.toThrow(/422/);
+  });
+});
+
+describe("cloudflareMailer", () => {
+  function recordingBinding() {
+    const sent: Parameters<SendEmailBindingLike["send"]>[0][] = [];
+    const binding: SendEmailBindingLike = {
+      async send(email) {
+        sent.push(email);
+        return { messageId: "m_1" };
+      },
+    };
+    return { binding, sent };
+  }
+
+  it("sends through the binding with from/to/subject and the link in the body", async () => {
+    const { binding, sent } = recordingBinding();
+    const mailer = cloudflareMailer({ binding, from: "Acme <auth@app.test>", brand: "Acme" });
+    await mailer.send(message);
+
+    expect(mailer.id).toBe("cloudflare");
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.from).toEqual({ email: "auth@app.test", name: "Acme" });
+    expect(sent[0]?.to).toBe("user@example.com");
+    expect(sent[0]?.subject).toBe("Sign in to Acme");
+    expect(sent[0]?.html).toContain(message.url);
+    expect(sent[0]?.text).toContain(message.url);
+  });
+
+  it("writes the subject and body in the locale's language", async () => {
+    const { binding, sent } = recordingBinding();
+    await cloudflareMailer({ binding, from: "a@b.dev", brand: "Acme", locale: "fr-FR" }).send(
+      message,
+    );
+    expect(sent[0]?.from).toBe("a@b.dev");
+    expect(sent[0]?.subject).toBe("Connexion à Acme");
+    expect(sent[0]?.text).toContain("Pour vous connecter");
+  });
+
+  it("takes a `{ email, name }` sender as is", async () => {
+    const { binding, sent } = recordingBinding();
+    await cloudflareMailer({ binding, from: { email: "a@b.dev", name: "B" } }).send(message);
+    expect(sent[0]?.from).toEqual({ email: "a@b.dev", name: "B" });
+  });
+
+  it("throws when the binding rejects", async () => {
+    const binding: SendEmailBindingLike = {
+      async send() {
+        throw new Error("domain not verified");
+      },
+    };
+    await expect(cloudflareMailer({ binding, from: "a@b.dev" }).send(message)).rejects.toThrow(
+      /cloudflareMailer: send failed domain not verified/,
+    );
+  });
+});
+
+describe("parseFromAddress", () => {
+  it("splits a display name from the address", () => {
+    expect(parseFromAddress("Les Chalets de Pyrène <admin@mail.test>")).toEqual({
+      email: "admin@mail.test",
+      name: "Les Chalets de Pyrène",
+    });
+    expect(parseFromAddress('"Acme, Inc." <a@acme.dev>')).toEqual({
+      email: "a@acme.dev",
+      name: "Acme, Inc.",
+    });
+  });
+
+  it("passes a bare address through", () => {
+    expect(parseFromAddress(" a@acme.dev ")).toEqual({ email: "a@acme.dev" });
+    expect(parseFromAddress("<a@acme.dev>")).toEqual({ email: "a@acme.dev" });
   });
 });

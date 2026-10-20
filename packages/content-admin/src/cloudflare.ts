@@ -9,7 +9,12 @@
 
 import { env as workerEnv } from "cloudflare:workers";
 import type { NormalizedConfig } from "@voila/content";
-import { resendMailer } from "@voila/content/better-auth";
+import {
+  cloudflareMailer,
+  type Mailer,
+  resendMailer,
+  type SendEmailBindingLike,
+} from "@voila/content/better-auth";
 import {
   type D1Binding,
   makeD1Driver,
@@ -28,11 +33,22 @@ export interface WorkerAdminEnv {
   readonly VOILA_AUTH_SECRET: string;
   /** Deployed origin, e.g. `https://admin.acme.com`. */
   readonly VOILA_BASE_URL?: string;
-  /** Resend API key for real magic-link email; absent → console mailer. */
+  /** Resend API key for real magic-link email (`mailer: "resend"`). */
   readonly RESEND_API_KEY?: string;
+  /**
+   * Cloudflare Email Service binding (`send_email[].name = "EMAIL"`) for real
+   * magic-link email without an API key (`mailer: "cloudflare"`).
+   */
+  readonly EMAIL?: SendEmailBindingLike;
   /** From address for magic-link email, e.g. `Acme <admin@acme.com>`. */
   readonly VOILA_AUTH_FROM?: string;
 }
+
+/**
+ * Magic-link transport: `"cloudflare"` (the `EMAIL` binding), `"resend"`
+ * (`RESEND_API_KEY`), `"console"` (links in the logs), or your own `Mailer`.
+ */
+export type WorkerMailer = "cloudflare" | "resend" | "console" | Mailer;
 
 export interface CreateWorkerAdminOptions
   extends Pick<
@@ -58,6 +74,57 @@ export interface CreateWorkerAdminOptions
   readonly locale?: string;
   /** Brand named in the email subject. Defaults to the config's `branding.name`. */
   readonly brand?: string;
+  /**
+   * How magic links are sent. Omitted, the env decides: Resend when
+   * `RESEND_API_KEY` + `VOILA_AUTH_FROM` are set, else Cloudflare Email Service
+   * when the `EMAIL` binding + `VOILA_AUTH_FROM` are, else the console. Named
+   * explicitly, a provider whose config is missing throws — except under `dev`,
+   * where it falls back to the console.
+   */
+  readonly mailer?: WorkerMailer;
+}
+
+/**
+ * The `Mailer` `createWorkerAdmin` hands to Better Auth (`undefined` → the
+ * console mailer). Exported for tests and for hosts building their own runtime.
+ */
+export function resolveWorkerMailer(
+  env: WorkerAdminEnv,
+  options: Pick<CreateWorkerAdminOptions, "mailer" | "locale" | "dev">,
+  brand: string,
+): Mailer | undefined {
+  const choice = options.mailer;
+  if (typeof choice === "object") return choice;
+  const from = env.VOILA_AUTH_FROM;
+  const provider =
+    choice ??
+    (env.RESEND_API_KEY && from ? "resend" : env.EMAIL && from ? "cloudflare" : "console");
+  const wording = { brand, locale: options.locale };
+
+  if (provider === "resend") {
+    if (env.RESEND_API_KEY && from) {
+      return resendMailer({ apiKey: env.RESEND_API_KEY, from, ...wording });
+    }
+    return missingMailerConfig(options, "resend", "the RESEND_API_KEY secret and VOILA_AUTH_FROM");
+  }
+  if (provider === "cloudflare") {
+    if (env.EMAIL && from) return cloudflareMailer({ binding: env.EMAIL, from, ...wording });
+    return missingMailerConfig(
+      options,
+      "cloudflare",
+      'the `"send_email": [{ "name": "EMAIL" }]` binding and VOILA_AUTH_FROM',
+    );
+  }
+  return undefined;
+}
+
+function missingMailerConfig(
+  options: Pick<CreateWorkerAdminOptions, "dev">,
+  provider: string,
+  needs: string,
+): undefined {
+  if (options.dev) return undefined;
+  throw new Error(`createWorkerAdmin: mailer "${provider}" needs ${needs}.`);
 }
 
 /**
@@ -81,15 +148,7 @@ export function createWorkerAdmin(
     );
   }
 
-  const mailer =
-    env.RESEND_API_KEY && env.VOILA_AUTH_FROM
-      ? resendMailer({
-          apiKey: env.RESEND_API_KEY,
-          from: env.VOILA_AUTH_FROM,
-          brand: options.brand ?? config.branding.name,
-          locale: options.locale,
-        })
-      : undefined;
+  const mailer = resolveWorkerMailer(env, options, options.brand ?? config.branding.name);
 
   return createAdminRuntime(config, {
     driver: makeD1Driver(env.DB),

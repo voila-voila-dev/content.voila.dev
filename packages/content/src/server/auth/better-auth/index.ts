@@ -6,11 +6,19 @@
 export { firstUserAccess } from "./access";
 export { makeSqlAdapter } from "./adapter";
 export {
+  type CloudflareEmailAddress,
+  type CloudflareMailerOptions,
+  cloudflareMailer,
+  parseFromAddress,
+  type SendEmailBindingLike,
+} from "./cloudflare-mailer";
+export {
   type BetterAuthBridge,
   type BetterAuthOptions_,
   DEFAULT_AUTH_BASE_PATH,
   makeBetterAuth,
   parseDurationSeconds,
 } from "./instance";
+export type { MagicLinkEmailOptions } from "./magic-link-email";
 export { type ConsoleLogger, consoleMailer, type MagicLinkMessage, type Mailer } from "./mailer";
 export { type ResendMailerOptions, resendMailer } from "./resend-mailer";
